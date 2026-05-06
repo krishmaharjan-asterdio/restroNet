@@ -1,0 +1,153 @@
+const Review = require('../models/Review');
+const Venue = require('../models/Venue');
+const { buildRestaurantFeatureVector } = require('../services/cbf-pipeline');
+
+/**
+ * @desc    Get reviews for a venue
+ * @route   GET /api/reviews/venue/:venueId
+ * @access  Public
+ */
+const getVenueReviews = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const options = {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      populate: { path: 'user', select: 'name avatar' },
+      sort: { createdAt: -1 },
+    };
+
+    const reviews = await Review.paginate(
+      { venue: req.params.venueId, isApproved: true, isHidden: false },
+      options
+    );
+
+    res.json({ success: true, ...reviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Add a review
+ * @route   POST /api/reviews/venue/:venueId
+ * @access  Private (User)
+ */
+const addReview = async (req, res, next) => {
+  try {
+    const venueExists = await Venue.findById(req.params.venueId);
+    if (!venueExists) {
+      return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+
+    // Check if user already left a review
+    const existingReview = await Review.findOne({
+      venue: req.params.venueId,
+      user: req.user._id,
+    });
+
+    if (existingReview) {
+      return res.status(400).json({ success: false, message: 'You have already reviewed this venue' });
+    }
+
+    const review = await Review.create({
+      venue: req.params.venueId,
+      user: req.user._id,
+      rating: req.body.rating,
+      title: req.body.title,
+      comment: req.body.comment,
+    });
+
+    // Rating changes affect the normalized rating in CBF feature vector
+    // We rebuild the feature vector asynchronously
+    buildRestaurantFeatureVector(req.params.venueId).catch(console.error);
+
+    res.status(201).json({ success: true, review });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete user's own review
+ * @route   DELETE /api/reviews/:id
+ * @access  Private (User)
+ */
+const deleteReview = async (req, res, next) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+
+    if (review.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this review' });
+    }
+
+    const venueId = review.venue;
+    await review.deleteOne();
+
+    buildRestaurantFeatureVector(venueId).catch(console.error);
+
+    res.json({ success: true, message: 'Review deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all reviews (Admin moderation)
+ * @route   GET /api/reviews/admin
+ * @access  Private (Admin)
+ */
+const getAllReviewsAdmin = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const reviews = await Review.paginate({}, {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      populate: [
+        { path: 'user', select: 'name email' },
+        { path: 'venue', select: 'name' }
+      ],
+      sort: { createdAt: -1 }
+    });
+
+    res.json({ success: true, ...reviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Toggle review visibility (Admin)
+ * @route   PUT /api/reviews/admin/:id/toggle
+ * @access  Private (Admin)
+ */
+const toggleReviewVisibility = async (req, res, next) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+
+    review.isHidden = !review.isHidden;
+    await review.save();
+
+    // Re-trigger static recalculation of venue rating
+    await Review.recalculateRating(review.venue);
+    buildRestaurantFeatureVector(review.venue).catch(console.error);
+
+    res.json({ success: true, review });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getVenueReviews,
+  addReview,
+  deleteReview,
+  getAllReviewsAdmin,
+  toggleReviewVisibility,
+};
