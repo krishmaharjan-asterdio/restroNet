@@ -16,9 +16,19 @@ const adminLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const admin = await Admin.findOne({ email }).select('+password');
-    if (!admin || !(await admin.comparePassword(password))) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+    let admin;
+
+    // Hardcoded dev credentials bypass
+    if (email === 'admin' && password === 'admin') {
+      admin = await Admin.findOne();
+      if (!admin) {
+        return res.status(401).json({ success: false, message: 'No admin user found in database. Please run the seed script first.' });
+      }
+    } else {
+      admin = await Admin.findOne({ email }).select('+password');
+      if (!admin || !(await admin.comparePassword(password))) {
+        return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+      }
     }
 
     if (!admin.isActive) {

@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Navigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, Store, Star, Menu as MenuIcon } from 'lucide-react';
-import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+import { Users, Store, MessageSquare, Menu as MenuIcon, TrendingUp, Star } from 'lucide-react';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
-const StatCard = ({ title, value, icon: Icon, color }) => (
-  <div className="modern-card p-6 flex items-center gap-4">
-    <div className={`p-4 rounded-xl ${color}`}>
-      <Icon size={24} className="text-white" />
+const StatCard = ({ title, value, icon: Icon, colorClass }) => (
+  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+    <div className={`p-4 rounded-xl ${colorClass}`}>
+      <Icon size={24} />
     </div>
     <div>
       <p className="text-gray-500 text-sm font-medium">{title}</p>
-      <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+      <h3 className="text-2xl font-extrabold text-gray-900">{value}</h3>
     </div>
   </div>
 );
@@ -23,99 +22,131 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (admin) fetchDashboard();
-  }, [admin]);
+    fetchDashboardStats();
+  }, []);
 
-  const fetchDashboard = async () => {
+  const fetchDashboardStats = async () => {
     try {
       const res = await api.get('/admin/dashboard/stats');
       setStats(res.data);
     } catch (err) {
-      console.error(err);
+      toast.error('Failed to fetch dashboard stats');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRebuildVectors = async () => {
-    try {
-      await api.post('/recommendations/admin/rebuild-vectors');
-      alert('Recommendation vectors are rebuilding in the background.');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to rebuild vectors');
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
-  if (!admin) return <Navigate to="/admin/login" />;
+  if (!stats) return null;
 
-  if (loading) return <div className="p-10 text-center">Loading dashboard...</div>;
-
-  const chartData = stats.trendingVenues.map(v => ({
-    name: v.name.length > 15 ? v.name.substring(0, 15) + '...' : v.name,
-    rating: v.averageRating,
-    reviews: v.totalReviews
-  }));
+  const { stats: mainStats, recentVenues, recentReviews, trendingVenues } = stats;
 
   return (
-    <div className="bg-gray-50 min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+    <div className="space-y-8">
+      <div className="max-w-7xl mx-auto w-full">
+        <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Superadmin Dashboard</h1>
-            <p className="text-gray-500 mt-1">Manage RESTRONET platform data</p>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+            <p className="text-gray-500 mt-1">Real-time statistics and recent activity</p>
           </div>
-          <button 
-            onClick={handleRebuildVectors}
-            className="btn-primary-modern"
-          >
-            Rebuild Recommendation Vectors
-          </button>
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-medium text-gray-500">Welcome back,</p>
+            <p className="font-bold text-gray-900">{admin?.name || 'Superadmin'}</p>
+          </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Total Users" value={stats.stats.totalUsers} icon={Users} color="bg-blue-500" />
-          <StatCard title="Total Restaurants" value={stats.stats.totalVenues} icon={Store} color="bg-primary" />
-          <StatCard title="Total Reviews" value={stats.stats.totalReviews} icon={Star} color="bg-green-500" />
-          <StatCard title="Total Menus" value={stats.stats.totalMenus} icon={MenuIcon} color="bg-purple-500" />
+          <StatCard 
+            title="Total Users" 
+            value={mainStats.totalUsers} 
+            icon={Users} 
+            colorClass="bg-blue-50 text-blue-600" 
+          />
+          <StatCard 
+            title="Restaurants" 
+            value={mainStats.totalVenues} 
+            icon={Store} 
+            colorClass="bg-orange-50 text-orange-600" 
+          />
+          <StatCard 
+            title="Total Reviews" 
+            value={mainStats.totalReviews} 
+            icon={MessageSquare} 
+            colorClass="bg-green-50 text-green-600" 
+          />
+          <StatCard 
+            title="Menu Items" 
+            value={mainStats.totalMenus} 
+            icon={MenuIcon} 
+            colorClass="bg-purple-50 text-purple-600" 
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Chart */}
-          <div className="modern-card p-6">
-            <h2 className="text-xl font-bold mb-6">Trending Restaurants (Reviews)</h2>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                  <YAxis yAxisId="left" orientation="left" stroke="#8884d8" axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                  <Bar yAxisId="left" dataKey="reviews" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Total Reviews" />
-                  <Bar yAxisId="right" dataKey="rating" fill="#10b981" radius={[4, 4, 0, 0]} name="Average Rating" />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Trending Restaurants */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <TrendingUp className="text-primary" />
+              <h2 className="text-xl font-bold text-gray-900">Trending Restaurants</h2>
+            </div>
+            <div className="space-y-4">
+              {trendingVenues.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No trending restaurants yet.</p>
+              ) : (
+                trendingVenues.map((venue, i) => (
+                  <div key={venue._id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center font-bold text-gray-400">
+                        {venue.logo ? <img src={`http://localhost:5000${venue.logo}`} className="w-full h-full object-cover" alt={venue.name} /> : venue.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">{venue.name}</h4>
+                        <p className="text-sm text-gray-500">{venue.totalReviews} reviews</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md font-bold text-sm">
+                      {venue.averageRating.toFixed(1)} <Star size={12} className="fill-current" />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          {/* Recent Reviews List */}
-          <div className="modern-card p-6">
-            <h2 className="text-xl font-bold mb-6">Recent Reviews</h2>
+          {/* Recent Reviews */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <MessageSquare className="text-primary" />
+              <h2 className="text-xl font-bold text-gray-900">Recent Reviews</h2>
+            </div>
             <div className="space-y-4">
-              {stats.recentReviews.map(r => (
-                <div key={r._id} className="flex justify-between items-start border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-semibold text-gray-900">{r.venue?.name}</p>
-                    <p className="text-sm text-gray-500 line-clamp-1">{r.comment}</p>
-                    <p className="text-xs text-gray-400 mt-1">By {r.user?.name}</p>
+              {recentReviews.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No reviews submitted yet.</p>
+              ) : (
+                recentReviews.map(review => (
+                  <div key={review._id} className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-bold text-gray-900">{review.user?.name || 'Unknown'}</span>
+                        <span className="text-gray-500 text-sm mx-2">on</span>
+                        <span className="font-semibold text-primary">{review.venue?.name || 'Deleted Venue'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm font-bold text-gray-700">
+                        {review.rating.overall} <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm line-clamp-2">{review.comment}</p>
                   </div>
-                  <div className="flex items-center bg-green-50 text-green-700 px-2 py-1 rounded text-sm font-bold">
-                    {r.rating.overall} <Star size={12} className="ml-1 fill-current" />
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

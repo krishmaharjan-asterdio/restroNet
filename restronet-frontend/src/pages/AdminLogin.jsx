@@ -40,29 +40,29 @@ const AdminLogin = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
-            <input 
-              type="email" 
+            <input
+              type="string"
               name="email"
               value={formData.email}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500/50 outline-none transition-all"
-              required 
+              required
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500/50 outline-none transition-all"
-              required 
+              required
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-all"
           >

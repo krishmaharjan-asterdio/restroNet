@@ -15,11 +15,20 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     const adminToken = localStorage.getItem('adminToken');
     
-    if (config.url.startsWith('/admin') && adminToken) {
+    // Determine context based on the current browser URL
+    const isAdminContext = window.location.pathname.startsWith('/admin');
+    
+    if (isAdminContext && adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`;
+    } else if (!isAdminContext && token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    } else if (adminToken) {
+      // Fallback
       config.headers.Authorization = `Bearer ${adminToken}`;
     } else if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
