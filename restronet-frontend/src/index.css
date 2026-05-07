@@ -80,5 +80,50 @@
 }
 
 .btn-secondary-modern {
-  @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-200 shadow-sm transition-all active:scale-95;
+  @apply bg-white hover:bg-gray-50 text-gray-700 font-bold py-2.5 px-6 rounded-xl border border-gray-200 shadow-sm transition-all active:scale-95;
+}
+
+/* Utilities */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* AntD Overrides for a cleaner look */
+.restaurant-tabs .ant-tabs-nav::before {
+  border-bottom-color: #f3f4f6 !important;
+}
+.restaurant-tabs .ant-tabs-tab {
+  padding: 16px 0 !important;
+  margin: 0 !important;
+}
+.restaurant-tabs .ant-tabs-tab-btn {
+  color: #6b7280 !important;
+  font-size: 1.125rem !important;
+  transition: all 0.3s !important;
+}
+.restaurant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #111827 !important;
+}
+.restaurant-tabs .ant-tabs-ink-bar {
+  background: #111827 !important;
+  height: 3px !important;
+}
+
+/* Custom Leaflet Popup override */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: 220px !important;
+}
+.leaflet-popup-tip {
+  box-shadow: none !important;
 }
