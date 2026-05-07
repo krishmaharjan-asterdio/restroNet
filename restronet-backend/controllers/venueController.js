@@ -92,7 +92,7 @@ const createVenue = async (req, res, next) => {
  */
 const updateVenue = async (req, res, next) => {
   try {
-    const venue = await Venue.findByIdAndUpdate(req.params.id, req.body, {
+    const venue = await Venue.findByIdAndUpdate(req.params.idOrSlug, req.body, {
       new: true,
       runValidators: true,
     });
@@ -117,14 +117,14 @@ const updateVenue = async (req, res, next) => {
  */
 const deleteVenue = async (req, res, next) => {
   try {
-    const venue = await Venue.findByIdAndDelete(req.params.id);
+    const venue = await Venue.findByIdAndDelete(req.params.idOrSlug);
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
     }
 
     // Cleanup associated data
-    await Menu.deleteMany({ venue: req.params.id });
-    await Review.deleteMany({ venue: req.params.id });
+    await Menu.deleteMany({ venue: req.params.idOrSlug });
+    await Review.deleteMany({ venue: req.params.idOrSlug });
 
     res.json({ success: true, message: 'Venue deleted successfully' });
   } catch (error) {
