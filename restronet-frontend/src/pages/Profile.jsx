@@ -78,7 +78,7 @@ const Profile = () => {
     } catch (err) {
       toast.error('Failed to update preferences');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 

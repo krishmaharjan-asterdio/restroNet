@@ -4,14 +4,15 @@ import { Users, Store, MessageSquare, Menu as MenuIcon, TrendingUp, Star } from 
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-const StatCard = ({ title, value, icon: Icon, colorClass }) => (
-  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-    <div className={`p-4 rounded-xl ${colorClass}`}>
-      <Icon size={24} />
+const StatCard = ({ title, value, icon: Icon, colorClass, borderColor, trend }) => (
+  <div className={`bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all duration-200 border-l-4 ${borderColor}`}>
+    <div className={`p-3.5 rounded-xl ${colorClass} shrink-0`}>
+      <Icon size={22} />
     </div>
-    <div>
-      <p className="text-gray-500 text-sm font-medium">{title}</p>
-      <h3 className="text-2xl font-extrabold text-gray-900">{value}</h3>
+    <div className="flex-1 min-w-0">
+      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1">{title}</p>
+      <h3 className="text-3xl font-extrabold text-gray-900 tabular-nums">{value ?? '—'}</h3>
+      {trend && <p className="text-xs text-gray-400 font-medium mt-0.5">{trend}</p>}
     </div>
   </div>
 );
@@ -51,43 +52,26 @@ const AdminDashboard = () => {
   return (
     <div className="space-y-8">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-500 mt-1">Real-time statistics and recent activity</p>
+            <p className="text-gray-400 mt-1 text-sm">Real-time statistics and recent activity</p>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-500">Welcome back,</p>
-            <p className="font-bold text-gray-900">{admin?.name || 'Superadmin'}</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Welcome back</p>
+            <p className="font-bold text-gray-900 text-lg">{admin?.name || 'Admin'}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard 
-            title="Total Users" 
-            value={mainStats.totalUsers} 
-            icon={Users} 
-            colorClass="bg-blue-50 text-blue-600" 
-          />
-          <StatCard 
-            title="Restaurants" 
-            value={mainStats.totalVenues} 
-            icon={Store} 
-            colorClass="bg-orange-50 text-orange-600" 
-          />
-          <StatCard 
-            title="Total Reviews" 
-            value={mainStats.totalReviews} 
-            icon={MessageSquare} 
-            colorClass="bg-green-50 text-green-600" 
-          />
-          <StatCard 
-            title="Menu Items" 
-            value={mainStats.totalMenus} 
-            icon={MenuIcon} 
-            colorClass="bg-purple-50 text-purple-600" 
-          />
+          <StatCard title="Total Users"    value={mainStats.totalUsers}   icon={Users}       colorClass="bg-blue-50 text-blue-600"     borderColor="border-blue-400"   trend="Registered members" />
+          <StatCard title="Restaurants"    value={mainStats.totalVenues}  icon={Store}       colorClass="bg-orange-50 text-orange-600"  borderColor="border-orange-400" trend="Listed venues" />
+          <StatCard title="Total Reviews"  value={mainStats.totalReviews} icon={MessageSquare} colorClass="bg-green-50 text-green-600"  borderColor="border-green-400"  trend="User reviews" />
+          <StatCard title="Menu Items"     value={mainStats.totalMenus}   icon={MenuIcon}    colorClass="bg-purple-50 text-purple-600"  borderColor="border-purple-400" trend="Across all venues" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Search as SearchIcon, Filter, Map as MapIcon, List, Star } from 'lucide-react';
+import { Search as SearchIcon, Map as MapIcon, List, Star } from 'lucide-react';
 import api from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -125,46 +125,76 @@ const Search = () => {
         
         {/* Filters Header (Sticky) */}
         <div className="bg-white px-6 py-5 border-b border-gray-200 shadow-sm z-20">
-          <div className="flex flex-col sm:flex-row gap-4 items-center mb-4">
-            <div className="relative flex-1 w-full">
+          <div className="mb-4">
+            <div className="relative w-full">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search places or dishes..." 
+              <input
+                type="text"
+                placeholder="Search places or dishes..."
                 value={query}
                 onChange={(e) => setSearchParams({ q: e.target.value })}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-transparent rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-medium text-gray-700"
               />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 font-medium text-gray-700 w-full sm:w-auto justify-center transition-colors">
-              <Filter size={18} /> Filters
-            </button>
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            <select 
-              value={selectedCuisine}
-              onChange={(e) => setSelectedCuisine(e.target.value)}
-              className="py-1.5 px-3 border border-gray-200 rounded-full text-sm font-medium outline-none bg-white hover:border-gray-300 cursor-pointer text-gray-700 appearance-none min-w-[120px]"
-            >
-              <option value="">All Cuisines</option>
-              {cuisinesList.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-            </select>
-            
-            <select 
-              value={selectedRating}
-              onChange={(e) => setSelectedRating(e.target.value)}
-              className="py-1.5 px-3 border border-gray-200 rounded-full text-sm font-medium outline-none bg-white hover:border-gray-300 cursor-pointer text-gray-700 appearance-none min-w-[120px]"
-            >
-              <option value="">Any Rating</option>
-              <option value="4.5">4.5+ Stars</option>
-              <option value="4.0">4.0+ Stars</option>
-              <option value="3.5">3.5+ Stars</option>
-            </select>
+          <div className="space-y-2.5">
+            {/* Rating pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Rating</span>
+              {[
+                { label: 'All', value: '' },
+                { label: '4.5+ ★', value: '4.5' },
+                { label: '4.0+ ★', value: '4.0' },
+                { label: '3.5+ ★', value: '3.5' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedRating(opt.value)}
+                  className={`whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold border transition-all ${
+                    selectedRating === opt.value
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Cuisine pills */}
+            {cuisinesList.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Cuisine</span>
+                <button
+                  onClick={() => setSelectedCuisine('')}
+                  className={`whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold border transition-all ${
+                    selectedCuisine === ''
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  All
+                </button>
+                {cuisinesList.map(c => (
+                  <button
+                    key={c._id}
+                    onClick={() => setSelectedCuisine(c._id)}
+                    className={`whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold border transition-all ${
+                      selectedCuisine === c._id
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {(query || selectedCuisine || selectedRating) && (
-              <button onClick={clearFilters} className="text-sm font-bold text-primary whitespace-nowrap pl-2 hover:underline">
-                Clear All
+              <button onClick={clearFilters} className="text-sm font-bold text-primary hover:underline">
+                Clear all filters
               </button>
             )}
           </div>

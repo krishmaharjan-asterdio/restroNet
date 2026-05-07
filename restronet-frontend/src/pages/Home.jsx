@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, ChevronRight, Compass } from 'lucide-react';
+import { Search, MapPin, ChevronRight, UtensilsCrossed, Coffee, Zap, Beer } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { FreeMode, Navigation } from 'swiper/modules';
@@ -198,14 +198,24 @@ const Home = () => {
       {/* ─── EXPLORE CATEGORIES ─── */}
       <section className="bg-white py-24 border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-12">Explore by Category</h2>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Explore by Category</h2>
+          <p className="text-gray-500 mb-12 text-lg">Find the perfect dining experience for any occasion</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {['Fine Dining', 'Cafe', 'Fast Food', 'Pub'].map((cat, i) => (
-              <div key={cat} onClick={() => navigate(`/search?q=${cat}`)} className="cursor-pointer group flex flex-col items-center p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:border-primary/30 hover:bg-orange-50 transition-all duration-300">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform mb-4 text-primary">
-                  <Compass size={28} />
+            {[
+              { name: 'Fine Dining', Icon: UtensilsCrossed, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', hover: 'hover:border-amber-200 hover:bg-amber-50' },
+              { name: 'Cafe',        Icon: Coffee,          iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600', hover: 'hover:border-yellow-200 hover:bg-yellow-50' },
+              { name: 'Fast Food',   Icon: Zap,             iconBg: 'bg-red-100',    iconColor: 'text-red-500',    hover: 'hover:border-red-200 hover:bg-red-50' },
+              { name: 'Pub',         Icon: Beer,            iconBg: 'bg-green-100',  iconColor: 'text-green-600',  hover: 'hover:border-green-200 hover:bg-green-50' },
+            ].map(({ name, Icon, iconBg, iconColor, hover }) => (
+              <div
+                key={name}
+                onClick={() => navigate(`/search?q=${name}`)}
+                className={`cursor-pointer group flex flex-col items-center p-8 rounded-2xl border border-gray-100 ${hover} transition-all duration-300`}
+              >
+                <div className={`w-16 h-16 ${iconBg} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4`}>
+                  <Icon size={28} className={iconColor} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">{cat}</h3>
+                <h3 className="text-lg font-bold text-gray-900 group-hover:text-gray-700 transition-colors">{name}</h3>
               </div>
             ))}
           </div>
