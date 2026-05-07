@@ -6,7 +6,7 @@ import { Dropdown } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
-  const { user, admin, logoutUser, logoutAdmin } = useContext(AuthContext);
+  const { user, logoutUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
@@ -23,10 +23,7 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
-    if (admin) {
-      logoutAdmin();
-      navigate('/admin/login');
-    } else if (user) {
+    if (user) {
       logoutUser();
       navigate('/');
     }
@@ -59,19 +56,7 @@ const Navbar = () => {
     },
   ];
 
-  const adminMenuItems = [
-    {
-      key: '1',
-      label: <Link to="/admin/dashboard" className="flex items-center gap-2"><LayoutDashboard size={16}/> Dashboard</Link>,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: '2',
-      label: <div onClick={handleLogout} className="flex items-center gap-2 text-red-500"><LogOut size={16}/> Logout</div>,
-    },
-  ];
+  // Admin menu items removed since admin state is now decoupled from public Navbar
 
   return (
     <header className={navClass}>
@@ -93,17 +78,7 @@ const Navbar = () => {
             Explore
           </Link>
 
-          {admin ? (
-            <Dropdown menu={{ items: adminMenuItems }} placement="bottomRight" trigger={['click']}>
-              <div className={`flex items-center gap-2 cursor-pointer font-semibold ${isHome && !scrolled ? 'text-white' : 'text-gray-800'}`}>
-                <div className="w-9 h-9 bg-accent text-white rounded-full flex items-center justify-center border-2 border-white/20 shadow-sm">
-                  A
-                </div>
-                <span>Admin</span>
-                <ChevronDown size={16} />
-              </div>
-            </Dropdown>
-          ) : user ? (
+          {user ? (
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
               <div className={`flex items-center gap-2 cursor-pointer font-semibold ${isHome && !scrolled ? 'text-white' : 'text-gray-800'}`}>
                 <div className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center border-2 border-white/20 shadow-sm">

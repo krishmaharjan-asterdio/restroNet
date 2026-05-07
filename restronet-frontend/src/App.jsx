@@ -10,13 +10,18 @@ import RestaurantDetail from './pages/RestaurantDetail';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+
+// Admin Imports
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminRestaurants from './pages/AdminRestaurants';
+import AdminUsers from './pages/AdminUsers';
+import AdminReviews from './pages/AdminReviews';
+import AdminLayout from './components/AdminLayout';
 
-// Helper component to handle layout spacing conditionally
-const Layout = ({ children }) => {
+// Public Layout
+const PublicLayout = ({ children }) => {
   const location = useLocation();
-  // We don't add padding-top on the home page because the hero section goes under the transparent navbar
   const isHome = location.pathname === '/';
   
   return (
@@ -29,27 +34,45 @@ const Layout = ({ children }) => {
   );
 };
 
+// Admin Wrapper
+const AdminWrapper = ({ children }) => {
+  return <AdminLayout>{children}</AdminLayout>;
+};
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Layout>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
-            
-            {/* User Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<Profile />} />
+        <Routes>
+          {/* Public & User Routes */}
+          <Route path="/*" element={
+            <PublicLayout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={<Profile />} />
+              </Routes>
+            </PublicLayout>
+          } />
 
-            {/* Admin Routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          </Routes>
-        </Layout>
+          {/* Admin Login (No Layout) */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+
+          {/* Protected Admin Routes */}
+          <Route path="/admin/*" element={
+            <AdminWrapper>
+              <Routes>
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="restaurants" element={<AdminRestaurants />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="reviews" element={<AdminReviews />} />
+              </Routes>
+            </AdminWrapper>
+          } />
+        </Routes>
       </Router>
       <Toaster 
         position="top-right" 

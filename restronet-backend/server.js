@@ -20,6 +20,7 @@ const recommendationRoutes = require('./routes/recommendationRoutes');
 const metadataRoutes = require('./routes/metadataRoutes');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
@@ -37,7 +38,7 @@ const limiter = rateLimit({
   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
-app.use('/api/', limiter);
+// app.use('/api/', limiter);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -74,6 +75,7 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/metadata', metadataRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/users', userRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use('*', (req, res) => {
