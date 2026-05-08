@@ -148,7 +148,7 @@ const Home = () => {
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/discover')}
               className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
             >
               Explore All <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -231,7 +231,7 @@ const Home = () => {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            onClick={() => navigate('/search')}
+            onClick={() => navigate('/discover')}
             className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
           >
             See Popular <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />

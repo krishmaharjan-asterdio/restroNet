@@ -79,8 +79,8 @@ const RestaurantDetail = () => {
     try {
       await api.post('/reservations', {
         venueId: venue._id,
-        date: values.date.format('YYYY-MM-DD'),
-        time: values.time.format('HH:mm'),
+        date: values.date, // already a string from type="date"
+        time: values.time, // already a string from type="time"
         guests: values.guests,
         contactPhone: values.phone,
         specialRequests: values.requests
@@ -125,10 +125,10 @@ const RestaurantDetail = () => {
   const tabItems = [
     {
       key: 'menu',
-      label: <span className="text-lg font-bold">Menu</span>,
+      label: <span className="text-lg font-bold">Items</span>,
       children: menus.length === 0 ? (
         <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
-          <p className="text-gray-500 font-medium">Menu is currently not available online.</p>
+          <p className="text-gray-500 font-medium">Digital menu items are currently not listed.</p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -153,6 +153,26 @@ const RestaurantDetail = () => {
                 ))}
               </div>
             </div>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'menu_images',
+      label: <span className="text-lg font-bold">Menu Photos</span>,
+      children: venue.menu?.length === 0 ? (
+        <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
+          <p className="text-gray-500 font-medium">No menu photos uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {venue.menu.map((img, idx) => (
+            <img 
+              key={idx} 
+              src={`http://localhost:5000${img}`} 
+              className="w-full rounded-2xl border border-gray-100 shadow-sm" 
+              alt={`Menu ${idx + 1}`} 
+            />
           ))}
         </div>
       )
@@ -241,26 +261,46 @@ const RestaurantDetail = () => {
 
         {/* Masonry Image Gallery */}
         <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[500px] rounded-3xl overflow-hidden mt-6">
+          {/* Main Large Image */}
           <div className="col-span-4 md:col-span-2 row-span-2 relative group cursor-pointer">
-            <img src={coverImage} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img 
+              src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage} 
+              alt="Cover" 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+            />
             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
           </div>
-          {/* Fallback dummy images for a rich gallery look */}
-          <div className="col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1414235077428-33898bd12252?auto=format&fit=crop&w=600&q=80" alt="Gallery 1" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="hidden md:block col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=600&q=80" alt="Gallery 2" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80" alt="Gallery 3" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="hidden md:block col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1493770348161-369560ae357d?auto=format&fit=crop&w=600&q=80" alt="Gallery 4" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
-              <List size={16} /> Show all photos
-            </div>
-          </div>
+          
+          {/* Other 4 Images from Gallery or Placeholders */}
+          {[1, 2, 3, 4].map((idx) => {
+            const hasImage = venue.gallery && venue.gallery[idx];
+            const imgSrc = hasImage 
+              ? `http://localhost:5000${venue.gallery[idx]}` 
+              : `https://images.unsplash.com/photo-${[
+                  '1414235077428-33898bd12252',
+                  '1544148103-0773bf10d330',
+                  '1504674900247-0877df9cc836',
+                  '1493770348161-369560ae357d'
+                ][idx-1]}?auto=format&fit=crop&w=600&q=80`;
+
+            return (
+              <div 
+                key={idx} 
+                className={`${idx === 2 || idx === 4 ? 'hidden md:block' : ''} col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer`}
+              >
+                <img 
+                  src={imgSrc} 
+                  alt={`Gallery ${idx}`} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                {idx === 4 && (
+                  <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
+                    <List size={16} /> Show all photos
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

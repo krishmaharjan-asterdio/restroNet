@@ -173,12 +173,12 @@ const Discover = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 bg-gray-50 rounded-2xl px-5 py-3 border border-gray-100 shrink-0"
+                className="flex items-center gap-3 bg-primary/5 rounded-2xl px-5 py-3 border border-primary/10 shrink-0"
               >
-                <Utensils size={18} className="text-primary" />
+                <Sparkles size={18} className="text-primary" />
                 <div>
-                  <p className="text-2xl font-extrabold text-gray-900 leading-none">{results.length}</p>
-                  <p className="text-xs text-gray-500 font-medium">Restaurants Found</p>
+                  <p className="text-2xl font-black text-gray-900 leading-none">{results.length}</p>
+                  <p className="text-[10px] text-primary font-bold uppercase tracking-wider mt-1">Matched Spots</p>
                 </div>
               </motion.div>
             )}

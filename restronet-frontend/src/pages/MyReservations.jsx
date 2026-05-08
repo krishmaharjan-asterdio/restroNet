@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, CheckCircle, XCircle, Clock as ClockIcon, Phone } from 'lucide-react';
+import { Calendar, Clock, MapPin, CheckCircle, XCircle, Clock as ClockIcon, Phone, Utensils } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 

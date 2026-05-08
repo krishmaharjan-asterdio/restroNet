@@ -96,21 +96,48 @@ const getSmartRecommendations = async ({
     const ratingScore   = (venue.averageRating || 0) / 5.0;
     const { distanceKm, distanceScore } = computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation);
     const moodScore     = computeMoodScore(venue, moodTagIds);
+    
+    // Exact or strong name match boost
+    let nameScore = 0;
+    if (searchTerm) {
+      const sLower = searchTerm.toLowerCase();
+      const vName = venue.name.toLowerCase();
+      if (vName === sLower) nameScore = 1.0;
+      else if (vName.includes(sLower) || sLower.includes(vName)) nameScore = 0.8;
+      else {
+        // Partial matches on words
+        const terms = sLower.split(/\s+/).filter(t => t.length > 2);
+        const matches = terms.filter(t => vName.includes(t)).length;
+        if (matches > 0) nameScore = (matches / terms.length) * 0.5;
+      }
+    }
+
+    // Dynamic weights adjustment for search
+    const activeWeights = { ...weights };
+    if (searchTerm) {
+      activeWeights.name = 0.4;
+      // Normalize others
+      const remaining = 0.6;
+      const sumOthers = Object.keys(weights).reduce((acc, k) => acc + weights[k], 0);
+      Object.keys(weights).forEach(k => { activeWeights[k] = (weights[k] / sumOthers) * remaining; });
+    }
 
     const finalScore =
-      weights.cuisine  * cuisineScore  +
-      weights.category * categoryScore +
-      weights.tag      * tagScore      +
-      weights.price    * priceScore    +
-      weights.rating   * ratingScore   +
-      weights.distance * distanceScore +
-      weights.mood     * moodScore;
+      (activeWeights.name || 0) * nameScore +
+      activeWeights.cuisine  * cuisineScore  +
+      activeWeights.category * categoryScore +
+      activeWeights.tag      * tagScore      +
+      activeWeights.price    * priceScore    +
+      activeWeights.rating   * ratingScore   +
+      activeWeights.distance * distanceScore +
+      activeWeights.mood     * moodScore;
 
     return {
       venue,
       finalScore,
       distanceKm,
       scoreBreakdown: {
+        name:     Math.round(nameScore     * 100),
         cuisine:  Math.round(cuisineScore  * 100),
         category: Math.round(categoryScore * 100),
         tag:      Math.round(tagScore      * 100),
@@ -126,24 +153,22 @@ const getSmartRecommendations = async ({
     ? scoredVenues.filter(s => s.distanceKm === null || s.distanceKm <= maxDistanceKm)
     : scoredVenues;
 
+  // Search filtering: If search term is specific, filter out things with 0 name score 
+  // UNLESS there are other strong filters.
+  if (searchTerm) {
+    const isVerySpecific = searchTerm.split(/\s+/).length > 1 || searchTerm.length > 5;
+    if (isVerySpecific) {
+        // If it's a specific search, prioritize name matches heavily
+        filtered = filtered.filter(s => s.scoreBreakdown.name > 0 || s.finalScore > 0.4);
+    }
+  }
+
   // STRICT FILTER: ONLY apply if cuisines were EXPLICITLY provided in the request
   if (explicitCuisineIds.length > 0) {
     filtered = filtered.filter(s => {
         const venueIds = s.venue.cuisines.map(c => c._id.toString());
         return explicitCuisineIds.some(id => venueIds.includes(id));
     });
-  }
-
-  // FALLBACK TEXT FILTER: If no structured intents were found, assume it's a direct name/keyword search.
-  const hasStructuredIntent = cuisineIds.length > 0 || mood || priceRanges.length > 0 || (lat !== null && lng !== null);
-  if (searchTerm && !hasStructuredIntent) {
-    const terms = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 2);
-    if (terms.length > 0) {
-      filtered = filtered.filter(s => {
-        const textToSearch = `${s.venue.name} ${s.venue.description}`.toLowerCase();
-        return terms.some(t => textToSearch.includes(t));
-      });
-    }
   }
 
   filtered.sort((a, b) => b.finalScore - a.finalScore);

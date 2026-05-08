@@ -38,33 +38,45 @@ const AdminOwners = () => {
     }
   };
 
+  const handleDeleteOwner = async (id) => {
+    try {
+      await api.delete(`/admin/auth/owners/${id}`);
+      toast.success('Owner account deleted');
+      fetchOwners();
+    } catch (err) {
+      toast.error('Failed to delete owner');
+    }
+  };
+
   const columns = [
     {
-      title: 'Name',
+      title: 'Owner',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => (
+      render: (text, record) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-orange-50 text-orange-600">
-            <User size={16} />
+          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+            {text.charAt(0)}
           </div>
-          <span className="font-bold text-gray-900">{text}</span>
+          <div>
+            <div className="font-bold text-gray-900">{text}</div>
+            <div className="text-xs text-gray-500">{record.email}</div>
+          </div>
         </div>
       ),
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      render: (text) => (
-        <div className="flex items-center gap-2 text-gray-600">
-          <Mail size={14} className="text-gray-400" />
-          {text}
-        </div>
+      title: 'Assigned Venues',
+      dataIndex: 'venueCount',
+      key: 'venueCount',
+      render: (count) => (
+        <Tag color="blue" className="font-bold border-none px-3 py-1 rounded-full">
+          {count || 0} Restaurants
+        </Tag>
       ),
     },
     {
-      title: 'Role',
+      title: 'Status',
       dataIndex: 'role',
       key: 'role',
       render: (role) => (
@@ -74,10 +86,28 @@ const AdminOwners = () => {
       ),
     },
     {
-      title: 'Created At',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => new Date(date).toLocaleDateString(),
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button 
+            type="text" 
+            danger 
+            className="hover:bg-red-50 flex items-center gap-1"
+            onClick={() => {
+              Modal.confirm({
+                title: 'Delete Owner Account?',
+                content: 'This will permanently remove this owner account. It will NOT delete their restaurants, but they will become unassigned.',
+                okText: 'Delete',
+                okType: 'danger',
+                onOk: () => handleDeleteOwner(record._id)
+              });
+            }}
+          >
+            Delete
+          </Button>
+        </Space>
+      ),
     }
   ];
 
@@ -89,7 +119,7 @@ const AdminOwners = () => {
             <Shield className="text-primary" size={24} />
             Restaurant Owners
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Create and manage accounts for restaurant operators.</p>
+          <p className="text-gray-500 text-sm mt-1">Manage platform accounts for restaurant operators.</p>
         </div>
         <Button 
           type="primary" 
@@ -98,7 +128,7 @@ const AdminOwners = () => {
           className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
           onClick={() => setIsModalVisible(true)}
         >
-          Add New Owner
+          Create Owner Account
         </Button>
       </div>
 
@@ -108,7 +138,8 @@ const AdminOwners = () => {
           dataSource={owners} 
           rowKey="_id" 
           loading={loading}
-          pagination={{ pageSize: 10, className: 'px-4' }}
+          pagination={{ pageSize: 10, className: 'px-4 py-4' }}
+          className="admin-table"
         />
       </div>
 
