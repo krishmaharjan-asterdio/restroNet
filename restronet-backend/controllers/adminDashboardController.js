@@ -10,16 +10,29 @@ const Menu = require('../models/Menu');
  */
 const getDashboardStats = async (req, res, next) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalVenues = await Venue.countDocuments();
-    const totalReviews = await Review.countDocuments();
-    const totalMenus = await Menu.countDocuments();
+    const isOwner = req.admin.role === 'owner';
+    const ownerId = req.admin._id;
 
-    const recentVenues = await Venue.find().sort({ createdAt: -1 }).limit(5).select('name createdAt averageRating');
-    const recentReviews = await Review.find().sort({ createdAt: -1 }).limit(5).populate('user', 'name').populate('venue', 'name');
+    // Venue filter
+    const venueQuery = isOwner ? { owner: ownerId } : {};
+    
+    // Reviews filter
+    let reviewQuery = {};
+    if (isOwner) {
+      const ownedVenues = await Venue.find({ owner: ownerId }).select('_id');
+      const ownedIds = ownedVenues.map(v => v._id);
+      reviewQuery.venue = { $in: ownedIds };
+    }
 
-    // Quick trending stats based on reviews
-    const trendingVenues = await Venue.find()
+    const totalUsers = isOwner ? 0 : await User.countDocuments(); // Hide user count for owners
+    const totalVenues = await Venue.countDocuments(venueQuery);
+    const totalReviews = await Review.countDocuments(reviewQuery);
+    const totalMenus = await Menu.countDocuments(isOwner ? { venue: { $in: await Venue.find({ owner: ownerId }).distinct('_id') } } : {});
+
+    const recentVenues = await Venue.find(venueQuery).sort({ createdAt: -1 }).limit(5).select('name createdAt averageRating');
+    const recentReviews = await Review.find(reviewQuery).sort({ createdAt: -1 }).limit(5).populate('user', 'name').populate('venue', 'name');
+
+    const trendingVenues = await Venue.find(venueQuery)
       .sort({ averageRating: -1, totalReviews: -1 })
       .limit(5)
       .select('name averageRating totalReviews logo');
@@ -27,7 +40,7 @@ const getDashboardStats = async (req, res, next) => {
     res.json({
       success: true,
       stats: {
-        totalUsers,
+        totalUsers: isOwner ? null : totalUsers,
         totalVenues,
         totalReviews,
         totalMenus,

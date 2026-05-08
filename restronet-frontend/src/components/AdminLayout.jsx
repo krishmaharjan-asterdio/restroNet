@@ -33,9 +33,17 @@ const AdminLayout = ({ children }) => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Restaurants', path: '/admin/restaurants', icon: <Store size={20} /> },
-    { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
+    { 
+      name: admin?.role === 'superadmin' ? 'Restaurants' : 'My Restaurants', 
+      path: '/admin/restaurants', 
+      icon: <Store size={20} /> 
+    },
+    ...(admin?.role === 'superadmin' ? [
+      { name: 'Owners', path: '/admin/owners', icon: <Users size={20} /> },
+      { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
+    ] : []),
     { name: 'Reviews', path: '/admin/reviews', icon: <MessageSquare size={20} /> },
+    { name: 'Reservations', path: '/admin/reservations', icon: <Utensils size={20} /> },
   ];
 
   return (

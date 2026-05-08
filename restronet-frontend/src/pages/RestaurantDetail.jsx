@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus } from 'lucide-react';
+import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus, List, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Tabs, Modal, Form, Input, Rate, Button } from 'antd';
+import { Tabs, Modal, Form, Input, Rate, Button, Select } from 'antd';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -16,8 +16,11 @@ const RestaurantDetail = () => {
   const [loading, setLoading] = useState(true);
 
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+  const [isReservationModalVisible, setIsReservationModalVisible] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [submittingReservation, setSubmittingReservation] = useState(false);
   const [reviewForm] = Form.useForm();
+  const [reservationForm] = Form.useForm();
 
   useEffect(() => {
     fetchVenueData();
@@ -67,6 +70,31 @@ const RestaurantDetail = () => {
     }
   };
 
+  const handleReservationSubmit = async (values) => {
+    if (!user) {
+      toast.error('Please login to make a reservation');
+      return;
+    }
+    setSubmittingReservation(true);
+    try {
+      await api.post('/reservations', {
+        venueId: venue._id,
+        date: values.date, // already a string from type="date"
+        time: values.time, // already a string from type="time"
+        guests: values.guests,
+        contactPhone: values.phone,
+        specialRequests: values.requests
+      });
+      toast.success('Reservation request sent successfully!');
+      setIsReservationModalVisible(false);
+      reservationForm.resetFields();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to make reservation');
+    } finally {
+      setSubmittingReservation(false);
+    }
+  };
+
   const handleDeleteReview = async (reviewId) => {
     try {
       await api.delete(`/reviews/${reviewId}`);
@@ -97,10 +125,10 @@ const RestaurantDetail = () => {
   const tabItems = [
     {
       key: 'menu',
-      label: <span className="text-lg font-bold">Menu</span>,
+      label: <span className="text-lg font-bold">Items</span>,
       children: menus.length === 0 ? (
         <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
-          <p className="text-gray-500 font-medium">Menu is currently not available online.</p>
+          <p className="text-gray-500 font-medium">Digital menu items are currently not listed.</p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -125,6 +153,26 @@ const RestaurantDetail = () => {
                 ))}
               </div>
             </div>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'menu_images',
+      label: <span className="text-lg font-bold">Menu Photos</span>,
+      children: venue.menu?.length === 0 ? (
+        <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
+          <p className="text-gray-500 font-medium">No menu photos uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {venue.menu.map((img, idx) => (
+            <img 
+              key={idx} 
+              src={`http://localhost:5000${img}`} 
+              className="w-full rounded-2xl border border-gray-100 shadow-sm" 
+              alt={`Menu ${idx + 1}`} 
+            />
           ))}
         </div>
       )
@@ -213,26 +261,46 @@ const RestaurantDetail = () => {
 
         {/* Masonry Image Gallery */}
         <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[500px] rounded-3xl overflow-hidden mt-6">
+          {/* Main Large Image */}
           <div className="col-span-4 md:col-span-2 row-span-2 relative group cursor-pointer">
-            <img src={coverImage} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img 
+              src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage} 
+              alt="Cover" 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+            />
             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
           </div>
-          {/* Fallback dummy images for a rich gallery look */}
-          <div className="col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1414235077428-33898bd12252?auto=format&fit=crop&w=600&q=80" alt="Gallery 1" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="hidden md:block col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=600&q=80" alt="Gallery 2" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80" alt="Gallery 3" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          </div>
-          <div className="hidden md:block col-span-1 row-span-1 relative group overflow-hidden cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1493770348161-369560ae357d?auto=format&fit=crop&w=600&q=80" alt="Gallery 4" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
-              <List size={16} /> Show all photos
-            </div>
-          </div>
+          
+          {/* Other 4 Images from Gallery or Placeholders */}
+          {[1, 2, 3, 4].map((idx) => {
+            const hasImage = venue.gallery && venue.gallery[idx];
+            const imgSrc = hasImage 
+              ? `http://localhost:5000${venue.gallery[idx]}` 
+              : `https://images.unsplash.com/photo-${[
+                  '1414235077428-33898bd12252',
+                  '1544148103-0773bf10d330',
+                  '1504674900247-0877df9cc836',
+                  '1493770348161-369560ae357d'
+                ][idx-1]}?auto=format&fit=crop&w=600&q=80`;
+
+            return (
+              <div 
+                key={idx} 
+                className={`${idx === 2 || idx === 4 ? 'hidden md:block' : ''} col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer`}
+              >
+                <img 
+                  src={imgSrc} 
+                  alt={`Gallery ${idx}`} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                {idx === 4 && (
+                  <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
+                    <List size={16} /> Show all photos
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -284,7 +352,10 @@ const RestaurantDetail = () => {
               </div>
             </div>
 
-            <button className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6">
+            <button
+              onClick={() => setIsReservationModalVisible(true)}
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6"
+            >
               Reserve a Table
             </button>
 
@@ -312,22 +383,6 @@ const RestaurantDetail = () => {
                   <a href={venue.website} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline line-clamp-1">{venue.website}</a>
                 </div>
               )}
-            </div>
-
-            <div className="border-t border-gray-100 pt-6 mt-6">
-              <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400" /> Opening Hours</h3>
-              <div className="space-y-3">
-                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
-                  const hrs = venue.openingHours?.[day] || { isClosed: true };
-                  const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() === day;
-                  return (
-                    <div key={day} className={`flex justify-between text-sm ${isToday ? 'font-bold text-primary bg-orange-50 p-2 rounded-lg -mx-2' : 'text-gray-600 font-medium'}`}>
-                      <span className="capitalize">{day}</span>
-                      <span>{hrs.isClosed ? 'Closed' : `${hrs.open} - ${hrs.close}`}</span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
           </div>
@@ -361,6 +416,81 @@ const RestaurantDetail = () => {
             className="w-full bg-primary hover:bg-primary-hover font-bold rounded-lg border-none mt-2"
           >
             Submit Review
+          </Button>
+        </Form>
+      </Modal>
+
+      {/* Reservation Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Calendar className="text-primary" size={20} />
+            <span className="text-xl font-bold">Reserve a Table at {venue.name}</span>
+          </div>
+        }
+        open={isReservationModalVisible}
+        onCancel={() => setIsReservationModalVisible(false)}
+        footer={null}
+        destroyOnClose
+        width={500}
+      >
+        <Form form={reservationForm} layout="vertical" onFinish={handleReservationSubmit} className="mt-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item
+              label="Date"
+              name="date"
+              rules={[{ required: true, message: 'Select a date' }]}
+            >
+              <Input type="date" size="large" className="rounded-lg" />
+            </Form.Item>
+            <Form.Item
+              label="Time"
+              name="time"
+              rules={[{ required: true, message: 'Select a time' }]}
+            >
+              <Input type="time" size="large" className="rounded-lg" />
+            </Form.Item>
+          </div>
+
+          <Form.Item
+            label="Number of Guests"
+            name="guests"
+            rules={[{ required: true, message: 'How many people?' }]}
+            initialValue={2}
+          >
+            <Select size="large" className="rounded-lg">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                <Select.Option key={n} value={n}>{n} Guests</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Contact Phone"
+            name="phone"
+            rules={[{ required: true, message: 'Enter your phone number' }]}
+          >
+            <Input placeholder="e.g. +977 9801234567" size="large" className="rounded-lg" />
+          </Form.Item>
+
+          <Form.Item label="Special Requests (Optional)" name="requests">
+            <Input.TextArea rows={3} placeholder="Birthday surprise, window seat, allergies..." className="rounded-lg" />
+          </Form.Item>
+
+          <div className="bg-gray-50 p-4 rounded-xl mb-6">
+            <p className="text-sm text-gray-500 leading-relaxed text-center italic">
+              "Your reservation will be pending until confirmed by the restaurant owner. You will receive a notification."
+            </p>
+          </div>
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={submittingReservation}
+            size="large"
+            className="w-full bg-primary hover:bg-primary-hover h-14 text-lg font-bold rounded-xl border-none shadow-lg shadow-primary/20"
+          >
+            Request Reservation
           </Button>
         </Form>
       </Modal>

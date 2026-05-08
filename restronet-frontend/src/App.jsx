@@ -10,6 +10,9 @@ import RestaurantDetail from './pages/RestaurantDetail';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Discover from './pages/Discover';
+import MyReservations from './pages/MyReservations';
+import NotFound from './pages/NotFound';
 
 // Admin Imports
 import AdminLogin from './pages/AdminLogin';
@@ -17,6 +20,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminRestaurants from './pages/AdminRestaurants';
 import AdminUsers from './pages/AdminUsers';
 import AdminReviews from './pages/AdminReviews';
+import AdminOwners from './pages/AdminOwners';
+import AdminReservations from './pages/AdminReservations';
 import AdminLayout from './components/AdminLayout';
 
 // Public Layout
@@ -44,20 +49,6 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public & User Routes */}
-          <Route path="/*" element={
-            <PublicLayout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/profile" element={<Profile />} />
-              </Routes>
-            </PublicLayout>
-          } />
-
           {/* Admin Login (No Layout) */}
           <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -68,9 +59,29 @@ function App() {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="restaurants" element={<AdminRestaurants />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="owners" element={<AdminOwners />} />
+                <Route path="reservations" element={<AdminReservations />} />
                 <Route path="reviews" element={<AdminReviews />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </AdminWrapper>
+          } />
+
+          {/* Public & User Routes */}
+          <Route path="/*" element={
+            <PublicLayout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/discover" element={<Discover />} />
+                <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/reservations" element={<MyReservations />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </PublicLayout>
           } />
         </Routes>
       </Router>

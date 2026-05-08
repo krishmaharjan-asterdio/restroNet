@@ -103,12 +103,20 @@ const deleteReview = async (req, res, next) => {
 const getAllReviewsAdmin = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const reviews = await Review.paginate({}, {
+    let query = {};
+
+    // If owner, only show reviews for their venues
+    if (req.admin.role === 'owner') {
+      const ownedVenues = await Venue.find({ owner: req.admin._id }).distinct('_id');
+      query.venue = { $in: ownedVenues };
+    }
+
+    const reviews = await Review.paginate(query, {
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
       populate: [
         { path: 'user', select: 'name email' },
-        { path: 'venue', select: 'name' }
+        { path: 'venue', select: 'name owner' }
       ],
       sort: { createdAt: -1 }
     });
@@ -126,17 +134,22 @@ const getAllReviewsAdmin = async (req, res, next) => {
  */
 const toggleReviewVisibility = async (req, res, next) => {
   try {
-    const review = await Review.findById(req.params.id);
+    const review = await Review.findById(req.params.id).populate('venue');
     if (!review) {
       return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && review.venue?.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to moderate this review' });
     }
 
     review.isHidden = !review.isHidden;
     await review.save();
 
     // Re-trigger static recalculation of venue rating
-    await Review.recalculateRating(review.venue);
-    buildRestaurantFeatureVector(review.venue).catch(console.error);
+    await Review.recalculateRating(review.venue._id);
+    buildRestaurantFeatureVector(review.venue._id).catch(console.error);
 
     res.json({ success: true, review });
   } catch (error) {

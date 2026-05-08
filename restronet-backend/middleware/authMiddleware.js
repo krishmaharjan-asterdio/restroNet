@@ -87,4 +87,39 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { protectUser, protectAdmin, optionalAuth };
+const optionalAdminAuth = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET);
+      const admin = await Admin.findById(decoded.id).select('-password');
+      if (admin && admin.isActive) req.admin = admin;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+/**
+ * Middleware to restrict access to specific roles.
+ * Works with both req.user and req.admin.
+ */
+const restrictTo = (...roles) => {
+  return (req, res, next) => {
+    const user = req.admin || req.user;
+    if (!user || !roles.includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to perform this action',
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { protectUser, protectAdmin, optionalAuth, optionalAdminAuth, restrictTo };

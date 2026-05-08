@@ -17,6 +17,11 @@ const getVenues = async (req, res, next) => {
 
     const query = { isActive: true };
 
+    // If an owner is logged in (through admin portal), only show their venues
+    if (req.admin && req.admin.role === 'owner') {
+      query.owner = req.admin._id;
+    }
+
     if (search) {
       query.$text = { $search: search };
     }
@@ -28,7 +33,7 @@ const getVenues = async (req, res, next) => {
     const options = {
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
-      populate: 'cuisines tags category',
+      populate: 'cuisines tags category owner',
       sort: sortBy === 'rating' ? { averageRating: -1 } : { createdAt: -1 },
     };
 
@@ -56,7 +61,7 @@ const getVenueById = async (req, res, next) => {
       query = { slug: idOrSlug };
     }
 
-    const venue = await Venue.findOne(query).populate('cuisines tags category');
+    const venue = await Venue.findOne(query).populate('cuisines tags category owner');
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
     }
@@ -74,6 +79,11 @@ const getVenueById = async (req, res, next) => {
  */
 const createVenue = async (req, res, next) => {
   try {
+    // Only superadmins can create restaurants
+    if (req.admin.role === 'owner') {
+      return res.status(403).json({ success: false, message: 'Only Super Admins can add new restaurants to the platform.' });
+    }
+
     const venue = await Venue.create(req.body);
 
     // Build CBF feature vector asynchronously
@@ -92,14 +102,19 @@ const createVenue = async (req, res, next) => {
  */
 const updateVenue = async (req, res, next) => {
   try {
-    const venue = await Venue.findByIdAndUpdate(req.params.idOrSlug, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const venue = await Venue.findById(req.params.idOrSlug);
 
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
     }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && venue.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to manage this venue' });
+    }
+
+    Object.assign(venue, req.body);
+    await venue.save();
 
     // Rebuild CBF feature vector on update
     buildRestaurantFeatureVector(venue._id).catch(console.error);
@@ -117,14 +132,22 @@ const updateVenue = async (req, res, next) => {
  */
 const deleteVenue = async (req, res, next) => {
   try {
-    const venue = await Venue.findByIdAndDelete(req.params.idOrSlug);
+    const venue = await Venue.findById(req.params.idOrSlug);
+
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
     }
 
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && venue.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to delete this venue' });
+    }
+
+    await venue.deleteOne();
+
     // Cleanup associated data
-    await Menu.deleteMany({ venue: req.params.idOrSlug });
-    await Review.deleteMany({ venue: req.params.idOrSlug });
+    await Menu.deleteMany({ venue: venue._id });
+    await Review.deleteMany({ venue: venue._id });
 
     res.json({ success: true, message: 'Venue deleted successfully' });
   } catch (error) {
