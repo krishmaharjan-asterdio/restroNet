@@ -88,6 +88,7 @@ const venueSchema = new mongoose.Schema(
       default: null,
     },
     gallery: [{ type: String }], // Array of image URLs/paths
+    menu: [{ type: String }],    // Array of menu image URLs/paths
 
     // ─── Rating (Denormalized for performance) ───────────────────────────────
     averageRating: {
@@ -105,6 +106,13 @@ const venueSchema = new mongoose.Schema(
     featureVector: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RestaurantFeature',
+      default: null,
+    },
+
+    // ─── Ownership ─────────────────────────────────────────────────────────
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
       default: null,
     },
 

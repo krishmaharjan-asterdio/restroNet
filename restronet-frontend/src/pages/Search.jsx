@@ -71,15 +71,15 @@ const Search = () => {
   const fetchVenues = async () => {
     setLoading(true);
     try {
-      let endpoint = `/venues?limit=50`;
-      if (query) endpoint += `&search=${encodeURIComponent(query)}`;
-      if (selectedCuisine) endpoint += `&cuisine=${selectedCuisine}`;
-      if (selectedRating) endpoint += `&sortBy=rating`; // Basic implementation
+      let endpoint = `/recommendations/smart?limit=50`;
+      if (query) endpoint += `&prompt=${encodeURIComponent(query)}`;
+      if (selectedCuisine) endpoint += `&cuisines=${selectedCuisine}`;
       
       const res = await api.get(endpoint);
       
-      // Filter locally for rating if requested since backend pagination might override
-      let results = res.data.docs;
+      // Extract from recommendations array instead of docs
+      let results = res.data.recommendations || [];
+      
       if (selectedRating) {
         results = results.filter(v => v.averageRating >= parseFloat(selectedRating));
       }

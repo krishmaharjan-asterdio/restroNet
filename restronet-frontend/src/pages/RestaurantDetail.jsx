@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus } from 'lucide-react';
+import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus, List, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Tabs, Modal, Form, Input, Rate, Button } from 'antd';
+import { Tabs, Modal, Form, Input, Rate, Button, Select } from 'antd';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -16,8 +16,11 @@ const RestaurantDetail = () => {
   const [loading, setLoading] = useState(true);
 
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+  const [isReservationModalVisible, setIsReservationModalVisible] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [submittingReservation, setSubmittingReservation] = useState(false);
   const [reviewForm] = Form.useForm();
+  const [reservationForm] = Form.useForm();
 
   useEffect(() => {
     fetchVenueData();
@@ -64,6 +67,31 @@ const RestaurantDetail = () => {
       toast.error(err.response?.data?.message || 'Failed to submit review');
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  const handleReservationSubmit = async (values) => {
+    if (!user) {
+      toast.error('Please login to make a reservation');
+      return;
+    }
+    setSubmittingReservation(true);
+    try {
+      await api.post('/reservations', {
+        venueId: venue._id,
+        date: values.date.format('YYYY-MM-DD'),
+        time: values.time.format('HH:mm'),
+        guests: values.guests,
+        contactPhone: values.phone,
+        specialRequests: values.requests
+      });
+      toast.success('Reservation request sent successfully!');
+      setIsReservationModalVisible(false);
+      reservationForm.resetFields();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to make reservation');
+    } finally {
+      setSubmittingReservation(false);
     }
   };
 
@@ -284,7 +312,10 @@ const RestaurantDetail = () => {
               </div>
             </div>
 
-            <button className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6">
+            <button
+              onClick={() => setIsReservationModalVisible(true)}
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6"
+            >
               Reserve a Table
             </button>
 
@@ -312,22 +343,6 @@ const RestaurantDetail = () => {
                   <a href={venue.website} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline line-clamp-1">{venue.website}</a>
                 </div>
               )}
-            </div>
-
-            <div className="border-t border-gray-100 pt-6 mt-6">
-              <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400" /> Opening Hours</h3>
-              <div className="space-y-3">
-                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
-                  const hrs = venue.openingHours?.[day] || { isClosed: true };
-                  const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() === day;
-                  return (
-                    <div key={day} className={`flex justify-between text-sm ${isToday ? 'font-bold text-primary bg-orange-50 p-2 rounded-lg -mx-2' : 'text-gray-600 font-medium'}`}>
-                      <span className="capitalize">{day}</span>
-                      <span>{hrs.isClosed ? 'Closed' : `${hrs.open} - ${hrs.close}`}</span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
           </div>
@@ -361,6 +376,81 @@ const RestaurantDetail = () => {
             className="w-full bg-primary hover:bg-primary-hover font-bold rounded-lg border-none mt-2"
           >
             Submit Review
+          </Button>
+        </Form>
+      </Modal>
+
+      {/* Reservation Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Calendar className="text-primary" size={20} />
+            <span className="text-xl font-bold">Reserve a Table at {venue.name}</span>
+          </div>
+        }
+        open={isReservationModalVisible}
+        onCancel={() => setIsReservationModalVisible(false)}
+        footer={null}
+        destroyOnClose
+        width={500}
+      >
+        <Form form={reservationForm} layout="vertical" onFinish={handleReservationSubmit} className="mt-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item
+              label="Date"
+              name="date"
+              rules={[{ required: true, message: 'Select a date' }]}
+            >
+              <Input type="date" size="large" className="rounded-lg" />
+            </Form.Item>
+            <Form.Item
+              label="Time"
+              name="time"
+              rules={[{ required: true, message: 'Select a time' }]}
+            >
+              <Input type="time" size="large" className="rounded-lg" />
+            </Form.Item>
+          </div>
+
+          <Form.Item
+            label="Number of Guests"
+            name="guests"
+            rules={[{ required: true, message: 'How many people?' }]}
+            initialValue={2}
+          >
+            <Select size="large" className="rounded-lg">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                <Select.Option key={n} value={n}>{n} Guests</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Contact Phone"
+            name="phone"
+            rules={[{ required: true, message: 'Enter your phone number' }]}
+          >
+            <Input placeholder="e.g. +977 9801234567" size="large" className="rounded-lg" />
+          </Form.Item>
+
+          <Form.Item label="Special Requests (Optional)" name="requests">
+            <Input.TextArea rows={3} placeholder="Birthday surprise, window seat, allergies..." className="rounded-lg" />
+          </Form.Item>
+
+          <div className="bg-gray-50 p-4 rounded-xl mb-6">
+            <p className="text-sm text-gray-500 leading-relaxed text-center italic">
+              "Your reservation will be pending until confirmed by the restaurant owner. You will receive a notification."
+            </p>
+          </div>
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={submittingReservation}
+            size="large"
+            className="w-full bg-primary hover:bg-primary-hover h-14 text-lg font-bold rounded-xl border-none shadow-lg shadow-primary/20"
+          >
+            Request Reservation
           </Button>
         </Form>
       </Modal>

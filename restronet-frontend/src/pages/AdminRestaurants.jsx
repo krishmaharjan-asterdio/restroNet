@@ -38,6 +38,7 @@ const AdminRestaurants = () => {
   const [cuisines, setCuisines] = useState([]);
   const [tags, setTags] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -45,6 +46,11 @@ const AdminRestaurants = () => {
   const [form] = Form.useForm();
 
   const [logoFile, setLogoFile] = useState(null);
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [menuFiles, setMenuFiles] = useState([]);
+  
+  const [existingGallery, setExistingGallery] = useState([]);
+  const [existingMenu, setExistingMenu] = useState([]);
 
   // Watch form fields for the map
   const lat = Form.useWatch('location.lat', form);
@@ -77,6 +83,11 @@ const AdminRestaurants = () => {
       setCuisines(cRes.data.cuisines || []);
       setTags(tRes.data.tags || []);
       setCategories(catRes.data.categories || []);
+
+      if (admin?.role === 'superadmin') {
+        const oRes = await api.get('/admin/auth/owners');
+        setOwners(oRes.data.owners || []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -95,7 +106,12 @@ const AdminRestaurants = () => {
   const showModal = (record = null) => {
     setEditingId(record ? record._id : null);
     setLogoFile(null);
+    setGalleryFiles([]);
+    setMenuFiles([]);
+    
     if (record) {
+      setExistingGallery(record.gallery || []);
+      setExistingMenu(record.menu || []);
       form.setFieldsValue({
         name: record.name,
         description: record.description,
@@ -110,8 +126,11 @@ const AdminRestaurants = () => {
         cuisines: record.cuisines?.map(c => c._id || c),
         tags: record.tags?.map(t => t._id || t),
         priceRange: record.priceRange,
+        owner: record.owner?._id || record.owner,
       });
     } else {
+      setExistingGallery([]);
+      setExistingMenu([]);
       form.resetFields();
     }
     setIsModalVisible(true);
@@ -137,17 +156,40 @@ const AdminRestaurants = () => {
         category: values.category,
         cuisines: values.cuisines,
         tags: values.tags,
-        priceRange: values.priceRange
+        priceRange: values.priceRange,
+        owner: values.owner,
+        gallery: existingGallery, // Keep existing images not removed
+        menu: existingMenu,       // Keep existing menu images not removed
       };
 
-      // Upload Logo First if selected
+      // 1. Upload Logo
       if (logoFile) {
         const formData = new FormData();
-        formData.append('image', logoFile);
+        formData.append('logo', logoFile);
         const uploadRes = await api.post('/upload/logo', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        payload.logo = uploadRes.data.filePath;
+        payload.logo = uploadRes.data.url;
+      }
+
+      // 2. Upload Gallery Images
+      if (galleryFiles.length > 0) {
+        const formData = new FormData();
+        galleryFiles.forEach(file => formData.append('gallery', file));
+        const uploadRes = await api.post('/upload/gallery', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        payload.gallery = [...payload.gallery, ...uploadRes.data.urls];
+      }
+
+      // 3. Upload Menu Images
+      if (menuFiles.length > 0) {
+        const formData = new FormData();
+        menuFiles.forEach(file => formData.append('menu', file));
+        const uploadRes = await api.post('/upload/menu', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        payload.menu = [...payload.menu, ...uploadRes.data.urls];
       }
 
       if (editingId) {
@@ -161,6 +203,8 @@ const AdminRestaurants = () => {
       setIsModalVisible(false);
       form.resetFields();
       setLogoFile(null);
+      setGalleryFiles([]);
+      setMenuFiles([]);
       fetchRestaurants();
     } catch (err) {
       console.error(err);
@@ -196,12 +240,19 @@ const AdminRestaurants = () => {
       render: (category) => category?.name || 'N/A',
     },
     {
+      title: 'Owner',
+      dataIndex: 'owner',
+      key: 'owner',
+      hidden: admin?.role !== 'superadmin',
+      render: (owner) => owner?.name || <span className="text-gray-400 italic">Platform</span>,
+    },
+    {
       title: 'Rating',
       dataIndex: 'averageRating',
       key: 'averageRating',
       render: (rating) => (
         <div className="flex items-center gap-1 font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-md w-max">
-          {rating.toFixed(1)} <Star size={12} className="fill-current" />
+          {(rating || 0).toFixed(1)} <Star size={12} className="fill-current" />
         </div>
       )
     },
@@ -240,24 +291,28 @@ const AdminRestaurants = () => {
         </Space>
       ),
     },
-  ];
+  ].filter(c => !c.hidden);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Restaurants</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900">
+            {admin?.role === 'superadmin' ? 'Restaurants' : 'My Restaurants'}
+          </h1>
           <p className="text-gray-500 text-sm mt-1">Manage platform venues, menus, and details.</p>
         </div>
-        <Button 
-          type="primary" 
-          icon={<Plus size={18} />} 
-          size="large"
-          className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
-          onClick={() => showModal()}
-        >
-          Add Restaurant
-        </Button>
+        {admin?.role === 'superadmin' && (
+          <Button 
+            type="primary" 
+            icon={<Plus size={18} />} 
+            size="large"
+            className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
+            onClick={() => showModal()}
+          >
+            Add Restaurant
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -296,6 +351,14 @@ const AdminRestaurants = () => {
               <TextArea rows={3} placeholder="Brief description of the venue" className="rounded-lg" />
             </Form.Item>
 
+            {admin?.role === 'superadmin' && (
+              <Form.Item name="owner" label="Restaurant Owner" className="md:col-span-2">
+                <Select placeholder="Assign an owner" size="large" className="rounded-lg" allowClear>
+                  {owners.map(o => <Option key={o._id} value={o._id}>{o.name} ({o.email})</Option>)}
+                </Select>
+              </Form.Item>
+            )}
+
             <Form.Item name="cuisines" label="Cuisines">
               <Select mode="multiple" placeholder="Select cuisines" size="large" className="rounded-lg">
                 {cuisines?.map(c => <Option key={c._id} value={c._id}>{c.name}</Option>)}
@@ -327,19 +390,77 @@ const AdminRestaurants = () => {
                 </Select>
               </Form.Item>
 
-              <Form.Item label="Upload Logo (Optional)" className="col-span-2 md:col-span-1">
+              <Form.Item label="Logo" className="col-span-2 md:col-span-1">
                 <Upload 
                   beforeUpload={(file) => {
                     setLogoFile(file);
-                    return false; // Prevent default auto-upload
+                    return false;
                   }}
                   maxCount={1}
                   fileList={logoFile ? [logoFile] : []}
                   onRemove={() => setLogoFile(null)}
                 >
-                  <Button icon={<UploadIcon size={16} />} className="rounded-lg">Select File</Button>
+                  <Button icon={<UploadIcon size={16} />} className="rounded-lg w-full">Select Logo</Button>
                 </Upload>
               </Form.Item>
+            </div>
+
+            {/* Gallery Images Section */}
+            <div className="md:col-span-2 space-y-3 mb-6">
+              <label className="block text-sm font-bold text-gray-700">Gallery Images</label>
+              <div className="grid grid-cols-5 gap-3 mb-3">
+                {existingGallery.map((url, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
+                    <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" alt="gallery" />
+                    <button 
+                      onClick={() => setExistingGallery(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Upload 
+                multiple
+                beforeUpload={(file) => {
+                  setGalleryFiles(prev => [...prev, file]);
+                  return false;
+                }}
+                fileList={galleryFiles}
+                onRemove={(file) => setGalleryFiles(prev => prev.filter(f => f.uid !== file.uid))}
+              >
+                <Button icon={<Plus size={16} />} className="rounded-lg">Add Gallery Images ({galleryFiles.length})</Button>
+              </Upload>
+            </div>
+
+            {/* Menu Images Section */}
+            <div className="md:col-span-2 space-y-3 mb-6">
+              <label className="block text-sm font-bold text-gray-700">Restaurant Menu</label>
+              <div className="grid grid-cols-5 gap-3 mb-3">
+                {existingMenu.map((url, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
+                    <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" alt="menu" />
+                    <button 
+                      onClick={() => setExistingMenu(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Upload 
+                multiple
+                beforeUpload={(file) => {
+                  setMenuFiles(prev => [...prev, file]);
+                  return false;
+                }}
+                fileList={menuFiles}
+                onRemove={(file) => setMenuFiles(prev => prev.filter(f => f.uid !== file.uid))}
+              >
+                <Button icon={<Plus size={16} />} className="rounded-lg">Add Menu Images ({menuFiles.length})</Button>
+              </Upload>
             </div>
 
             <div className="md:col-span-2 mb-4 mt-2">

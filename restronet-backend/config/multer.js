@@ -11,6 +11,7 @@ const fs = require('fs');
 const uploadDirs = [
   path.join(__dirname, '../uploads/logos'),
   path.join(__dirname, '../uploads/gallery'),
+  path.join(__dirname, '../uploads/menus'),
   path.join(__dirname, '../uploads/misc'),
 ];
 
@@ -28,6 +29,8 @@ const storage = multer.diskStorage({
       cb(null, path.join(__dirname, '../uploads/logos'));
     } else if (file.fieldname === 'gallery') {
       cb(null, path.join(__dirname, '../uploads/gallery'));
+    } else if (file.fieldname === 'menu') {
+      cb(null, path.join(__dirname, '../uploads/menus'));
     } else {
       cb(null, path.join(__dirname, '../uploads/misc'));
     }
@@ -67,7 +70,14 @@ const uploadGallery = multer({
   limits: { fileSize: MAX_FILE_SIZE },
 }).array('gallery', 10);
 
-/** Combined: logo + gallery in one request */
+/** Multiple menu images (max 10) */
+const uploadMenu = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).array('menu', 10);
+
+/** Combined: logo + gallery + menu in one request */
 const uploadRestaurantImages = multer({
   storage,
   fileFilter,
@@ -75,6 +85,7 @@ const uploadRestaurantImages = multer({
 }).fields([
   { name: 'logo', maxCount: 1 },
   { name: 'gallery', maxCount: 10 },
+  { name: 'menu', maxCount: 10 },
 ]);
 
 // ─── Multer Error Handler Wrapper ─────────────────────────────────────────────
@@ -102,6 +113,7 @@ const handleUpload = (upload) => (req, res, next) => {
 module.exports = {
   uploadLogo,
   uploadGallery,
+  uploadMenu,
   uploadRestaurantImages,
   handleUpload,
 };

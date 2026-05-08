@@ -68,10 +68,12 @@ const AdminDashboard = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Total Users"    value={mainStats.totalUsers}   icon={Users}       colorClass="bg-blue-50 text-blue-600"     borderColor="border-blue-400"   trend="Registered members" />
-          <StatCard title="Restaurants"    value={mainStats.totalVenues}  icon={Store}       colorClass="bg-orange-50 text-orange-600"  borderColor="border-orange-400" trend="Listed venues" />
-          <StatCard title="Total Reviews"  value={mainStats.totalReviews} icon={MessageSquare} colorClass="bg-green-50 text-green-600"  borderColor="border-green-400"  trend="User reviews" />
-          <StatCard title="Menu Items"     value={mainStats.totalMenus}   icon={MenuIcon}    colorClass="bg-purple-50 text-purple-600"  borderColor="border-purple-400" trend="Across all venues" />
+          {admin?.role === 'superadmin' && (
+            <StatCard title="Total Users"    value={mainStats.totalUsers}   icon={Users}       colorClass="bg-blue-50 text-blue-600"     borderColor="border-blue-400"   trend="Registered members" />
+          )}
+          <StatCard title="Restaurants"    value={mainStats.totalVenues}  icon={Store}       colorClass="bg-orange-50 text-orange-600"  borderColor="border-orange-400" trend={admin?.role === 'superadmin' ? "Listed venues" : "Your venues"} />
+          <StatCard title="Total Reviews"  value={mainStats.totalReviews} icon={MessageSquare} colorClass="bg-green-50 text-green-600"  borderColor="border-green-400"  trend={admin?.role === 'superadmin' ? "User reviews" : "Reviews for your venues"} />
+          <StatCard title="Menu Items"     value={mainStats.totalMenus}   icon={MenuIcon}    colorClass="bg-purple-50 text-purple-600"  borderColor="border-purple-400" trend={admin?.role === 'superadmin' ? "Across all venues" : "Across your venues"} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

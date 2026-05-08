@@ -68,4 +68,54 @@ const getAdminProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { adminLogin, getAdminProfile };
+/**
+ * @desc    Register a new Restaurant Owner (Super Admin only)
+ * @route   POST /api/admin/auth/owners
+ * @access  Private (Superadmin)
+ */
+const registerOwner = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const ownerExists = await Admin.findOne({ email });
+    if (ownerExists) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+
+    const owner = await Admin.create({
+      name,
+      email,
+      password,
+      role: 'owner',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Restaurant Owner created successfully',
+      owner: {
+        _id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        role: owner.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all Restaurant Owners (Super Admin only)
+ * @route   GET /api/admin/auth/owners
+ * @access  Private (Superadmin)
+ */
+const getOwners = async (req, res, next) => {
+  try {
+    const owners = await Admin.find({ role: 'owner' }).select('-password');
+    res.json({ success: true, owners });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { adminLogin, getAdminProfile, registerOwner, getOwners };

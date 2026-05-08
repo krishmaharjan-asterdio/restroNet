@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Utensils, LogOut, ChevronDown, User as UserIcon, Heart, Menu, X } from 'lucide-react';
+import { Utensils, LogOut, ChevronDown, User as UserIcon, Heart, Menu, X, Sparkles } from 'lucide-react';
 import { Dropdown } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,11 +45,15 @@ const Navbar = () => {
     },
     {
       key: '2',
+      label: <Link to="/reservations" className="flex items-center gap-2"><Utensils size={16} /> My Reservations</Link>,
+    },
+    {
+      key: '3',
       label: <Link to="/profile" className="flex items-center gap-2"><Heart size={16} /> Saved Places</Link>,
     },
     { type: 'divider' },
     {
-      key: '3',
+      key: '4',
       label: <div onClick={handleLogout} className="flex items-center gap-2 text-red-500"><LogOut size={16} /> Logout</div>,
     },
   ];
@@ -74,6 +78,13 @@ const Navbar = () => {
               className={`font-semibold transition-colors hover:text-primary ${isHome && !scrolled ? 'text-gray-100' : 'text-gray-600'}`}
             >
               Explore
+            </Link>
+            <Link
+              to="/discover"
+              className={`flex items-center gap-1.5 font-semibold transition-colors hover:text-primary ${isHome && !scrolled ? 'text-gray-100' : 'text-gray-600'}`}
+            >
+              <Sparkles size={15} />
+              Discover
             </Link>
 
             {user ? (
@@ -158,6 +169,14 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-semibold transition-colors"
                 >
                   Explore
+                </Link>
+                <Link
+                  to="/discover"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-semibold transition-colors"
+                >
+                  <Sparkles size={16} className="text-primary" />
+                  Discover
                 </Link>
                 {user && (
                   <Link

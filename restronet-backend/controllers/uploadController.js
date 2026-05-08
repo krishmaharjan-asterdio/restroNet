@@ -40,7 +40,29 @@ const uploadGalleryImages = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Upload restaurant menu images
+ * @route   POST /api/upload/menu
+ * @access  Private (Admin)
+ */
+const uploadMenuImages = async (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please upload at least one menu image' });
+    }
+
+    const filePaths = req.files.map(file => `/uploads/menus/${file.filename}`);
+    res.json({
+      success: true,
+      urls: filePaths,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadLogoImage,
   uploadGalleryImages,
+  uploadMenuImages,
 };

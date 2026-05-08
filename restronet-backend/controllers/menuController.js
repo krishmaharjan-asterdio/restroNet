@@ -22,9 +22,14 @@ const getMenusByVenue = async (req, res, next) => {
  */
 const addMenu = async (req, res, next) => {
   try {
-    const venueExists = await Venue.findById(req.params.venueId);
-    if (!venueExists) {
+    const venue = await Venue.findById(req.params.venueId);
+    if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && venue.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to manage menus for this venue' });
     }
 
     const menu = await Menu.create({
@@ -45,14 +50,18 @@ const addMenu = async (req, res, next) => {
  */
 const updateMenu = async (req, res, next) => {
   try {
-    const menu = await Menu.findByIdAndUpdate(req.params.menuId, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
+    const menu = await Menu.findById(req.params.menuId).populate('venue');
     if (!menu) {
       return res.status(404).json({ success: false, message: 'Menu not found' });
     }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && menu.venue?.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to manage this menu' });
+    }
+
+    Object.assign(menu, req.body);
+    await menu.save();
 
     res.json({ success: true, menu });
   } catch (error) {
@@ -67,10 +76,17 @@ const updateMenu = async (req, res, next) => {
  */
 const deleteMenu = async (req, res, next) => {
   try {
-    const menu = await Menu.findByIdAndDelete(req.params.menuId);
+    const menu = await Menu.findById(req.params.menuId).populate('venue');
     if (!menu) {
       return res.status(404).json({ success: false, message: 'Menu not found' });
     }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && menu.venue?.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to delete this menu' });
+    }
+
+    await menu.deleteOne();
 
     res.json({ success: true, message: 'Menu deleted' });
   } catch (error) {

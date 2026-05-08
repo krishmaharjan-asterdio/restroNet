@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, ChevronRight, UtensilsCrossed, Coffee, Zap, Beer } from 'lucide-react';
+import { Search, MapPin, ChevronRight, UtensilsCrossed, Coffee, Zap, Beer, Sparkles, Utensils } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { FreeMode, Navigation } from 'swiper/modules';
+import { FreeMode, Navigation, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/free-mode';
 import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
 import api from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
@@ -126,70 +127,129 @@ const Home = () => {
 
       {/* ─── RECOMMENDATIONS FOR USER ─── */}
       {user && (
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 w-full -mt-20 relative z-20">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 w-full -mt-24 relative z-20">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-[0.2em] mb-2">
+                <Sparkles size={16} /> Made for you
+              </div>
+              <h2 className="text-4xl font-black text-gray-900 tracking-tight">
                 Recommended For You
               </h2>
-              <p className="text-gray-600 mt-2 text-lg">
-                Based on your preferences and location
+              <p className="text-gray-500 mt-2 text-lg font-medium">
+                Based on your {user.preferences?.cuisines?.length > 0 ? 'favorite cuisines' : 'tastes'} and Kathmandu's top spots
               </p>
-            </div>
-            <button 
+            </motion.div>
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
               onClick={() => navigate('/search')}
-              className="hidden md:flex items-center gap-1 text-primary font-bold hover:underline"
+              className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
             >
-              See all <ChevronRight size={18} />
-            </button>
+              Explore All <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </motion.button>
           </div>
 
           {loading ? <SectionLoader /> : (
-            <Swiper
-              slidesPerView={1.2}
-              spaceBetween={20}
-              freeMode={true}
-              breakpoints={{
-                640: { slidesPerView: 2.2 },
-                768: { slidesPerView: 3.2 },
-                1024: { slidesPerView: 4 },
-              }}
-              modules={[FreeMode]}
-              className="pb-10"
-            >
-              {recommendations.map((venue) => (
-                <SwiperSlide key={venue._id}>
-                  <RestaurantCard venue={venue} />
-                </SwiperSlide>
-              ))}
-            </Swiper>
+            recommendations.length > 0 ? (
+              <div className="relative group">
+                <Swiper
+                  slidesPerView={1.2}
+                  spaceBetween={24}
+                  pagination={{ clickable: true, dynamicBullets: true }}
+                  navigation={{
+                    nextEl: '.swiper-button-next-custom',
+                    prevEl: '.swiper-button-prev-custom',
+                  }}
+                  breakpoints={{
+                    640: { slidesPerView: 2.2 },
+                    768: { slidesPerView: 3.2 },
+                    1024: { slidesPerView: 4 },
+                  }}
+                  modules={[FreeMode, Navigation, Pagination]}
+                  className="pb-12"
+                >
+                  {recommendations.map((venue, i) => (
+                    <SwiperSlide key={venue._id}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.1 }}
+                      >
+                        <RestaurantCard venue={venue} />
+                      </motion.div>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+
+                {/* Custom Navigation Buttons */}
+                <button className="swiper-button-prev-custom absolute left-0 top-1/2 -translate-y-1/2 -translate-x-6 z-30 w-12 h-12 bg-white rounded-full shadow-xl border border-gray-100 flex items-center justify-center text-gray-900 opacity-0 group-hover:opacity-100 group-hover:-translate-x-4 transition-all duration-300 disabled:opacity-0 pointer-events-auto">
+                    <ChevronRight className="rotate-180" size={24} />
+                </button>
+                <button className="swiper-button-next-custom absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 z-30 w-12 h-12 bg-white rounded-full shadow-xl border border-gray-100 flex items-center justify-center text-gray-900 opacity-0 group-hover:opacity-100 group-hover:translate-x-4 transition-all duration-300 disabled:opacity-0 pointer-events-auto">
+                    <ChevronRight size={24} />
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-[2.5rem] p-12 text-center border border-dashed border-gray-200">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Utensils size={24} className="text-gray-300" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">No recommendations yet</h3>
+                <p className="text-gray-500">Add some preferences in your profile to see tailored spots!</p>
+              </div>
+            )
           )}
         </section>
       )}
 
       {/* ─── TRENDING NOW ─── */}
-      <section className={`max-w-7xl mx-auto px-4 md:px-8 pb-24 w-full ${!user ? '-mt-20 relative z-20' : 'pt-10'}`}>
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-              Trending Now <span className="text-2xl">🔥</span>
-            </h2>
-            <p className="text-gray-600 mt-2 text-lg">
-              Highly rated places everyone is talking about
-            </p>
-          </div>
-          <button 
-            onClick={() => navigate('/search')}
-            className="hidden md:flex items-center gap-1 text-primary font-bold hover:underline"
+      <section className={`max-w-7xl mx-auto px-4 md:px-8 pb-32 w-full ${!user ? '-mt-24 relative z-20' : 'pt-10'}`}>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
           >
-            See all <ChevronRight size={18} />
-          </button>
+            <div className="flex items-center gap-2 text-orange-500 font-bold text-sm uppercase tracking-[0.2em] mb-2">
+              <Zap size={16} fill="currentColor" /> Hot this week
+            </div>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight">
+              Trending Now
+            </h2>
+            <p className="text-gray-500 mt-2 text-lg font-medium">
+              Top rated places everyone is visiting right now
+            </p>
+          </motion.div>
+          <motion.button 
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            onClick={() => navigate('/search')}
+            className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
+          >
+            See Popular <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </motion.button>
         </div>
 
         {loading ? <SectionLoader /> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trending.slice(0, 8).map((venue, index) => (
-              <RestaurantCard key={venue._id} venue={venue} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {trending.slice(0, 8).map((venue, i) => (
+              <motion.div
+                key={venue._id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <RestaurantCard venue={venue} />
+              </motion.div>
             ))}
           </div>
         )}
