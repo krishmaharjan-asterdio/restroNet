@@ -93,7 +93,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
-userSchema.index({ email: 1 });
 userSchema.index({ location: '2dsphere' }); // for geo-queries
 
 // ─── Pre-save Hook: Hash password ─────────────────────────────────────────────

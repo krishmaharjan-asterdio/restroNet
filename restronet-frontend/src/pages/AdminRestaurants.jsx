@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, Upload, Space } from 'antd';
-import { Plus, Edit, Trash2, Upload as UploadIcon, Star } from 'lucide-react';
+import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, Upload, Space, Tabs, Divider } from 'antd';
+import { Plus, Edit, Trash2, Upload as UploadIcon, Star, Search as SearchIcon, Info, Camera, MapPin } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import toast from 'react-hot-toast';
@@ -18,6 +18,17 @@ const customIcon = L.divIcon({
   iconSize: [20, 20],
   iconAnchor: [10, 10]
 });
+
+// Component to update map view when coordinates change
+const ChangeView = ({ center }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center[0] && center[1]) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+  return null;
+};
 
 // Component to handle map clicks
 const MapClicker = ({ form }) => {
@@ -35,20 +46,22 @@ const MapClicker = ({ form }) => {
 const AdminRestaurants = () => {
   const { admin } = useContext(AuthContext);
   const [restaurants, setRestaurants] = useState([]);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [cuisines, setCuisines] = useState([]);
   const [tags, setTags] = useState([]);
   const [categories, setCategories] = useState([]);
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   const [form] = Form.useForm();
 
   const [logoFile, setLogoFile] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [menuFiles, setMenuFiles] = useState([]);
-  
+
   const [existingGallery, setExistingGallery] = useState([]);
   const [existingMenu, setExistingMenu] = useState([]);
 
@@ -108,7 +121,7 @@ const AdminRestaurants = () => {
     setLogoFile(null);
     setGalleryFiles([]);
     setMenuFiles([]);
-    
+
     if (record) {
       setExistingGallery(record.gallery || []);
       setExistingMenu(record.menu || []);
@@ -267,10 +280,10 @@ const AdminRestaurants = () => {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button 
-            type="text" 
-            icon={<Edit size={16} />} 
-            onClick={() => showModal(record)} 
+          <Button
+            type="text"
+            icon={<Edit size={16} />}
+            onClick={() => showModal(record)}
             className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
           />
           <Popconfirm
@@ -281,19 +294,17 @@ const AdminRestaurants = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button 
-              type="text" 
-              danger 
-              icon={<Trash2 size={16} />} 
+            <Button
+              type="text"
+              danger
+              icon={<Trash2 size={16} />}
               className="hover:bg-red-50"
             />
           </Popconfirm>
         </Space>
       ),
     },
-  ].filter(c => !c.hidden);
-
-  return (
+  ].filter(c => !c.hidden); return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
         <div>
@@ -302,24 +313,26 @@ const AdminRestaurants = () => {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Manage platform venues, menus, and details.</p>
         </div>
-        {admin?.role === 'superadmin' && (
-          <Button 
-            type="primary" 
-            icon={<Plus size={18} />} 
-            size="large"
-            className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
-            onClick={() => showModal()}
-          >
-            Add Restaurant
-          </Button>
-        )}
+        <div className="flex gap-3">
+          {admin?.role === 'superadmin' && (
+            <Button
+              type="primary"
+              icon={<Plus size={18} />}
+              size="large"
+              className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
+              onClick={() => showModal()}
+            >
+              Add Restaurant
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <Table 
-          columns={columns} 
-          dataSource={restaurants} 
-          rowKey="_id" 
+        <Table
+          columns={columns}
+          dataSource={restaurants}
+          rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10, className: 'px-4' }}
           className="admin-table"
@@ -327,170 +340,305 @@ const AdminRestaurants = () => {
       </div>
 
       <Modal
-        title={editingId ? "Edit Restaurant" : "Add New Restaurant"}
+        title={null}
         open={isModalVisible}
-        onOk={handleModalSubmit}
         onCancel={() => setIsModalVisible(false)}
-        width={800}
-        okText={editingId ? "Update" : "Create"}
-        okButtonProps={{ className: "bg-primary hover:bg-primary-hover rounded-lg font-semibold" }}
-        cancelButtonProps={{ className: "rounded-lg" }}
+        footer={null}
+        width={900}
+        centered
+        className="modern-admin-modal"
+        styles={{ body: { padding: 0 } }}
       >
-        <Form form={form} layout="vertical" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-            <Form.Item name="name" label="Restaurant Name" rules={[{ required: true }]}>
-              <Input placeholder="e.g. The Spicy Kitchen" size="large" className="rounded-lg" />
-            </Form.Item>
-            <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-              <Select placeholder="Select a category" size="large" className="rounded-lg">
-                {categories?.map(c => <Option key={c._id} value={c._id}>{c.name}</Option>)}
-              </Select>
-            </Form.Item>
-
-            <Form.Item name="description" label="Description" className="md:col-span-2">
-              <TextArea rows={3} placeholder="Brief description of the venue" className="rounded-lg" />
-            </Form.Item>
-
-            {admin?.role === 'superadmin' && (
-              <Form.Item name="owner" label="Restaurant Owner" className="md:col-span-2">
-                <Select placeholder="Assign an owner" size="large" className="rounded-lg" allowClear>
-                  {owners.map(o => <Option key={o._id} value={o._id}>{o.name} ({o.email})</Option>)}
-                </Select>
-              </Form.Item>
-            )}
-
-            <Form.Item name="cuisines" label="Cuisines">
-              <Select mode="multiple" placeholder="Select cuisines" size="large" className="rounded-lg">
-                {cuisines?.map(c => <Option key={c._id} value={c._id}>{c.name}</Option>)}
-              </Select>
-            </Form.Item>
-            <Form.Item name="tags" label="Tags">
-              <Select mode="multiple" placeholder="Select tags (e.g. Romantic, Live Music)" size="large" className="rounded-lg">
-                {tags?.map(t => <Option key={t._id} value={t._id}>{t.name}</Option>)}
-              </Select>
-            </Form.Item>
-
-            <Form.Item name="address.street" label="Street Address">
-              <Input placeholder="123 Main St" size="large" className="rounded-lg" />
-            </Form.Item>
-            <Form.Item name="address.city" label="City" rules={[{ required: true }]}>
-              <Input placeholder="Kathmandu" size="large" className="rounded-lg" />
-            </Form.Item>
-            <Form.Item name="address.country" label="Country" initialValue="Nepal">
-              <Input size="large" className="rounded-lg" />
-            </Form.Item>
-
-            <div className="grid grid-cols-2 gap-4 md:col-span-2">
-              <Form.Item name="priceRange" label="Price Range (1-4)" initialValue={2} className="col-span-2 md:col-span-1">
-                <Select size="large" className="rounded-lg">
-                  <Option value={1}>1 - Inexpensive (₹)</Option>
-                  <Option value={2}>2 - Moderate (₹₹)</Option>
-                  <Option value={3}>3 - Expensive (₹₹₹)</Option>
-                  <Option value={4}>4 - Very Expensive (₹₹₹₹)</Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item label="Logo" className="col-span-2 md:col-span-1">
-                <Upload 
-                  beforeUpload={(file) => {
-                    setLogoFile(file);
-                    return false;
-                  }}
-                  maxCount={1}
-                  fileList={logoFile ? [logoFile] : []}
-                  onRemove={() => setLogoFile(null)}
-                >
-                  <Button icon={<UploadIcon size={16} />} className="rounded-lg w-full">Select Logo</Button>
-                </Upload>
-              </Form.Item>
+        {/* Custom Header */}
+        <div className="bg-slate-900 p-6 rounded-t-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+              {editingId ? <Edit className="text-white" size={24} /> : <Plus className="text-white" size={24} />}
             </div>
-
-            {/* Gallery Images Section */}
-            <div className="md:col-span-2 space-y-3 mb-6">
-              <label className="block text-sm font-bold text-gray-700">Gallery Images</label>
-              <div className="grid grid-cols-5 gap-3 mb-3">
-                {existingGallery.map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
-                    <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" alt="gallery" />
-                    <button 
-                      onClick={() => setExistingGallery(prev => prev.filter((_, i) => i !== idx))}
-                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <Upload 
-                multiple
-                beforeUpload={(file) => {
-                  setGalleryFiles(prev => [...prev, file]);
-                  return false;
-                }}
-                fileList={galleryFiles}
-                onRemove={(file) => setGalleryFiles(prev => prev.filter(f => f.uid !== file.uid))}
-              >
-                <Button icon={<Plus size={16} />} className="rounded-lg">Add Gallery Images ({galleryFiles.length})</Button>
-              </Upload>
+            <div>
+              <h2 className="text-xl font-bold text-white leading-tight">
+                {editingId ? "Refine Restaurant" : "Onboard New Restaurant"}
+              </h2>
+              <p className="text-slate-400 text-xs font-medium tracking-wide uppercase mt-1">
+                {editingId ? "Update existing details" : "Configure platform entry"}
+              </p>
             </div>
-
-            {/* Menu Images Section */}
-            <div className="md:col-span-2 space-y-3 mb-6">
-              <label className="block text-sm font-bold text-gray-700">Restaurant Menu</label>
-              <div className="grid grid-cols-5 gap-3 mb-3">
-                {existingMenu.map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
-                    <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" alt="menu" />
-                    <button 
-                      onClick={() => setExistingMenu(prev => prev.filter((_, i) => i !== idx))}
-                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <Upload 
-                multiple
-                beforeUpload={(file) => {
-                  setMenuFiles(prev => [...prev, file]);
-                  return false;
-                }}
-                fileList={menuFiles}
-                onRemove={(file) => setMenuFiles(prev => prev.filter(f => f.uid !== file.uid))}
-              >
-                <Button icon={<Plus size={16} />} className="rounded-lg">Add Menu Images ({menuFiles.length})</Button>
-              </Upload>
-            </div>
-
-            <div className="md:col-span-2 mb-4 mt-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Location (Click map to plot)</label>
-              <div className="h-[250px] w-full rounded-xl overflow-hidden border border-gray-300 relative z-0">
-                <MapContainer 
-                  center={[lat || 27.7172, lng || 85.3240]} 
-                  zoom={13} 
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                  <MapClicker form={form} />
-                  {lat && lng && (
-                    <Marker position={[parseFloat(lat), parseFloat(lng)]} icon={customIcon} />
-                  )}
-                </MapContainer>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 md:col-span-2">
-              <Form.Item name="location.lat" label="Latitude" rules={[{ required: true }]}>
-                <Input placeholder="27.7172" size="large" className="rounded-lg" />
-              </Form.Item>
-              <Form.Item name="location.lng" label="Longitude" rules={[{ required: true }]}>
-                <Input placeholder="85.3240" size="large" className="rounded-lg" />
-              </Form.Item>
-            </div>
-
           </div>
-        </Form>
+          <button
+            onClick={() => setIsModalVisible(false)}
+            className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+          >
+            <Plus size={24} className="rotate-45" />
+          </button>
+        </div>
+
+        <div className="p-8">
+          {/* Smart Discovery Section */}
+          <div className="mb-10 bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50 relative group">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                  <SearchIcon size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-indigo-900 text-sm">Smart Autofill</h3>
+                  <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">Sync with OpenStreetMap</p>
+                </div>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                placeholder="Search global directory by name..."
+                className="w-full md:w-80 custom-search-select"
+                size="large"
+                loading={searchLoading}
+                filterOption={false}
+                notFoundContent={
+                  searchLoading ? (
+                    <div className="p-6 text-center italic text-indigo-500 text-sm animate-pulse">Searching...</div>
+                  ) : (
+                    <div className="p-6 text-center text-slate-400 text-xs">No matches found.</div>
+                  )
+                }
+                options={searchSuggestions.map(s => ({
+                  value: s.external_id,
+                  label: (
+                    <div className="flex flex-col py-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 text-sm">{s.name}</span>
+                        <Tag color="blue" className="text-[9px] border-0 rounded-md uppercase font-bold m-0">Global</Tag>
+                      </div>
+                      <span className="text-[11px] text-slate-500 truncate mt-0.5">{s.address || 'Point of Interest'} • {s.city}</span>
+                    </div>
+                  )
+                }))}
+                onSearch={(val) => {
+                  if (val.length < 3) return;
+                  if (window.searchTimer) clearTimeout(window.searchTimer);
+                  window.searchTimer = setTimeout(async () => {
+                    setSearchLoading(true);
+                    try {
+                      const res = await api.get(`/venues/search-external?q=${val}`);
+                      setSearchSuggestions(res.data.results || []);
+                    } catch (err) {
+                      console.error('Search failed', err);
+                    } finally {
+                      setSearchLoading(false);
+                    }
+                  }, 300);
+                }}
+                onSelect={(val) => {
+                  const selected = searchSuggestions.find(s => s.external_id === val);
+                  if (selected) {
+                    const catId = categories.find(c =>
+                      selected.cuisine.toLowerCase().includes(c.name.toLowerCase()) ||
+                      c.name.toLowerCase().includes(selected.cuisine.toLowerCase())
+                    )?._id;
+
+                    const autofillData = {
+                      name: selected.name,
+                      description: selected.description,
+                      'address.street': selected.address,
+                      'address.city': selected.city,
+                      'address.country': selected.country,
+                      'location.lat': selected.latitude?.toString(),
+                      'location.lng': selected.longitude?.toString(),
+                      phone: selected.phone,
+                      website: selected.website,
+                    };
+                    if (catId) autofillData.category = catId;
+                    
+                    const validData = {};
+                    Object.keys(autofillData).forEach(key => {
+                      if (autofillData[key]) validData[key] = autofillData[key];
+                    });
+                    form.setFieldsValue(validData);
+                    toast.success(`Populated: ${selected.name}`);
+                  }
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-indigo-400 font-medium italic">
+              Pro tip: Searching by name and city yields the most accurate results.
+            </p>
+          </div>
+
+          <Form form={form} layout="vertical">
+            <Tabs defaultActiveKey="1" className="restaurant-form-tabs">
+              <Tabs.TabPane tab="Basic Information" key="1" icon={<Info size={16} />}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 pt-4">
+                  <Form.Item name="name" label={<span className="text-slate-600 font-semibold">Restaurant Name</span>} rules={[{ required: true }]}>
+                    <Input placeholder="e.g. The Spicy Kitchen" size="large" className="rounded-xl border-slate-200" />
+                  </Form.Item>
+                  <Form.Item name="category" label={<span className="text-slate-600 font-semibold">Category</span>} rules={[{ required: true }]}>
+                    <Select placeholder="Select a category" size="large" className="rounded-xl">
+                      {categories?.map(c => <Option key={c._id} value={c._id}>{c.name}</Option>)}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="description" label={<span className="text-slate-600 font-semibold">Description</span>} className="md:col-span-2">
+                    <TextArea rows={4} placeholder="Describe the atmosphere, specialty dishes, etc." className="rounded-xl border-slate-200" />
+                  </Form.Item>
+
+                  <Form.Item name="cuisines" label={<span className="text-slate-600 font-semibold">Cuisines</span>}>
+                    <Select mode="multiple" placeholder="Select cuisines" size="large" className="rounded-xl">
+                      {cuisines?.map(c => <Option key={c._id} value={c._id}>{c.name}</Option>)}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="tags" label={<span className="text-slate-600 font-semibold">Tags</span>}>
+                    <Select mode="multiple" placeholder="Search features..." size="large" className="rounded-xl">
+                      {tags?.map(t => <Option key={t._id} value={t._id}>{t.name}</Option>)}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item name="priceRange" label={<span className="text-slate-600 font-semibold">Pricing Level</span>} initialValue={2}>
+                    <Select size="large" className="rounded-xl">
+                      <Option value={1}>Budget Friendly (NPR &lt; 500)</Option>
+                      <Option value={2}>Mid Range (NPR 500 - 1500)</Option>
+                      <Option value={3}>Premium (NPR 1500 - 3000)</Option>
+                      <Option value={4}>Luxury (NPR &gt; 3000)</Option>
+                    </Select>
+                  </Form.Item>
+
+                  {admin?.role === 'superadmin' && (
+                    <Form.Item name="owner" label={<span className="text-slate-600 font-semibold">Assign Owner</span>}>
+                      <Select placeholder="Select owner account" size="large" className="rounded-xl" allowClear>
+                        {owners.map(o => <Option key={o._id} value={o._id}>{o.name} ({o.email})</Option>)}
+                      </Select>
+                    </Form.Item>
+                  )}
+                </div>
+              </Tabs.TabPane>
+
+              <Tabs.TabPane tab="Contact & Media" key="2" icon={<Camera size={16} />}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 pt-4">
+                  <Form.Item name="phone" label={<span className="text-slate-600 font-semibold">Contact Number</span>}>
+                    <Input placeholder="+977 98XXXXXXXX" size="large" className="rounded-xl" />
+                  </Form.Item>
+                  <Form.Item name="website" label={<span className="text-slate-600 font-semibold">Website URL</span>}>
+                    <Input placeholder="https://example.com" size="large" className="rounded-xl" />
+                  </Form.Item>
+
+                  <Divider className="md:col-span-2 text-slate-400 text-xs uppercase tracking-widest font-bold">Visual Assets</Divider>
+
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                    <Form.Item label={<span className="text-slate-600 font-semibold">Brand Identity (Logo)</span>}>
+                      <Upload
+                        beforeUpload={(file) => { setLogoFile(file); return false; }}
+                        maxCount={1}
+                        fileList={logoFile ? [logoFile] : []}
+                        onRemove={() => setLogoFile(null)}
+                        className="w-full"
+                      >
+                        <Button icon={<UploadIcon size={16} />} className="w-full h-12 rounded-xl border-dashed border-2 border-slate-200 hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2 font-medium">
+                          Click to Upload Logo
+                        </Button>
+                      </Upload>
+                    </Form.Item>
+
+                    <div className="space-y-4">
+                      <label className="text-slate-600 font-semibold text-sm">Gallery Preview</label>
+                      <div className="flex flex-wrap gap-2">
+                        {existingGallery.slice(0, 4).map((url, idx) => (
+                          <div key={idx} className="w-14 h-14 rounded-lg overflow-hidden border border-slate-100 shadow-sm relative group">
+                            <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" />
+                            <button onClick={() => setExistingGallery(prev => prev.filter((_, i) => i !== idx))} className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                        {existingGallery.length > 4 && <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] text-slate-500 font-bold">+{existingGallery.length - 4}</div>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Form.Item label={<span className="text-slate-600 font-semibold">Atmosphere Gallery</span>} className="md:col-span-1">
+                    <Upload
+                      multiple
+                      beforeUpload={(file) => { setGalleryFiles(prev => [...prev, file]); return false; }}
+                      fileList={galleryFiles}
+                      onRemove={(file) => setGalleryFiles(prev => prev.filter(f => f.uid !== file.uid))}
+                    >
+                      <Button icon={<Plus size={16} />} className="rounded-lg h-10 border-slate-200">Select Files ({galleryFiles.length})</Button>
+                    </Upload>
+                  </Form.Item>
+
+                  <Form.Item label={<span className="text-slate-600 font-semibold">Digital Menu</span>} className="md:col-span-1">
+                    <Upload
+                      multiple
+                      beforeUpload={(file) => { setMenuFiles(prev => [...prev, file]); return false; }}
+                      fileList={menuFiles}
+                      onRemove={(file) => setMenuFiles(prev => prev.filter(f => f.uid !== file.uid))}
+                    >
+                      <Button icon={<Plus size={16} />} className="rounded-lg h-10 border-slate-200">Select Files ({menuFiles.length})</Button>
+                    </Upload>
+                  </Form.Item>
+                </div>
+              </Tabs.TabPane>
+
+              <Tabs.TabPane tab="Geo-Location" key="3" icon={<MapPin size={16} />}>
+                <div className="space-y-6 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                    <Form.Item name="address.street" label={<span className="text-slate-600 font-semibold">Street Address</span>}>
+                      <Input placeholder="e.g. Lakeside 6" size="large" className="rounded-xl" />
+                    </Form.Item>
+                    <Form.Item name="address.city" label={<span className="text-slate-600 font-semibold">City</span>} rules={[{ required: true }]}>
+                      <Input placeholder="e.g. Pokhara" size="large" className="rounded-xl" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="rounded-2xl overflow-hidden border-4 border-slate-50 shadow-inner h-[300px] relative">
+                    <MapContainer
+                      center={[parseFloat(lat) || 27.7172, parseFloat(lng) || 85.3240]}
+                      zoom={15}
+                      style={{ height: '100%', width: '100%' }}
+                    >
+                      <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                      <ChangeView center={[parseFloat(lat), parseFloat(lng)]} />
+                      <MapClicker form={form} />
+                      {lat && lng && <Marker position={[parseFloat(lat), parseFloat(lng)]} icon={customIcon} />}
+                    </MapContainer>
+                    <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur shadow-xl p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight leading-none">Lat</span>
+                        <span className="text-xs font-mono font-bold text-slate-700">{parseFloat(lat).toFixed(4) || '--'}</span>
+                      </div>
+                      <Divider type="vertical" className="h-6 bg-slate-200" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight leading-none">Lng</span>
+                        <span className="text-xs font-mono font-bold text-slate-700">{parseFloat(lng).toFixed(4) || '--'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 hidden">
+                    <Form.Item name="location.lat"><Input /></Form.Item>
+                    <Form.Item name="location.lng"><Input /></Form.Item>
+                  </div>
+                </div>
+              </Tabs.TabPane>
+            </Tabs>
+
+            {/* Custom Footer */}
+            <div className="flex justify-end items-center gap-3 mt-10 pt-6 border-t border-slate-100">
+              <Button 
+                onClick={() => setIsModalVisible(false)} 
+                size="large" 
+                className="rounded-xl border-slate-200 text-slate-500 font-semibold px-8 h-12"
+              >
+                Discard
+              </Button>
+              <Button 
+                onClick={handleModalSubmit} 
+                type="primary" 
+                size="large" 
+                className="rounded-xl bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold px-10 h-12 shadow-xl shadow-slate-200"
+              >
+                {editingId ? "Save Changes" : "Finalize & Publish"}
+              </Button>
+            </div>
+          </Form>
+        </div>
       </Modal>
     </div>
   );

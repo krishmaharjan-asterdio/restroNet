@@ -6,7 +6,11 @@ const logger = require('./logger');
  * Retries on failure with exponential backoff.
  */
 const connectDB = async () => {
+  logger.info('🚀 Database connection process started...');
   const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/restronet';
+
+  console.log('DEBUG: Attempting to connect to MongoDB...');
+  console.log(`DEBUG: URI: ${MONGO_URI.split('@')[1] ? 'mongodb+srv://<hidden>@' + MONGO_URI.split('@')[1] : MONGO_URI}`);
 
   try {
     const conn = await mongoose.connect(MONGO_URI, {
@@ -17,6 +21,7 @@ const connectDB = async () => {
     });
 
     logger.info(`✅ MongoDB Connected: ${conn.connection.host}`);
+
 
     // Handle disconnection events
     mongoose.connection.on('disconnected', () => {
@@ -30,6 +35,7 @@ const connectDB = async () => {
   } catch (error) {
     logger.error(`❌ MongoDB Connection Error: ${error.message}`);
     // Exit process with failure if DB connection fails on startup
+
     process.exit(1);
   }
 };
