@@ -119,6 +119,10 @@ const venueSchema = new mongoose.Schema(
     // ─── Status ─────────────────────────────────────────────────────────────
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+
+    // ─── External Source (Scraper/Importer) ─────────────────────────────────
+    osmId: { type: String, unique: true, sparse: true },
+    source: { type: String, default: 'manual', enum: ['manual', 'osm'] },
   },
   {
     timestamps: true,
@@ -132,7 +136,6 @@ venueSchema.index({ cuisines: 1 });
 venueSchema.index({ tags: 1 });
 venueSchema.index({ priceRange: 1 });
 venueSchema.index({ averageRating: -1 });
-venueSchema.index({ slug: 1 });
 
 // ─── Auto-generate slug from name ────────────────────────────────────────────
 venueSchema.pre('save', function (next) {

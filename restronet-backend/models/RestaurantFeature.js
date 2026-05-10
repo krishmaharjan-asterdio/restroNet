@@ -76,7 +76,6 @@ const restaurantFeatureSchema = new mongoose.Schema(
 );
 
 // ─── Index ────────────────────────────────────────────────────────────────────
-restaurantFeatureSchema.index({ venue: 1 });
 restaurantFeatureSchema.index({ lastComputedAt: -1 });
 
 module.exports = mongoose.model('RestaurantFeature', restaurantFeatureSchema);
