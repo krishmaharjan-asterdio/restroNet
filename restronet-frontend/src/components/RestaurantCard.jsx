@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, MapPin, Heart, Navigation, Sparkles } from 'lucide-react';
+import { Star, MapPin, Heart, Navigation, Sparkles, Banknote } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 
-const PRICE_MAP  = { 1: '₹', 2: '₹₹', 3: '₹₹₹', 4: '₹₹₹₹' };
+const PRICE_MAP  = { 1: 'Npr', 2: 'Npr x2', 3: 'Npr x3', 4: 'Npr x4' };
 const MOOD_LABEL = {
   romantic:         { label: 'Romantic',       emoji: '💑' },
   'family-friendly':{ label: 'Family',         emoji: '👨‍👩‍👧' },
@@ -175,10 +175,18 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
 
           {/* Footer: price + category */}
           <div className="border-t border-gray-100 pt-4 mt-auto flex justify-between items-center text-xs font-bold">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-900 font-black text-sm">{PRICE_MAP[venue.priceRange] || '₹₹'}</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
-              <span className="text-gray-500 uppercase tracking-wider text-[10px]">{venue.category?.name || 'Restaurant'}</span>
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+              <div className="flex -space-x-1">
+                {[1, 2, 3, 4].map((step) => (
+                  <Banknote 
+                    key={step} 
+                    size={14} 
+                    className={`${step <= (venue.priceRange || 2) ? 'text-green-600' : 'text-slate-200'} fill-current`} 
+                  />
+                ))}
+              </div>
+              <span className="w-1 h-1 bg-slate-300 rounded-full" />
+              <span className="text-slate-500 uppercase tracking-wider text-[10px]">{venue.category?.name || 'Restaurant'}</span>
             </div>
             <span className="text-primary flex items-center gap-1 group-hover:gap-2 transition-all duration-300 font-black uppercase tracking-widest text-[10px]">
               Explore <Navigation size={12} className="rotate-90 fill-current" />
