@@ -148,7 +148,7 @@ const RestaurantDetail = () => {
                       <h4 className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors">{item.name}</h4>
                       {item.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>}
                     </div>
-                    <div className="font-extrabold text-gray-900 text-lg">₹{item.price}</div>
+                    <div className="font-extrabold text-gray-900 text-lg">Npr {item.price}</div>
                   </motion.div>
                 ))}
               </div>
@@ -343,7 +343,7 @@ const RestaurantDetail = () => {
           <div className="sticky top-28 bg-white border border-gray-200 rounded-3xl p-6 shadow-[0_10px_40px_rgb(0,0,0,0.08)]">
             <div className="flex justify-between items-end mb-6">
               <div>
-                <span className="text-2xl font-extrabold text-gray-900">₹{venue.priceRange * 500}</span>
+                <span className="text-2xl font-extrabold text-gray-900">Npr {venue.priceRange * 500}</span>
                 <span className="text-gray-500 font-medium"> / person approx.</span>
               </div>
               <div className="flex items-center gap-1">
@@ -448,7 +448,41 @@ const RestaurantDetail = () => {
               name="time"
               rules={[{ required: true, message: 'Select a time' }]}
             >
-              <Input type="time" size="large" className="rounded-lg" />
+              <Select size="large" className="rounded-lg" placeholder="Select a time slot">
+                {(() => {
+                  const slots = [];
+                  const selectedDate = reservationForm.getFieldValue('date') ? new Date(reservationForm.getFieldValue('date')) : new Date();
+                  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                  const dayName = dayNames[selectedDate.getDay()];
+                  
+                  const hours = venue.openingHours?.[dayName];
+                  
+                  let openTime = "10:00";
+                  let closeTime = "22:00";
+                  
+                  if (hours && !hours.isClosed) {
+                    if (hours.open) openTime = hours.open;
+                    if (hours.close) closeTime = hours.close;
+                  } else if (hours?.isClosed) {
+                    return [<Select.Option key="closed" disabled>Restaurant is closed on this day</Select.Option>];
+                  }
+                  
+                  let current = new Date(`2024-01-01T${openTime}:00`);
+                  const end = new Date(`2024-01-01T${closeTime}:00`);
+                  
+                  // If closing time is earlier than opening (e.g. past midnight), adjust end date
+                  if (end <= current) {
+                    end.setDate(end.getDate() + 1);
+                  }
+
+                  while (current <= end) {
+                    const timeStr = current.toTimeString().substring(0, 5);
+                    slots.push(<Select.Option key={timeStr} value={timeStr}>{timeStr}</Select.Option>);
+                    current.setMinutes(current.getMinutes() + 30);
+                  }
+                  return slots;
+                })()}
+              </Select>
             </Form.Item>
           </div>
 

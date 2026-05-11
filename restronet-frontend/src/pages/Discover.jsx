@@ -10,10 +10,10 @@ import RestaurantCard from '../components/RestaurantCard';
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const PRICE_OPTIONS = [
-  { value: 1, label: 'Budget',  symbol: '₹',    desc: 'Under 500 NPR'   },
-  { value: 2, label: 'Mid',     symbol: '₹₹',   desc: '500 – 1500 NPR'  },
-  { value: 3, label: 'Premium', symbol: '₹₹₹',  desc: '1500 – 3000 NPR' },
-  { value: 4, label: 'Luxury',  symbol: '₹₹₹₹', desc: 'Above 3000 NPR'  },
+  { value: 1, label: 'Value',    symbol: '💰',     desc: 'Budget friendly' },
+  { value: 2, label: 'Standard', symbol: '💰💰',  desc: 'Moderate' },
+  { value: 3, label: 'Premium',  symbol: '💎',     desc: 'Upscale' },
+  { value: 4, label: 'Elite',    symbol: '💎💎',  desc: 'Luxury' },
 ];
 
 const MOODS = [

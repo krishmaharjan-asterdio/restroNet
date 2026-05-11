@@ -273,7 +273,16 @@ const AdminRestaurants = () => {
       title: 'Price Range',
       dataIndex: 'priceRange',
       key: 'priceRange',
-      render: (price) => '₹'.repeat(price || 2),
+      render: (price) => (
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4].map((step) => (
+            <div 
+              key={step}
+              className={`h-1.5 w-4 rounded-full ${step <= (price || 2) ? 'bg-indigo-500' : 'bg-slate-200'}`}
+            />
+          ))}
+        </div>
+      ),
     },
     {
       title: 'Actions',
@@ -448,7 +457,7 @@ const AdminRestaurants = () => {
                       website: selected.website,
                     };
                     if (catId) autofillData.category = catId;
-                    
+
                     const validData = {};
                     Object.keys(autofillData).forEach(key => {
                       if (autofillData[key]) validData[key] = autofillData[key];
@@ -610,7 +619,7 @@ const AdminRestaurants = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 hidden">
                     <Form.Item name="location.lat"><Input /></Form.Item>
                     <Form.Item name="location.lng"><Input /></Form.Item>
@@ -621,17 +630,17 @@ const AdminRestaurants = () => {
 
             {/* Custom Footer */}
             <div className="flex justify-end items-center gap-3 mt-10 pt-6 border-t border-slate-100">
-              <Button 
-                onClick={() => setIsModalVisible(false)} 
-                size="large" 
+              <Button
+                onClick={() => setIsModalVisible(false)}
+                size="large"
                 className="rounded-xl border-slate-200 text-slate-500 font-semibold px-8 h-12"
               >
                 Discard
               </Button>
-              <Button 
-                onClick={handleModalSubmit} 
-                type="primary" 
-                size="large" 
+              <Button
+                onClick={handleModalSubmit}
+                type="primary"
+                size="large"
                 className="rounded-xl bg-slate-900 border-0 hover:bg-slate-800 text-white font-bold px-10 h-12 shadow-xl shadow-slate-200"
               >
                 {editingId ? "Save Changes" : "Finalize & Publish"}
