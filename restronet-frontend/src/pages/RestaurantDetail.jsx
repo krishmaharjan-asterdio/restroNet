@@ -259,48 +259,66 @@ const RestaurantDetail = () => {
           </div>
         </div>
 
-        {/* Masonry Image Gallery */}
-        <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[500px] rounded-3xl overflow-hidden mt-6">
-          {/* Main Large Image */}
-          <div className="col-span-4 md:col-span-2 row-span-2 relative group cursor-pointer">
+        {/* Editorial Image Gallery - Staggered & Asymmetric */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-12 h-auto md:h-[700px]">
+          {/* Main Hero Image */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="md:col-span-7 h-[400px] md:h-full relative group overflow-hidden rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.2)]"
+          >
             <img 
               src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage} 
               alt="Cover" 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" 
             />
             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-          </div>
+          </motion.div>
           
-          {/* Other 4 Images from Gallery or Placeholders */}
-          {[1, 2, 3, 4].map((idx) => {
-            const hasImage = venue.gallery && venue.gallery[idx];
-            const imgSrc = hasImage 
-              ? `http://localhost:5000${venue.gallery[idx]}` 
-              : `https://images.unsplash.com/photo-${[
-                  '1414235077428-33898bd12252',
-                  '1544148103-0773bf10d330',
-                  '1504674900247-0877df9cc836',
-                  '1493770348161-369560ae357d'
-                ][idx-1]}?auto=format&fit=crop&w=600&q=80`;
+          {/* Right Column Staggered */}
+          <div className="md:col-span-5 grid grid-cols-2 grid-rows-2 gap-6 h-full">
+            {[1, 2, 3].map((idx) => {
+              const hasImage = venue.gallery && venue.gallery[idx];
+              const imgSrc = hasImage 
+                ? `http://localhost:5000${venue.gallery[idx]}` 
+                : `https://images.unsplash.com/photo-${[
+                    '1414235077428-33898bd12252',
+                    '1544148103-0773bf10d330',
+                    '1504674900247-0877df9cc836'
+                  ][idx-1]}?auto=format&fit=crop&w=800&q=80`;
 
-            return (
-              <div 
-                key={idx} 
-                className={`${idx === 2 || idx === 4 ? 'hidden md:block' : ''} col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer`}
-              >
-                <img 
-                  src={imgSrc} 
-                  alt={`Gallery ${idx}`} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                />
-                {idx === 4 && (
-                  <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
-                    <List size={16} /> Show all photos
-                  </div>
-                )}
+              return (
+                <motion.div 
+                  key={idx} 
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className={`${idx === 1 ? 'col-span-2 row-span-1 h-[250px]' : 'col-span-1 row-span-1 h-full'} relative group overflow-hidden rounded-[2rem] shadow-xl`}
+                >
+                  <img 
+                    src={imgSrc} 
+                    alt={`Gallery ${idx}`} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                  />
+                  <div className="absolute inset-0 bg-black/5" />
+                </motion.div>
+              );
+            })}
+            
+            {/* View All Overlay Box */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="col-span-1 row-span-1 bg-primary/5 border-2 border-primary/20 rounded-[2rem] flex flex-col items-center justify-center p-6 text-center group cursor-pointer hover:bg-primary transition-all duration-500"
+            >
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform">
+                <List size={24} className="text-primary" />
               </div>
-            );
-          })}
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">See all</p>
+              <p className="text-lg font-black text-gray-900 group-hover:text-white transition-colors">Photos</p>
+            </motion.div>
+          </div>
         </div>
       </div>
 
@@ -340,47 +358,74 @@ const RestaurantDetail = () => {
 
         {/* Right Column: Sticky Booking / Info Card */}
         <div className="relative">
-          <div className="sticky top-28 bg-white border border-gray-200 rounded-3xl p-6 shadow-[0_10px_40px_rgb(0,0,0,0.08)]">
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <span className="text-2xl font-extrabold text-gray-900">Npr {venue.priceRange * 500}</span>
-                <span className="text-gray-500 font-medium"> / person approx.</span>
+          <div className="sticky top-32 hearth-card p-8 bg-white border border-gray-100 shadow-2xl">
+            <div className="flex justify-between items-end mb-8">
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-gray-900">Npr {venue.priceRange * 500}</span>
+                  <span className="text-gray-400 font-bold text-sm">/ guest</span>
+                </div>
+                <div className="flex gap-1 mt-2">
+                  {[1, 2, 3, 4].map((s) => (
+                    <div 
+                      key={s}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                        s <= (venue.priceRange || 2) 
+                          ? 'bg-amber-400 text-white shadow-sm shadow-amber-200' 
+                          : 'bg-gray-100 text-gray-300'
+                      }`}
+                    >
+                      <span className="text-[10px] font-black">₨</span>
+                    </div>
+                  ))}
+                  <div className="ml-3 px-3 py-1 bg-slate-50 rounded-full border border-slate-100 flex items-center">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      {['Economy', 'Moderate', 'Premium', 'Elite'][venue.priceRange - 1] || 'Moderate'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Star className="fill-current text-yellow-400" size={14} />
-                <span className="font-bold text-gray-900 text-sm">{venue.averageRating.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                <Star className="fill-primary text-primary" size={14} />
+                <span className="font-black text-gray-900 text-sm">{venue.averageRating.toFixed(1)}</span>
               </div>
             </div>
 
             <button
               onClick={() => setIsReservationModalVisible(true)}
-              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6"
+              className="btn-primary-hearth w-full py-4 text-lg rounded-2xl mb-8"
             >
               Reserve a Table
             </button>
 
-            <div className="space-y-5 border-t border-gray-100 pt-6">
-              <h3 className="font-bold text-lg text-gray-900">Location & Info</h3>
+            <div className="space-y-6 pt-8 border-t border-gray-100">
+              <h3 className="text-label">Location & Contact</h3>
 
-              <div className="flex items-start gap-4">
-                <div className="mt-1"><MapPin className="text-gray-400" size={22} /></div>
+              <div className="flex items-start gap-4 group">
+                <div className="mt-1 w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                  <MapPin size={20} />
+                </div>
                 <div>
-                  <p className="font-medium text-gray-900">{venue.address.street}</p>
-                  <p className="text-gray-500 text-sm">{venue.address.city}, {venue.address.country}</p>
+                  <p className="font-bold text-gray-900 leading-tight">{venue.address.street}</p>
+                  <p className="text-gray-500 text-xs mt-1 font-medium">{venue.address.city}, {venue.address.country}</p>
                 </div>
               </div>
 
               {venue.phone && (
-                <div className="flex items-center gap-4">
-                  <div><Phone className="text-gray-400" size={22} /></div>
-                  <span className="font-medium text-gray-900">{venue.phone}</span>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                    <Phone size={18} />
+                  </div>
+                  <span className="font-bold text-gray-900">{venue.phone}</span>
                 </div>
               )}
 
               {venue.website && (
-                <div className="flex items-center gap-4">
-                  <div><Globe className="text-gray-400" size={22} /></div>
-                  <a href={venue.website} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline line-clamp-1">{venue.website}</a>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                    <Globe size={18} />
+                  </div>
+                  <a href={venue.website} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline line-clamp-1">{venue.website.replace(/(^\w+:|^)\/\//, '')}</a>
                 </div>
               )}
             </div>

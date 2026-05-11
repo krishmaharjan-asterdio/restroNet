@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-11T12:00:00Z",
+  "title": "Design System: RestroNet",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Kathmandu Sunset",
+        "canonical": "oklch(65% 0.22 35)",
+        "tonalRamp": [
+          "#3a1800",
+          "#6e2d00",
+          "#a34200",
+          "#d75700",
+          "#fa6500",
+          "#ff8b3d",
+          "#ffb37a",
+          "#ffd9b8"
+        ]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Snow White",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": [
+          "#000000",
+          "#1a1a1a",
+          "#4d4d4d",
+          "#808080",
+          "#b3b3b3",
+          "#e6e6e6",
+          "#f2f2f2",
+          "#ffffff"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "hearth-glow",
+        "value": "0 10px 40px rgba(0,0,0,0.08)",
+        "purpose": "Standard elevation for curated cards and containers."
+      },
+      {
+        "name": "interactive-lift",
+        "value": "0 20px 50px rgba(0,0,0,0.12)",
+        "purpose": "Hover state for cards and buttons to signal tactile depth."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call to action for discovery and booking.",
+      "html": "<button class=\"ds-btn-primary\">Reserve Table</button>",
+      "css": ".ds-btn-primary { background: #fa6500; color: #fff; padding: 14px 28px; border-radius: 12px; font-weight: 700; border: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 14px 0 rgba(250, 101, 0, 0.3); cursor: pointer; } .ds-btn-primary:hover { background: #e05a00; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(250, 101, 0, 0.4); }"
+    },
+    {
+      "name": "Curated Card",
+      "kind": "card",
+      "refersTo": "card-modern",
+      "description": "Container for restaurants and trending highlights.",
+      "html": "<div class=\"ds-card-curated\"><div class=\"ds-card-img\"></div><div class=\"ds-card-content\"><h3 class=\"ds-card-title\">The Himalayan Bistro</h3><p class=\"ds-card-text\">Modern Nepalese Cuisine</p></div></div>",
+      "css": ".ds-card-curated { background: #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 1px solid #f3f4f6; } .ds-card-curated:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,0,0,0.12); } .ds-card-img { height: 180px; background: #f3f4f6; } .ds-card-content { padding: 24px; } .ds-card-title { font-weight: 700; color: #111827; margin-bottom: 4px; } .ds-card-text { color: #6b7280; font-size: 0.875rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Himalayan Hearth",
+    "overview": "RestroNet is designed to feel warm, premium, and locally grounded. It rejects the generic 'SaaS dashboard' aesthetic in favor of curated hospitality.",
+    "keyCharacteristics": [
+      "Warmth over Utility",
+      "Atmospheric Depth",
+      "Intentional Restraint"
+    ],
+    "rules": [
+      {
+        "name": "The Ten Percent Rule",
+        "body": "Kathmandu Sunset is used on ≤10% of any given screen. Its rarity preserves its impact.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do use Kathmandu Sunset as a selective spotlight.",
+      "Do prioritize large, high-quality food photography."
+    ],
+    "donts": [
+      "Don't use border-left side-stripes as accents.",
+      "Don't use generic Tailwind-blue or SaaS-purple gradients."
+    ]
+  }
+}

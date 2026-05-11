@@ -10,8 +10,12 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 24.6 100% 49%;
+    
+    /* Kathmandu Sunset */
+    --primary: 24.2 100% 49%;
+    --primary-hover: 24.2 100% 44%;
     --primary-foreground: 210 40% 98%;
+    
     --secondary: 0 0% 96.9%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -23,29 +27,11 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 24.6 100% 49%;
-    --radius: 0.5rem;
-  }
+    --radius: 0.75rem;
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 24.6 100% 49%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 24.6 100% 49%;
+    /* Himalayan Hearth Elevation */
+    --hearth-glow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    --interactive-lift: 0 20px 50px rgba(0, 0, 0, 0.12);
   }
 }
 
@@ -54,33 +40,44 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-inter antialiased;
+    @apply bg-white text-gray-900 font-inter antialiased selection:bg-primary/20 selection:text-primary;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-black text-gray-900;
   }
 }
 
-/* ─── MODERN UI CLASSES (from global rules) ─── */
-.page-container {
-  @apply bg-gray-50/50 min-h-screen;
+/* ─── HIMALAYAN HEARTH TOKENS ─── */
+.hearth-card {
+  @apply bg-white rounded-[1.5rem] border border-gray-100/60 shadow-[var(--hearth-glow)] transition-all duration-300;
+}
+
+.hearth-card:hover {
+  @apply shadow-[var(--interactive-lift)] -translate-y-1;
+}
+
+.hearth-shadow {
+  @apply shadow-[var(--hearth-glow)];
+}
+
+.text-display {
+  @apply text-[clamp(2.5rem,5vw,4rem)] font-black leading-[1.1] tracking-[-0.02em];
+}
+
+.text-label {
+  @apply text-[10px] font-black uppercase tracking-[0.2em] text-gray-400;
+}
+
+.btn-primary-hearth {
+  @apply bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2;
+}
+
+.btn-secondary-hearth {
+  @apply bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-8 rounded-xl border border-gray-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2;
 }
 
 .glass-nav {
-  @apply bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm transition-all;
-}
-
-.modern-card {
-  @apply bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300;
-}
-
-.modern-chip {
-  @apply px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors;
-}
-
-.btn-primary-modern {
-  @apply bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95;
-}
-
-.btn-secondary-modern {
-  @apply bg-white hover:bg-gray-50 text-gray-700 font-bold py-2.5 px-6 rounded-xl border border-gray-200 shadow-sm transition-all active:scale-95;
+  @apply bg-white/70 backdrop-blur-xl border-b border-gray-200/40 shadow-sm transition-all;
 }
 
 /* Utilities */

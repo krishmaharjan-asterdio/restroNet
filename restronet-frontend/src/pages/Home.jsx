@@ -57,67 +57,65 @@ const Home = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col w-full bg-gray-50">
+    <div className="flex-1 flex flex-col w-full bg-white">
       {/* ─── HERO SECTION ─── */}
-      <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center bg-gray-900 overflow-hidden">
-        {/* Background Image */}
+      <section className="relative w-full h-[95vh] flex items-center justify-center bg-gray-950 overflow-hidden">
         <motion.div 
-          initial={{ scale: 1.05 }}
+          initial={{ scale: 1.15 }}
           animate={{ scale: 1 }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
+          transition={{ duration: 3, ease: "easeOut" }}
           className="absolute inset-0 bg-cover bg-center opacity-60"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1920&q=80')" }}
         />
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-gray-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-white"></div>
         
-        <div className="relative z-10 text-center px-4 max-w-5xl w-full flex flex-col items-center mt-16">
+        <div className="relative z-10 text-center px-6 max-w-7xl w-full flex flex-col items-center mt-20">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 1 }}
           >
-            <span className="bg-primary/90 text-white text-sm font-bold uppercase tracking-wider py-1.5 px-4 rounded-full mb-6 inline-block backdrop-blur-sm">
-              Discover & Book
+            <span className="text-label text-primary mb-6 inline-block bg-primary/10 backdrop-blur-md px-6 py-2 rounded-full border border-primary/20">
+              The Finest in Kathmandu
             </span>
           </motion.div>
           <motion.h1 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-5xl md:text-7xl font-extrabold text-white mb-6 drop-shadow-xl tracking-tight leading-tight"
+            transition={{ duration: 1, delay: 0.2 }}
+            className="text-[clamp(3.5rem,8vw,6rem)] font-black text-white mb-10 tracking-tighter leading-[0.9] drop-shadow-2xl"
           >
-            Find your next <br className="hidden md:block"/> favorite meal.
+            Taste the <br className="hidden md:block"/> Extraordinary.
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="text-xl md:text-2xl text-gray-200 mb-12 max-w-3xl drop-shadow-md font-medium"
+            transition={{ duration: 1, delay: 0.3 }}
+            className="text-2xl text-white/80 mb-16 max-w-2xl font-medium leading-relaxed"
           >
-            Explore top-rated restaurants, personalized just for you.
+            A curated selection of the city's most soulful dining experiences, personalized for your palate.
           </motion.p>
 
           <motion.form 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
+            transition={{ duration: 1, delay: 0.4 }}
             onSubmit={handleSearch} 
-            className="flex w-full max-w-4xl mx-auto bg-white rounded-2xl p-2.5 shadow-2xl items-center"
+            className="flex w-full max-w-4xl mx-auto bg-white/95 backdrop-blur-2xl rounded-[3rem] p-4 shadow-[0_30px_100px_rgba(0,0,0,0.3)] items-center border border-white/20"
           >
-            <div className="flex-1 flex items-center px-4 md:px-6">
-              <Search className="text-gray-400 mr-3" size={24} />
+            <div className="flex-1 flex items-center px-8 border-r border-gray-100">
+              <Search className="text-primary mr-5" size={24} />
               <input 
                 type="text" 
-                placeholder="Search for restaurants, cuisines, or dishes..."
-                className="w-full h-14 outline-none text-lg text-gray-800 bg-transparent placeholder-gray-400 font-medium"
+                placeholder="Where should we take you?"
+                className="w-full h-16 outline-none text-xl text-gray-900 bg-transparent placeholder-gray-400 font-bold"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <button 
               type="submit" 
-              className="bg-primary hover:bg-primary-hover text-white font-bold py-4 px-10 rounded-xl transition-all shadow-lg hover:shadow-primary/40 active:scale-95 whitespace-nowrap"
+              className="btn-primary-hearth h-16 px-12 rounded-[2rem] text-lg"
             >
               Search
             </button>
@@ -127,31 +125,27 @@ const Home = () => {
 
       {/* ─── RECOMMENDATIONS FOR USER ─── */}
       {user && (
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 w-full -mt-24 relative z-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+        <section className="max-w-7xl mx-auto px-6 md:px-12 py-40 w-full relative">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
+              className="max-w-2xl"
             >
-              <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-[0.2em] mb-2">
-                <Sparkles size={16} /> Made for you
-              </div>
-              <h2 className="text-4xl font-black text-gray-900 tracking-tight">
-                Recommended For You
+              <div className="text-label text-primary mb-6">Personalized for {user.name.split(' ')[0]}</div>
+              <h2 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter leading-none">
+                Soulful Spots <br/> Just for You
               </h2>
-              <p className="text-gray-500 mt-2 text-lg font-medium">
-                Based on your {user.preferences?.cuisines?.length > 0 ? 'favorite cuisines' : 'tastes'} and Kathmandu's top spots
-              </p>
             </motion.div>
             <motion.button
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               onClick={() => navigate('/discover')}
-              className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
+              className="btn-secondary-hearth h-16 px-10 text-lg border-2"
             >
-              Explore All <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              View Collection <ChevronRight size={20} />
             </motion.button>
           </div>
 
@@ -159,25 +153,20 @@ const Home = () => {
             recommendations.length > 0 ? (
               <div className="relative group">
                 <Swiper
-                  slidesPerView={1.2}
-                  spaceBetween={24}
+                  slidesPerView={1.1}
+                  spaceBetween={32}
                   pagination={{ clickable: true, dynamicBullets: true }}
-                  navigation={{
-                    nextEl: '.swiper-button-next-custom',
-                    prevEl: '.swiper-button-prev-custom',
-                  }}
                   breakpoints={{
-                    640: { slidesPerView: 2.2 },
-                    768: { slidesPerView: 3.2 },
-                    1024: { slidesPerView: 4 },
+                    1024: { slidesPerView: 2.1 },
+                    1280: { slidesPerView: 3 },
                   }}
                   modules={[FreeMode, Navigation, Pagination]}
-                  className="pb-12"
+                  className="pb-20"
                 >
                   {recommendations.map((venue, i) => (
                     <SwiperSlide key={venue._id}>
                       <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: i * 0.1 }}
@@ -187,63 +176,90 @@ const Home = () => {
                     </SwiperSlide>
                   ))}
                 </Swiper>
-
-                {/* Custom Navigation Buttons */}
-                <button className="swiper-button-prev-custom absolute left-0 top-1/2 -translate-y-1/2 -translate-x-6 z-30 w-12 h-12 bg-white rounded-full shadow-xl border border-gray-100 flex items-center justify-center text-gray-900 opacity-0 group-hover:opacity-100 group-hover:-translate-x-4 transition-all duration-300 disabled:opacity-0 pointer-events-auto">
-                    <ChevronRight className="rotate-180" size={24} />
-                </button>
-                <button className="swiper-button-next-custom absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 z-30 w-12 h-12 bg-white rounded-full shadow-xl border border-gray-100 flex items-center justify-center text-gray-900 opacity-0 group-hover:opacity-100 group-hover:translate-x-4 transition-all duration-300 disabled:opacity-0 pointer-events-auto">
-                    <ChevronRight size={24} />
-                </button>
               </div>
             ) : (
-              <div className="bg-white rounded-[2.5rem] p-12 text-center border border-dashed border-gray-200">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Utensils size={24} className="text-gray-300" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">No recommendations yet</h3>
-                <p className="text-gray-500">Add some preferences in your profile to see tailored spots!</p>
+              <div className="hearth-card p-20 text-center border-dashed border-2">
+                <Sparkles size={48} className="text-gray-200 mx-auto mb-6" />
+                <h3 className="text-2xl font-black text-gray-900 mb-2">Build your profile</h3>
+                <p className="text-gray-500 text-lg mb-8">Tell us what you love and we'll show you the magic.</p>
+                <button onClick={() => navigate('/profile')} className="btn-primary-hearth">Update Preferences</button>
               </div>
             )
           )}
         </section>
       )}
 
+      {/* ─── CATEGORY MASONRY ─── */}
+      <section className="bg-gray-50 py-40 border-y border-gray-100 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          <div className="text-center mb-24">
+            <div className="text-label text-gray-400 mb-6">Explore the landscape</div>
+            <h2 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter">Choose your vibe.</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 grid-rows-2 gap-6 h-[800px]">
+            {[
+              { name: 'Fine Dining', Icon: UtensilsCrossed, color: 'from-amber-500 to-amber-700', span: 'md:col-span-8', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b' },
+              { name: 'Cafe',        Icon: Coffee,          color: 'from-orange-400 to-orange-600', span: 'md:col-span-4', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93' },
+              { name: 'Fast Food',   Icon: Zap,             color: 'from-red-500 to-red-700',    span: 'md:col-span-4', img: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330' },
+              { name: 'Pub',         Icon: Beer,            color: 'from-emerald-500 to-emerald-700', span: 'md:col-span-8', img: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c' },
+            ].map(({ name, Icon, color, span, img }, i) => (
+              <motion.div
+                key={name}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                onClick={() => navigate(`/search?q=${name}`)}
+                className={`relative group cursor-pointer overflow-hidden rounded-[2.5rem] ${span} shadow-2xl shadow-gray-200`}
+              >
+                <img src={`${img}?auto=format&fit=crop&w=1200&q=80`} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                <div className={`absolute inset-0 bg-gradient-to-br ${color} mix-blend-multiply opacity-40 group-hover:opacity-20 transition-opacity`} />
+                <div className="absolute inset-0 bg-black/20" />
+                <div className="absolute bottom-10 left-10 text-white">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-white/30">
+                    <Icon size={32} />
+                  </div>
+                  <h3 className="text-3xl font-black tracking-tight">{name}</h3>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── TRENDING NOW ─── */}
-      <section className={`max-w-7xl mx-auto px-4 md:px-8 pb-32 w-full ${!user ? '-mt-24 relative z-20' : 'pt-10'}`}>
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+      <section className="max-w-7xl mx-auto px-6 md:px-12 py-40 w-full">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
-            <div className="flex items-center gap-2 text-orange-500 font-bold text-sm uppercase tracking-[0.2em] mb-2">
-              <Zap size={16} fill="currentColor" /> Hot this week
+            <div className="text-label text-orange-500 mb-6 flex items-center gap-2">
+              <Zap size={14} fill="currentColor" /> Trending Now
             </div>
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight">
-              Trending Now
+            <h2 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter">
+              Hot in the City
             </h2>
-            <p className="text-gray-500 mt-2 text-lg font-medium">
-              Top rated places everyone is visiting right now
-            </p>
           </motion.div>
           <motion.button 
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             onClick={() => navigate('/discover')}
-            className="group flex items-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
+            className="btn-secondary-hearth h-16 px-10 text-lg border-2"
           >
-            See Popular <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            Discover More <ChevronRight size={20} />
           </motion.button>
         </div>
 
         {loading ? <SectionLoader /> : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {trending.slice(0, 8).map((venue, i) => (
               <motion.div
                 key={venue._id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
@@ -253,33 +269,6 @@ const Home = () => {
             ))}
           </div>
         )}
-      </section>
-
-      {/* ─── EXPLORE CATEGORIES ─── */}
-      <section className="bg-white py-24 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Explore by Category</h2>
-          <p className="text-gray-500 mb-12 text-lg">Find the perfect dining experience for any occasion</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { name: 'Fine Dining', Icon: UtensilsCrossed, iconBg: 'bg-amber-100', iconColor: 'text-amber-600', hover: 'hover:border-amber-200 hover:bg-amber-50' },
-              { name: 'Cafe',        Icon: Coffee,          iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600', hover: 'hover:border-yellow-200 hover:bg-yellow-50' },
-              { name: 'Fast Food',   Icon: Zap,             iconBg: 'bg-red-100',    iconColor: 'text-red-500',    hover: 'hover:border-red-200 hover:bg-red-50' },
-              { name: 'Pub',         Icon: Beer,            iconBg: 'bg-green-100',  iconColor: 'text-green-600',  hover: 'hover:border-green-200 hover:bg-green-50' },
-            ].map(({ name, Icon, iconBg, iconColor, hover }) => (
-              <div
-                key={name}
-                onClick={() => navigate(`/search?q=${name}`)}
-                className={`cursor-pointer group flex flex-col items-center p-8 rounded-2xl border border-gray-100 ${hover} transition-all duration-300`}
-              >
-                <div className={`w-16 h-16 ${iconBg} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4`}>
-                  <Icon size={28} className={iconColor} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 group-hover:text-gray-700 transition-colors">{name}</h3>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
     </div>
