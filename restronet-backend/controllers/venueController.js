@@ -12,7 +12,8 @@ const getVenues = async (req, res, next) => {
   try {
     const { 
       search, cuisine, tag, priceRange, mealType, 
-      sortBy, limit = 10, page = 1 
+      sortBy, limit = 10, page = 1,
+      lat, lng
     } = req.query;
 
     const query = { isActive: true };
@@ -35,9 +36,26 @@ const getVenues = async (req, res, next) => {
       limit: parseInt(limit, 10),
       populate: 'cuisines tags category owner',
       sort: sortBy === 'rating' ? { averageRating: -1 } : { createdAt: -1 },
+      lean: true,
     };
 
     const venues = await Venue.paginate(query, options);
+
+    // Calculate distance if coordinates provided
+    if (lat && lng) {
+      const { calculateHaversineDistance } = require('../utils/haversine');
+      venues.docs = venues.docs.map(v => {
+        if (v.location?.coordinates) {
+          const distance = calculateHaversineDistance(
+            [parseFloat(lng), parseFloat(lat)],
+            v.location.coordinates
+          );
+          v.distanceKm = Math.round(distance * 10) / 10;
+        }
+        return v;
+      });
+    }
+
     res.json({ success: true, ...venues });
   } catch (error) {
     next(error);
@@ -61,9 +79,20 @@ const getVenueById = async (req, res, next) => {
       query = { slug: idOrSlug };
     }
 
-    const venue = await Venue.findOne(query).populate('cuisines tags category owner');
+    const venue = await Venue.findOne(query).populate('cuisines tags category owner').lean();
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+
+    // Calculate distance if coordinates provided
+    const { lat, lng } = req.query;
+    if (lat && lng && venue.location?.coordinates) {
+      const { calculateHaversineDistance } = require('../utils/haversine');
+      const distance = calculateHaversineDistance(
+        [parseFloat(lng), parseFloat(lat)],
+        venue.location.coordinates
+      );
+      venue.distanceKm = Math.round(distance * 10) / 10;
     }
 
     res.json({ success: true, venue });

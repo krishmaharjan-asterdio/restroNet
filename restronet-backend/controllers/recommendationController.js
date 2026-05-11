@@ -8,8 +8,13 @@ const { rebuildAllVectors } = require('../services/cbf-pipeline');
  */
 const getUserRecommendations = async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const recommendations = await getCBFRecommendations(req.user._id, limit);
+    const { limit = 10, lat, lng } = req.query;
+    const recommendations = await getCBFRecommendations(
+      req.user._id, 
+      parseInt(limit, 10),
+      lat ? parseFloat(lat) : null,
+      lng ? parseFloat(lng) : null
+    );
     res.json({ success: true, count: recommendations.length, recommendations });
   } catch (error) {
     next(error);
@@ -17,6 +22,7 @@ const getUserRecommendations = async (req, res, next) => {
 };
 
 const { parsePrompt } = require('../services/nlpParser');
+const aiService = require('../services/aiService');
 
 /**
  * @desc    Smart multi-factor recommendations (public, guest-friendly)
@@ -43,21 +49,35 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
     let priceRanges = priceRange  ? priceRange.split(',').filter(Boolean).map(Number) : [];
     let isNearMe = false;
     let isTopRated = false;
+    let city = null;
+    let aiSortBy = null;
 
     let parsedFilters = null;
+    let aiExplanation = null;
 
     if (prompt) {
-      parsedFilters = await parsePrompt(prompt);
-      if (parsedFilters.cuisineIds.length) cuisineIds = [...new Set([...cuisineIds, ...parsedFilters.cuisineIds])];
-      if (parsedFilters.categoryIds.length) categoryIds = [...new Set([...categoryIds, ...parsedFilters.categoryIds])];
-      if (parsedFilters.tagIds.length) tagIds = [...new Set([...tagIds, ...parsedFilters.tagIds])];
-      if (parsedFilters.priceRanges.length) priceRanges = [...new Set([...priceRanges, ...parsedFilters.priceRanges])];
+      // 1. Try AI-powered parsing first (Gemini)
+      parsedFilters = await aiService.parseIntent(prompt);
+      
+      // 2. Fallback to rule-based parsing if AI fails or key is missing
+      if (!parsedFilters) {
+        parsedFilters = await parsePrompt(prompt);
+      } else {
+        aiExplanation = parsedFilters.explanation;
+      }
+
+      if (parsedFilters.cuisineIds?.length) cuisineIds = [...new Set([...cuisineIds, ...parsedFilters.cuisineIds])];
+      if (parsedFilters.categoryIds?.length) categoryIds = [...new Set([...categoryIds, ...parsedFilters.categoryIds])];
+      if (parsedFilters.tagIds?.length) tagIds = [...new Set([...tagIds, ...parsedFilters.tagIds])];
+      if (parsedFilters.priceRanges?.length) priceRanges = [...new Set([...priceRanges, ...parsedFilters.priceRanges])];
       if (parsedFilters.mood) mood = parsedFilters.mood;
       if (parsedFilters.isNearMe) isNearMe = true;
       if (parsedFilters.isTopRated) isTopRated = true;
+      if (parsedFilters.location) city = parsedFilters.location;
+      if (parsedFilters.sortBy) aiSortBy = parsedFilters.sortBy;
     }
 
-    const recommendations = await getSmartRecommendations({
+    const { results, suggestions, searchMeta } = await getSmartRecommendations({
       userId:         req.user?._id || null,
       searchTerm:     prompt      || null,
       cuisineIds,
@@ -65,6 +85,8 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       tagIds,
       priceRanges,
       mood:           mood        || null,
+      city:           city        || null,
+      sortBy:         aiSortBy    || null,
       lat:            lat         ? parseFloat(lat)         : null,
       lng:            lng         ? parseFloat(lng)         : null,
       maxDistanceKm:  maxDistance ? parseFloat(maxDistance) : (isNearMe ? 10 : 20),
@@ -73,11 +95,14 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
     });
 
     res.json({
-      success: true,
-      count: recommendations.length,
-      recommendations,
-      availableMoods: Object.keys(MOOD_KEYWORDS),
-      parsedIntent: parsedFilters ? { ...parsedFilters, mood } : null,
+      success:         true,
+      count:           results.length,
+      recommendations: results,
+      suggestions,
+      searchMeta,
+      availableMoods:  Object.keys(MOOD_KEYWORDS),
+      parsedIntent:    parsedFilters ? { ...parsedFilters, mood } : null,
+      aiExplanation,
     });
   } catch (error) {
     next(error);

@@ -29,112 +29,115 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#fcfcfd]">
-      {/* Left brand panel - Hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center overflow-hidden bg-gray-900">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30"
+    <div className="min-h-screen flex bg-white">
+      {/* Left brand panel - Immersive & Motion-rich */}
+      <div className="hidden lg:flex lg:w-3/5 relative flex-col items-center justify-center overflow-hidden bg-gray-950">
+        <motion.div
+          initial={{ scale: 1.1, opacity: 0.4 }}
+          animate={{ scale: 1, opacity: 0.6 }}
+          transition={{ duration: 10, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
+          className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900/80 to-primary/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-gray-950/80 to-primary/20" />
         
-        <div className="relative z-10 text-center px-16 max-w-xl">
+        <div className="relative z-10 text-center px-24 max-w-2xl">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="flex items-center justify-center gap-3 mb-10"
+            transition={{ duration: 1 }}
+            className="flex items-center justify-center gap-4 mb-12"
           >
-            <div className="p-4 rounded-2xl bg-primary text-white shadow-2xl shadow-primary/40 rotate-3">
-              <Utensils size={36} />
+            <div className="p-5 rounded-3xl bg-primary text-white shadow-[0_20px_50px_rgba(250,101,0,0.4)] rotate-6">
+              <Utensils size={40} />
             </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter">
+            <h1 className="text-6xl font-black text-white tracking-tighter">
               RESTRO<span className="text-primary">NET</span>
             </h1>
           </motion.div>
           
           <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-4xl font-extrabold text-white mb-6 leading-tight tracking-tight"
+            transition={{ duration: 1, delay: 0.2 }}
+            className="text-display text-white mb-8 leading-[0.9]"
           >
-            Taste the Best <br/> Kathmandu has to offer.
+            Kathmandu's <br/> Finest Tables.
           </motion.h2>
           
           <motion.p 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-gray-300 text-lg leading-relaxed font-medium"
+            transition={{ duration: 1, delay: 0.3 }}
+            className="text-white/60 text-xl leading-relaxed font-medium"
           >
-            Log in to access your saved restaurants, personalized recommendations, and past reservations.
+            Experience the art of discovery. Sign in to access your curated collection and personalized recommendations.
           </motion.p>
         </div>
+
+        {/* Floating Accent Shapes */}
+        <div className="absolute top-20 right-20 w-32 h-32 bg-primary/20 blur-[80px] rounded-full animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-48 h-48 bg-primary/10 blur-[100px] rounded-full animate-pulse delay-1000" />
       </div>
 
-      {/* Right form panel */}
-      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
-        {/* Abstract shapes for background */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
-
+      {/* Right form panel - Clean & Tactile */}
+      <div className="w-full lg:w-2/5 flex flex-col items-center justify-center px-10 py-16 relative overflow-hidden bg-gray-50/30">
         <div className="w-full max-w-md relative z-10">
           {/* Mobile Logo */}
-          <div className="flex items-center gap-2 mb-12 lg:hidden">
-            <div className="p-2 rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
-              <Utensils size={24} />
+          <div className="flex items-center gap-3 mb-16 lg:hidden justify-center">
+            <div className="p-3 rounded-2xl bg-primary text-white shadow-xl shadow-primary/20">
+              <Utensils size={28} />
             </div>
-            <span className="text-2xl font-black text-gray-900 tracking-tighter">
+            <span className="text-3xl font-black text-gray-900 tracking-tighter">
               RESTRO<span className="text-primary">NET</span>
             </span>
           </div>
 
-          <div className="mb-10 text-center lg:text-left">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2">Welcome Back</h2>
-            <p className="text-gray-500 font-medium">Continue your culinary journey</p>
+          <div className="mb-12 text-center lg:text-left">
+            <h2 className="text-5xl font-black text-gray-900 tracking-tighter mb-4 leading-none">Welcome Back</h2>
+            <p className="text-gray-400 font-bold text-lg uppercase tracking-widest text-[10px]">Continue your culinary journey</p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/50">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-[3.5rem] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.05)]">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email Address</label>
-                  <div className="group flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary focus-within:bg-white transition-all">
-                    <Mail size={20} className="text-gray-400 group-focus-within:text-primary transition-colors" />
+                  <label className="text-label ml-2 mb-3 block">Email Identity</label>
+                  <div className="group flex items-center gap-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] px-6 py-5 focus-within:bg-white focus-within:border-primary/20 focus-within:shadow-[0_0_0_6px_rgba(250,101,0,0.05)] transition-all">
+                    <Mail size={22} className="text-gray-300 group-focus-within:text-primary transition-colors" />
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      placeholder="email@example.com"
-                      className="flex-1 outline-none text-gray-800 bg-transparent placeholder-gray-400 font-semibold"
+                      placeholder="you@example.com"
+                      className="flex-1 outline-none text-gray-900 bg-transparent placeholder-gray-300 font-bold text-lg"
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-2 ml-1">
-                    <label className="block text-sm font-bold text-gray-700">Password</label>
-                    <Link to="/forgot-password" size="small" className="text-primary text-xs font-bold hover:underline">Forgot?</Link>
+                  <div className="flex justify-between items-center ml-2 mb-3">
+                    <label className="text-label">Security Key</label>
+                    <Link to="/forgot-password" size="small" className="text-primary text-[10px] font-black uppercase tracking-widest hover:underline">Forgot?</Link>
                   </div>
-                  <div className="group flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary focus-within:bg-white transition-all">
-                    <Lock size={20} className="text-gray-400 group-focus-within:text-primary transition-colors" />
+                  <div className="group flex items-center gap-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] px-6 py-5 focus-within:bg-white focus-within:border-primary/20 focus-within:shadow-[0_0_0_6px_rgba(250,101,0,0.05)] transition-all">
+                    <Lock size={22} className="text-gray-300 group-focus-within:text-primary transition-colors" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className="flex-1 outline-none text-gray-800 bg-transparent placeholder-gray-400 font-semibold"
+                      className="flex-1 outline-none text-gray-900 bg-transparent placeholder-gray-300 font-bold text-lg tracking-[0.2em]"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-400 hover:text-primary transition-colors"
+                      className="text-gray-300 hover:text-primary transition-colors"
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
@@ -143,18 +146,18 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-2xl text-lg shadow-xl shadow-primary/30 flex items-center justify-center gap-2 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:translate-y-0"
+                className="btn-primary-hearth w-full py-5 rounded-[1.75rem] text-xl shadow-[0_20px_50px_rgba(250,101,0,0.3)]"
               >
                 {loading ? (
-                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-7 h-7 border-3 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <>Sign In <ArrowRight size={20} /></>
+                  <>Sign In <ArrowRight size={24} className="ml-2" /></>
                 )}
               </button>
             </form>
           </div>
 
-          <p className="text-center mt-10 text-gray-500 font-semibold">
+          <p className="text-center mt-12 text-gray-400 font-bold">
             New to RestroNet?{' '}
             <Link to="/register" className="text-primary font-black hover:underline ml-1">
               Create an account

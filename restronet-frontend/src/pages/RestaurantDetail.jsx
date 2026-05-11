@@ -1,11 +1,37 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus, List, Calendar } from 'lucide-react';
+import { Star, MapPin, Phone, Globe, Clock, Heart, Share, CheckCircle2, MessageSquarePlus, List, Calendar, Utensils, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tabs, Modal, Form, Input, Rate, Button, Select } from 'antd';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+
+// Fix for default Leaflet marker icons
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+  iconUrl: iconUrl,
+  shadowUrl: iconShadow,
+  iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+const MapUpdater = ({ venueCoords, userCoords }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (venueCoords) {
+      const points = [[venueCoords[1], venueCoords[0]]];
+      if (userCoords) points.push([userCoords.lat, userCoords.lng]);
+      
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [venueCoords, userCoords, map]);
+  return null;
+};
 
 const RestaurantDetail = () => {
   const { slug } = useParams();
@@ -14,6 +40,7 @@ const RestaurantDetail = () => {
   const [menus, setMenus] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState(null);
 
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const [isReservationModalVisible, setIsReservationModalVisible] = useState(false);
@@ -21,15 +48,26 @@ const RestaurantDetail = () => {
   const [submittingReservation, setSubmittingReservation] = useState(false);
   const [reviewForm] = Form.useForm();
   const [reservationForm] = Form.useForm();
+  const [isGalleryModalVisible, setIsGalleryModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        err => console.warn("Location access denied", err)
+      );
+    }
+  }, []);
 
   useEffect(() => {
     fetchVenueData();
     window.scrollTo(0, 0);
-  }, [slug]);
+  }, [slug, coords]);
 
   const fetchVenueData = async () => {
     try {
-      const venueRes = await api.get(`/venues/${slug}`);
+      const latLng = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : '';
+      const venueRes = await api.get(`/venues/${slug}${latLng}`);
       const venueData = venueRes.data.venue;
       setVenue(venueData);
 
@@ -125,63 +163,73 @@ const RestaurantDetail = () => {
   const tabItems = [
     {
       key: 'menu',
-      label: <span className="text-lg font-bold">Items</span>,
-      children: menus.length === 0 ? (
-        <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
-          <p className="text-gray-500 font-medium">Digital menu items are currently not listed.</p>
-        </div>
-      ) : (
-        <div className="space-y-10">
-          {menus.map(menu => (
-            <div key={menu._id}>
-              <h3 className="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-100 pb-3">{menu.name}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {menu.items.map((item, idx) => (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    key={item._id}
-                    className="flex justify-between p-5 rounded-2xl hover:bg-gray-50 transition-colors border border-gray-100 hover:border-primary/20 hover:shadow-md group"
-                  >
-                    <div className="pr-4">
-                      <h4 className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors">{item.name}</h4>
-                      {item.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>}
-                    </div>
-                    <div className="font-extrabold text-gray-900 text-lg">Npr {item.price}</div>
-                  </motion.div>
-                ))}
-              </div>
+      label: <span className="text-base font-black uppercase tracking-widest px-4">Items</span>,
+      children: (
+        <div className="pt-10">
+          {menus.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+              <Utensils className="mx-auto text-gray-200 mb-4" size={48} />
+              <p className="text-gray-500 font-bold">Digital menu items are currently not listed.</p>
             </div>
-          ))}
+          ) : (
+            <div className="space-y-10">
+              {menus.map(menu => (
+                <div key={menu._id}>
+                  <h3 className="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-100 pb-3">{menu.name}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {menu.items.map((item, idx) => (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        key={item._id}
+                        className="flex justify-between p-5 rounded-2xl hover:bg-gray-50 transition-colors border border-gray-100 hover:border-primary/20 hover:shadow-md group"
+                      >
+                        <div className="pr-4">
+                          <h4 className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors">{item.name}</h4>
+                          {item.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>}
+                        </div>
+                        <div className="font-extrabold text-gray-900 text-lg">Npr {item.price}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )
     },
     {
       key: 'menu_images',
-      label: <span className="text-lg font-bold">Menu Photos</span>,
-      children: venue.menu?.length === 0 ? (
-        <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
-          <p className="text-gray-500 font-medium">No menu photos uploaded yet.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {venue.menu.map((img, idx) => (
-            <img 
-              key={idx} 
-              src={`http://localhost:5000${img}`} 
-              className="w-full rounded-2xl border border-gray-100 shadow-sm" 
-              alt={`Menu ${idx + 1}`} 
-            />
-          ))}
+      label: <span className="text-base font-black uppercase tracking-widest px-4">Menu Photos</span>,
+      children: (
+        <div className="pt-10">
+          {venue.menu?.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+              <List className="mx-auto text-gray-200 mb-4" size={48} />
+              <p className="text-gray-500 font-bold">No menu photos uploaded yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {venue.menu.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={`http://localhost:5000${img}`}
+                  className="w-full rounded-2xl border border-gray-100 shadow-sm"
+                  alt={`Menu ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )
     },
     {
       key: 'reviews',
-      label: <span className="text-lg font-bold">Reviews ({venue.totalReviews})</span>,
+      label: <span className="text-base font-black uppercase tracking-widest px-4">Reviews ({reviews.length})</span>,
       children: (
-        <div className="space-y-6">
+        <div className="pt-10 space-y-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-gray-900">User Reviews</h3>
             {user ? (
@@ -230,7 +278,8 @@ const RestaurantDetail = () => {
                 <h4 className="font-bold text-lg mb-2 text-gray-900">{review.title}</h4>
                 <p className="text-gray-700 leading-relaxed">{review.comment}</p>
               </div>
-            )))}
+            ))
+          )}
         </div>
       )
     }
@@ -242,11 +291,18 @@ const RestaurantDetail = () => {
       {/* ─── HEADER / HERO GALLERY ─── */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-6 pb-4">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2 tracking-tight">{venue.name}</h1>
-            <div className="flex items-center gap-4 text-gray-600 font-medium">
-              <span className="flex items-center hover:text-primary cursor-pointer transition-colors"><MapPin size={18} className="mr-1" /> {venue.address.city}, {venue.address.country}</span>
-              <span className="flex items-center"><Star size={18} className="mr-1 text-yellow-400 fill-current" /> <span className="font-bold text-gray-900 mr-1">{venue.averageRating.toFixed(1)}</span> ({venue.totalReviews} reviews)</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">{venue.name}</h1>
+              {venue.distanceKm && (
+                <div className="bg-primary text-white px-3 py-1.5 rounded-2xl font-black text-xs flex items-center gap-2 shadow-lg shadow-primary/20 mt-1">
+                  <Utensils size={14} className="fill-current" /> {venue.distanceKm} km away
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-6 text-gray-500 font-bold text-sm">
+              <span className="flex items-center hover:text-primary cursor-pointer transition-colors"><MapPin size={16} className="mr-2 text-primary" /> {venue.address.city}, {venue.address.country}</span>
+              <span className="flex items-center"><Star size={16} className="mr-2 text-amber-400 fill-current" /> <span className="font-black text-gray-900 mr-1">{venue.averageRating.toFixed(1)}</span> ({reviews.length} actual reviews)</span>
             </div>
           </div>
           <div className="hidden sm:flex gap-3">
@@ -259,48 +315,41 @@ const RestaurantDetail = () => {
           </div>
         </div>
 
-        {/* Masonry Image Gallery */}
-        <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[500px] rounded-3xl overflow-hidden mt-6">
-          {/* Main Large Image */}
-          <div className="col-span-4 md:col-span-2 row-span-2 relative group cursor-pointer">
-            <img 
-              src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage} 
-              alt="Cover" 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+        {/* Editorial Image Gallery - Staggered & Asymmetric */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-12 h-auto md:h-[700px]">
+          {/* Main Hero Image */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="md:col-span-7 h-[400px] md:h-full relative group overflow-hidden rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.2)]"
+          >
+            <img
+              src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage}
+              alt="Cover"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
             />
             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-          </div>
-          
-          {/* Other 4 Images from Gallery or Placeholders */}
-          {[1, 2, 3, 4].map((idx) => {
-            const hasImage = venue.gallery && venue.gallery[idx];
-            const imgSrc = hasImage 
-              ? `http://localhost:5000${venue.gallery[idx]}` 
-              : `https://images.unsplash.com/photo-${[
-                  '1414235077428-33898bd12252',
-                  '1544148103-0773bf10d330',
-                  '1504674900247-0877df9cc836',
-                  '1493770348161-369560ae357d'
-                ][idx-1]}?auto=format&fit=crop&w=600&q=80`;
+          </motion.div>
 
-            return (
-              <div 
+          {/* Right Column Staggered */}
+          <div className="md:col-span-5 grid grid-cols-2 grid-rows-2 gap-6 h-full">
+            {(venue.gallery || []).slice(1, 5).map((img, idx) => (
+              <motion.div 
                 key={idx} 
-                className={`${idx === 2 || idx === 4 ? 'hidden md:block' : ''} col-span-2 md:col-span-1 row-span-1 relative group overflow-hidden cursor-pointer`}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`${idx === 0 ? 'col-span-2 row-span-1 h-[250px]' : 'col-span-1 row-span-1 h-full'} relative group overflow-hidden rounded-[2rem] shadow-xl`}
               >
                 <img 
-                  src={imgSrc} 
-                  alt={`Gallery ${idx}`} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  src={`http://localhost:5000${img}`} 
+                  alt={`Gallery ${idx + 1}`} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                 />
-                {idx === 4 && (
-                  <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-white transition-colors">
-                    <List size={16} /> Show all photos
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                <div className="absolute inset-0 bg-black/5" />
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -332,55 +381,156 @@ const RestaurantDetail = () => {
             </div>
           </div>
 
+          {/* Location & Map Section */}
+          <div className="mb-12 pb-12 border-b border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Location & Directions</h2>
+              {venue.distanceKm && (
+                <span className="text-primary font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                  <Navigation size={14} className="fill-current" /> {venue.distanceKm} km from you
+                </span>
+              )}
+            </div>
+            
+            <div className="h-[400px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 z-0 relative">
+              <MapContainer 
+                center={[venue.location.coordinates[1], venue.location.coordinates[0]]} 
+                zoom={15} 
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                <MapUpdater venueCoords={venue.location.coordinates} userCoords={coords} />
+                
+                {/* Restaurant Marker */}
+                <Marker position={[venue.location.coordinates[1], venue.location.coordinates[0]]}>
+                  <Popup>
+                    <div className="p-2 font-bold text-gray-900">{venue.name}</div>
+                  </Popup>
+                </Marker>
+
+                {/* User Location Marker */}
+                {coords && (
+                  <Marker 
+                    position={[coords.lat, coords.lng]}
+                    icon={L.divIcon({
+                      className: 'user-location-marker',
+                      html: `<div class="relative">
+                        <div class="w-5 h-5 bg-blue-500 rounded-full border-4 border-white shadow-lg animate-pulse"></div>
+                        <div class="absolute -inset-2 bg-blue-500 rounded-full opacity-20 animate-ping"></div>
+                      </div>`,
+                      iconSize: [20, 20],
+                      iconAnchor: [10, 10]
+                    })}
+                  >
+                    <Popup>You are here</Popup>
+                  </Marker>
+                )}
+              </MapContainer>
+            </div>
+            <div className="mt-6 p-6 bg-gray-50 rounded-3xl flex items-center gap-4 border border-gray-100">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary">
+                <MapPin size={24} />
+              </div>
+              <div>
+                <p className="font-black text-gray-900">{venue.address.street}</p>
+                <p className="text-gray-500 font-bold text-xs uppercase tracking-widest">{venue.address.city}, {venue.address.country}</p>
+              </div>
+              <a 
+                href={`https://www.google.com/maps/dir/?api=1&destination=${venue.location.coordinates[1]},${venue.location.coordinates[0]}`}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200"
+              >
+                Get Directions
+              </a>
+            </div>
+          </div>
+
           {/* Menu & Reviews Tabs */}
-          <div className="restaurant-tabs">
-            <Tabs defaultActiveKey="menu" items={tabItems} size="large" tabBarGutter={40} />
+          <div className="restaurant-tabs mt-16">
+            <Tabs
+              defaultActiveKey="menu"
+              items={tabItems}
+              size="large"
+              tabBarGutter={60}
+              className="custom-tabs"
+            />
           </div>
         </div>
 
         {/* Right Column: Sticky Booking / Info Card */}
         <div className="relative">
-          <div className="sticky top-28 bg-white border border-gray-200 rounded-3xl p-6 shadow-[0_10px_40px_rgb(0,0,0,0.08)]">
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <span className="text-2xl font-extrabold text-gray-900">Npr {venue.priceRange * 500}</span>
-                <span className="text-gray-500 font-medium"> / person approx.</span>
+          <div className="sticky top-32 hearth-card p-8 bg-white border border-gray-100 shadow-2xl">
+            <div className="flex justify-between items-end mb-8">
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-gray-900">Npr {venue.priceRange * 500}</span>
+                  <span className="text-gray-400 font-bold text-sm">/ guest</span>
+                </div>
+                <div className="flex gap-1 mt-2">
+                  {[1, 2, 3, 4].map((s) => (
+                    <div
+                      key={s}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${s <= (venue.priceRange || 2)
+                          ? 'bg-amber-400 text-white shadow-sm shadow-amber-200'
+                          : 'bg-gray-100 text-gray-300'
+                        }`}
+                    >
+                      <span className="text-[10px] font-black">₨</span>
+                    </div>
+                  ))}
+                  <div className="ml-3 px-3 py-1 bg-slate-50 rounded-full border border-slate-100 flex items-center">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      {['Economy', 'Moderate', 'Premium', 'Elite'][venue.priceRange - 1] || 'Moderate'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Star className="fill-current text-yellow-400" size={14} />
-                <span className="font-bold text-gray-900 text-sm">{venue.averageRating.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                <Star className="fill-primary text-primary" size={14} />
+                <span className="font-black text-gray-900 text-sm">{venue.averageRating.toFixed(1)}</span>
               </div>
             </div>
 
             <button
               onClick={() => setIsReservationModalVisible(true)}
-              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl text-lg transition-all shadow-md active:scale-[0.98] mb-6"
+              className="btn-primary-hearth w-full py-4 text-lg rounded-2xl mb-8"
             >
               Reserve a Table
             </button>
 
-            <div className="space-y-5 border-t border-gray-100 pt-6">
-              <h3 className="font-bold text-lg text-gray-900">Location & Info</h3>
+            <div className="space-y-6 pt-8 border-t border-gray-100">
+              <h3 className="text-label">Location & Contact</h3>
 
-              <div className="flex items-start gap-4">
-                <div className="mt-1"><MapPin className="text-gray-400" size={22} /></div>
+              <div className="flex items-start gap-4 group">
+                <div className="mt-1 w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                  <MapPin size={20} />
+                </div>
                 <div>
-                  <p className="font-medium text-gray-900">{venue.address.street}</p>
-                  <p className="text-gray-500 text-sm">{venue.address.city}, {venue.address.country}</p>
+                  <p className="font-bold text-gray-900 leading-tight">{venue.address.street}</p>
+                  <p className="text-gray-500 text-xs mt-1 font-medium">{venue.address.city}, {venue.address.country}</p>
                 </div>
               </div>
 
               {venue.phone && (
-                <div className="flex items-center gap-4">
-                  <div><Phone className="text-gray-400" size={22} /></div>
-                  <span className="font-medium text-gray-900">{venue.phone}</span>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                    <Phone size={18} />
+                  </div>
+                  <span className="font-bold text-gray-900">{venue.phone}</span>
                 </div>
               )}
 
               {venue.website && (
-                <div className="flex items-center gap-4">
-                  <div><Globe className="text-gray-400" size={22} /></div>
-                  <a href={venue.website} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline line-clamp-1">{venue.website}</a>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
+                    <Globe size={18} />
+                  </div>
+                  <a href={venue.website} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline line-clamp-1">{venue.website.replace(/(^\w+:|^)\/\//, '')}</a>
                 </div>
               )}
             </div>
@@ -454,22 +604,22 @@ const RestaurantDetail = () => {
                   const selectedDate = reservationForm.getFieldValue('date') ? new Date(reservationForm.getFieldValue('date')) : new Date();
                   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                   const dayName = dayNames[selectedDate.getDay()];
-                  
+
                   const hours = venue.openingHours?.[dayName];
-                  
+
                   let openTime = "10:00";
                   let closeTime = "22:00";
-                  
+
                   if (hours && !hours.isClosed) {
                     if (hours.open) openTime = hours.open;
                     if (hours.close) closeTime = hours.close;
                   } else if (hours?.isClosed) {
                     return [<Select.Option key="closed" disabled>Restaurant is closed on this day</Select.Option>];
                   }
-                  
+
                   let current = new Date(`2024-01-01T${openTime}:00`);
                   const end = new Date(`2024-01-01T${closeTime}:00`);
-                  
+
                   // If closing time is earlier than opening (e.g. past midnight), adjust end date
                   if (end <= current) {
                     end.setDate(end.getDate() + 1);
@@ -529,6 +679,33 @@ const RestaurantDetail = () => {
         </Form>
       </Modal>
 
+      {/* Gallery Modal */}
+      <Modal
+        title={<span className="text-2xl font-black uppercase tracking-tighter">Restaurant Gallery</span>}
+        open={isGalleryModalVisible}
+        onCancel={() => setIsGalleryModalVisible(false)}
+        footer={null}
+        width={1000}
+        centered
+        className="gallery-modal"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-6">
+          {venue.gallery?.map((img, idx) => (
+            <motion.div
+              key={idx}
+              whileHover={{ scale: 1.02 }}
+              className="aspect-square rounded-2xl overflow-hidden shadow-lg border border-gray-100"
+            >
+              <img
+                src={`http://localhost:5000${img}`}
+                alt={`Gallery ${idx}`}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => window.open(`http://localhost:5000${img}`, '_blank')}
+              />
+            </motion.div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

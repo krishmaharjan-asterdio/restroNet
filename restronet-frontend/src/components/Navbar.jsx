@@ -32,82 +32,85 @@ const Navbar = () => {
     }
   };
 
-  const navClass = `fixed top-0 w-full z-50 transition-all duration-300 ${
+  const navClass = `fixed top-0 w-full z-50 transition-all duration-500 ${
     isHome && !scrolled
-      ? 'bg-transparent py-6'
-      : 'bg-white/90 backdrop-blur-lg border-b border-gray-200/50 shadow-sm py-4'
+      ? 'bg-transparent py-8'
+      : 'glass-nav py-4'
   }`;
 
   const userMenuItems = [
     {
       key: '1',
-      label: <Link to="/profile" className="flex items-center gap-2"><UserIcon size={16} /> Profile</Link>,
+      label: <Link to="/profile" className="flex items-center gap-3 py-1 font-bold text-gray-700 hover:text-primary"><UserIcon size={16} /> Profile</Link>,
     },
     {
       key: '2',
-      label: <Link to="/reservations" className="flex items-center gap-2"><Utensils size={16} /> My Reservations</Link>,
+      label: <Link to="/reservations" className="flex items-center gap-3 py-1 font-bold text-gray-700 hover:text-primary"><Utensils size={16} /> My Reservations</Link>,
     },
     {
       key: '3',
-      label: <Link to="/profile" className="flex items-center gap-2"><Heart size={16} /> Saved Places</Link>,
+      label: <Link to="/profile" className="flex items-center gap-3 py-1 font-bold text-gray-700 hover:text-primary"><Heart size={16} /> Saved Places</Link>,
     },
     { type: 'divider' },
     {
       key: '4',
-      label: <div onClick={handleLogout} className="flex items-center gap-2 text-red-500"><LogOut size={16} /> Logout</div>,
+      label: <div onClick={handleLogout} className="flex items-center gap-3 py-1 font-bold text-red-500"><LogOut size={16} /> Logout</div>,
     },
   ];
 
   return (
     <>
       <header className={navClass}>
-        <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="p-2 rounded-xl bg-primary text-white transition-transform group-hover:scale-105">
-              <Utensils size={24} />
+            <div className="p-2.5 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 transition-transform group-hover:scale-110 group-active:scale-95">
+              <Utensils size={22} />
             </div>
-            <h1 className={`text-2xl font-extrabold tracking-tight ${isHome && !scrolled ? 'text-white' : 'text-gray-900'}`}>
+            <h1 className={`text-2xl font-black tracking-tighter ${isHome && !scrolled ? 'text-white' : 'text-gray-900'}`}>
               RESTRO<span className={isHome && !scrolled ? 'text-white' : 'text-primary'}>NET</span>
             </h1>
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-10">
             <Link
               to="/search"
-              className={`font-semibold transition-colors hover:text-primary ${isHome && !scrolled ? 'text-gray-100' : 'text-gray-600'}`}
+              className={`text-sm font-black uppercase tracking-widest transition-colors hover:text-primary ${isHome && !scrolled ? 'text-white/80' : 'text-gray-500'}`}
             >
               Explore
             </Link>
             <Link
               to="/discover"
-              className={`flex items-center gap-1.5 font-semibold transition-colors hover:text-primary ${isHome && !scrolled ? 'text-gray-100' : 'text-gray-600'}`}
+              className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest transition-colors hover:text-primary ${isHome && !scrolled ? 'text-white/80' : 'text-gray-500'}`}
             >
-              <Sparkles size={15} />
+              <Sparkles size={14} className="text-primary" />
               Discover
             </Link>
 
             {user ? (
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
-                <div className={`flex items-center gap-2 cursor-pointer font-semibold ${isHome && !scrolled ? 'text-white' : 'text-gray-800'}`}>
-                  <div className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center border-2 border-white/20 shadow-sm font-bold">
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']} overlayClassName="hearth-dropdown">
+                <div className={`flex items-center gap-3 cursor-pointer group`}>
+                  <div className="w-10 h-10 bg-primary text-white rounded-2xl flex items-center justify-center border-2 border-white/20 shadow-lg font-black transition-transform group-hover:scale-105">
                     {user.name.charAt(0)}
                   </div>
-                  <span>{user.name.split(' ')[0]}</span>
-                  <ChevronDown size={16} />
+                  <div className="hidden lg:block">
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${isHome && !scrolled ? 'text-white/60' : 'text-gray-400'}`}>Welcome</p>
+                    <p className={`text-sm font-black ${isHome && !scrolled ? 'text-white' : 'text-gray-900'}`}>{user.name.split(' ')[0]}</p>
+                  </div>
+                  <ChevronDown size={14} className={isHome && !scrolled ? 'text-white/60' : 'text-gray-400'} />
                 </div>
               </Dropdown>
             ) : (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-8">
                 <Link
                   to="/login"
-                  className={`font-semibold transition-colors hover:text-primary ${isHome && !scrolled ? 'text-white' : 'text-gray-700'}`}
+                  className={`text-sm font-black uppercase tracking-widest transition-colors hover:text-primary ${isHome && !scrolled ? 'text-white' : 'text-gray-700'}`}
                 >
                   Log in
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-primary hover:bg-primary-hover text-white font-bold py-2.5 px-6 rounded-full shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 active:scale-95"
+                  className="btn-primary-hearth py-2.5 px-6 rounded-2xl text-xs"
                 >
                   Sign Up
                 </Link>
