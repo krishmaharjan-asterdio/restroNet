@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Venue = require('../models/Venue');
 const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
+const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
 
 // ─── Mood → Tag keyword mapping ───────────────────────────────────────────────
 const MOOD_KEYWORDS = {
@@ -35,6 +36,8 @@ const getSmartRecommendations = async ({
   maxDistanceKm = 20,
   limit = 12,
   isTopRated = false,
+  city = null,
+  sortBy = null,
 }) => {
   let explicitCuisineIds = [...cuisineIds]; // Keep track of what was explicitly asked for
 
@@ -84,9 +87,17 @@ const getSmartRecommendations = async ({
     moodTagIds = tags.map(t => t._id.toString());
   }
 
-  const venues = await Venue.find({ isActive: true })
+  const filterQuery = { isActive: true };
+  if (city) {
+    filterQuery['address.city'] = { $regex: city, $options: 'i' };
+  }
+
+  const venues = await Venue.find(filterQuery)
     .populate('cuisines tags category')
     .lean();
+
+  // Tokenize search term once — shared across all venue scorings
+  const { normalized: searchNormalized, tokens: searchTokens } = tokenizeQuery(searchTerm || '');
 
   const scoredVenues = venues.map(venue => {
     const cuisineScore  = computeCuisineScore(venue, cuisineIds);
@@ -97,19 +108,27 @@ const getSmartRecommendations = async ({
     const { distanceKm, distanceScore } = computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation);
     const moodScore     = computeMoodScore(venue, moodTagIds);
     
-    // Exact or strong name match boost
+    // Tiered text match via searchService
+    const textMatch = searchTerm
+      ? computeTextMatchScore(venue, searchNormalized, searchTokens)
+      : { score: 0, matchedFields: [], matchReason: 'no_query' };
+
     let nameScore = 0;
     if (searchTerm) {
-      const sLower = searchTerm.toLowerCase();
       const vName = venue.name.toLowerCase();
-      if (vName === sLower) nameScore = 1.0;
-      else if (vName.includes(sLower) || sLower.includes(vName)) nameScore = 0.8;
+      if (vName === searchNormalized) nameScore = 1.0;
+      else if (
+        vName.startsWith(searchNormalized + ' ') ||
+        (vName.startsWith(searchNormalized) && vName.length > searchNormalized.length)
+      ) nameScore = 0.95;
+      else if (vName.includes(searchNormalized)) nameScore = 0.85;
+      else if (searchNormalized.includes(vName)) nameScore = 0.75;
       else {
-        // Partial matches on words
-        const terms = sLower.split(/\s+/).filter(t => t.length > 2);
-        const matches = terms.filter(t => vName.includes(t)).length;
-        if (matches > 0) nameScore = (matches / terms.length) * 0.5;
+        const matches = searchTokens.filter(t => vName.includes(t)).length;
+        if (matches > 0) nameScore = (matches / searchTokens.length) * 0.6;
       }
+      // Boost: cuisine/tag/description matches raise nameScore so they rank above zero
+      nameScore = Math.max(nameScore, textMatch.score * 0.65);
     }
 
     // Dynamic weights adjustment for search
@@ -135,16 +154,22 @@ const getSmartRecommendations = async ({
     return {
       venue,
       finalScore,
+      textMatchScore: textMatch.score,
+      matchedFields:  textMatch.matchedFields,
+      matchReason:    textMatch.matchReason,
       distanceKm,
       scoreBreakdown: {
-        name:     Math.round(nameScore     * 100),
-        cuisine:  Math.round(cuisineScore  * 100),
-        category: Math.round(categoryScore * 100),
-        tag:      Math.round(tagScore      * 100),
-        price:    Math.round(priceScore    * 100),
-        rating:   Math.round(ratingScore   * 100),
-        distance: Math.round(distanceScore * 100),
-        mood:     Math.round(moodScore     * 100),
+        name:          Math.round(nameScore     * 100),
+        cuisine:       Math.round(cuisineScore  * 100),
+        category:      Math.round(categoryScore * 100),
+        tag:           Math.round(tagScore      * 100),
+        price:         Math.round(priceScore    * 100),
+        rating:        Math.round(ratingScore   * 100),
+        distance:      Math.round(distanceScore * 100),
+        mood:          Math.round(moodScore     * 100),
+        textMatch:     Math.round(textMatch.score * 100),
+        matchedFields: textMatch.matchedFields,
+        matchReason:   textMatch.matchReason,
       },
     };
   });
@@ -153,13 +178,26 @@ const getSmartRecommendations = async ({
     ? scoredVenues.filter(s => s.distanceKm === null || s.distanceKm <= maxDistanceKm)
     : scoredVenues;
 
-  // Search filtering: If search term is specific, filter out things with 0 name score 
-  // UNLESS there are other strong filters.
+  // Strict search filter — search is not a recommendation engine.
+  // Rule 1: text matches gate all results; confidence tier picks the best cohort.
+  // Rule 2: when text fails but AI parsed an explicit filter (cuisine/tag/mood),
+  //         honour that intent — but still require a minimum finalScore.
+  // Rule 3: when both fail → empty result, no fallback expansion.
   if (searchTerm) {
-    const isVerySpecific = searchTerm.split(/\s+/).length > 1 || searchTerm.length > 5;
-    if (isVerySpecific) {
-        // If it's a specific search, prioritize name matches heavily
-        filtered = filtered.filter(s => s.scoreBreakdown.name > 0 || s.finalScore > 0.4);
+    const hasFilterContext =
+      explicitCuisineIds.length > 0 || categoryIds.length > 0 ||
+      tagIds.length > 0 || priceRanges.length > 0 || !!mood;
+
+    const textMatched = filtered.filter(s => s.textMatchScore > 0);
+    if (textMatched.length > 0) {
+      filtered = selectByConfidenceTier(textMatched);
+    } else if (hasFilterContext) {
+      // AI understood the query (e.g. "Italian food" → Italian cuisineId).
+      // Return those venues only if they score well enough to be genuinely relevant.
+      filtered = filtered.filter(s => s.finalScore > SEARCH_THRESHOLDS.FILTER_CONTEXT_SCORE);
+    } else {
+      // No text match, no AI-parsed filter — strict empty result.
+      filtered = [];
     }
   }
 
@@ -171,15 +209,56 @@ const getSmartRecommendations = async ({
     });
   }
 
-  filtered.sort((a, b) => b.finalScore - a.finalScore);
+  // 4. Sort
+  if (searchTerm && !sortBy) {
+    // textMatchScore is primary; finalScore breaks ties
+    filtered.sort((a, b) => {
+      if (b.textMatchScore !== a.textMatchScore) return b.textMatchScore - a.textMatchScore;
+      return b.finalScore - a.finalScore;
+    });
+  } else if (sortBy) {
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'price_desc':    return b.venue.priceRange - a.venue.priceRange;
+        case 'price_asc':     return a.venue.priceRange - b.venue.priceRange;
+        case 'rating_desc':   return b.venue.averageRating - a.venue.averageRating;
+        case 'rating_asc':    return a.venue.averageRating - b.venue.averageRating;
+        case 'distance_desc': return (b.distanceKm || 0) - (a.distanceKm || 0);
+        case 'distance_asc': {
+          const distA = a.distanceKm === null ? Infinity : a.distanceKm;
+          const distB = b.distanceKm === null ? Infinity : b.distanceKm;
+          return distA - distB;
+        }
+        default:              return b.finalScore - a.finalScore;
+      }
+    });
+  } else {
+    filtered.sort((a, b) => b.finalScore - a.finalScore);
+  }
 
-  return filtered.slice(0, limit).map(item => ({
+  const results = filtered.slice(0, limit).map(item => ({
     ...item.venue,
     recommendationScore: Math.min(1, Math.max(0, item.finalScore)),
     scoreBreakdown: item.scoreBreakdown,
     distanceKm: item.distanceKm,
     matchedMood: mood,
   }));
+
+  // Generate suggestions only when search yields zero results
+  const suggestions = (searchTerm && results.length === 0)
+    ? generateSuggestions(searchTerm, venues)
+    : [];
+
+  return {
+    results,
+    suggestions,
+    searchMeta: {
+      query:        searchTerm,
+      totalScanned: venues.length,
+      matched:      filtered.length,
+      filteredOut:  venues.length - filtered.length,
+    },
+  };
 };
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
@@ -251,8 +330,9 @@ function computeMoodScore(venue, moodTagIds) {
 }
 
 // ─── Legacy CBF wrapper (backwards compat) ───────────────────────────────────
-const getCBFRecommendations = async (userId, limit = 10) => {
-  return getSmartRecommendations({ userId, limit });
+const getCBFRecommendations = async (userId, limit = 10, lat = null, lng = null) => {
+  const { results } = await getSmartRecommendations({ userId, limit, lat, lng });
+  return results;
 };
 
 module.exports = {

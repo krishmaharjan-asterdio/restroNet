@@ -18,30 +18,47 @@ const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState(null);
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    fetchData();
-  }, [user]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [trendRes, recRes] = await Promise.all([
-        api.get('/venues?sortBy=rating&limit=8'),
-        user ? api.get('/recommendations?limit=8') : Promise.resolve({ data: { recommendations: [] } })
-      ]);
-      setTrending(trendRes.data.docs);
-      if (user) {
-        setRecommendations(recRes.data.recommendations);
-      }
-    } catch (err) {
-      console.error('Failed to fetch data', err);
-    } finally {
-      setLoading(false);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        err => console.warn("Location access denied", err)
+      );
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const latLng = coords ? `&lat=${coords.lat}&lng=${coords.lng}` : '';
+        const [trendRes, recRes] = await Promise.all([
+          api.get(`/venues?sortBy=rating&limit=8${latLng}`),
+          user ? api.get(`/recommendations?limit=8${latLng}`) : Promise.resolve({ data: { recommendations: [] } })
+        ]);
+        
+        if (!active) return;
+        
+        setTrending(trendRes.data.docs || trendRes.data.recommendations || []);
+        if (user) {
+          setRecommendations(recRes.data.recommendations || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch data', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => { active = false; };
+  }, [user, coords]);
 
   const handleSearch = (e) => {
     e.preventDefault();

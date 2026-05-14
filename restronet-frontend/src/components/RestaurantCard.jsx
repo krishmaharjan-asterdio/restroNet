@@ -54,9 +54,9 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
         {/* Top Badges */}
         <div className="absolute top-6 left-6 right-6 flex justify-between items-start">
           <div className="flex flex-col gap-2">
-            {isNew && (
-              <span className="bg-primary text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">
-                New Arrival
+            {venue.distanceKm !== undefined && venue.distanceKm !== null && (
+              <span className="bg-primary text-white text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
+                <Navigation size={10} className="fill-current" /> {venue.distanceKm} KM AWAY
               </span>
             )}
             {user && matchPct && (
@@ -72,8 +72,10 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
             >
               <Heart size={18} className={isSaved ? 'fill-current text-red-500' : ''} />
             </button>
-            <div className="bg-gray-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-xl border border-white/10">
-              {(venue.averageRating || 0).toFixed(1)} <Star size={12} className="fill-primary text-primary" />
+            <div className="flex gap-2">
+              <div className="bg-gray-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-xl border border-white/10">
+                {(venue.averageRating || 0).toFixed(1)} <Star size={12} className="fill-primary text-primary" />
+              </div>
             </div>
           </div>
         </div>
@@ -98,11 +100,6 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
                   <span className="flex items-center gap-1">
                     <MapPin size={10} className="text-primary" /> {venue.address?.city || 'Kathmandu'}
                   </span>
-                  {venue.distanceKm && (
-                    <span className="text-primary bg-primary/5 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                      {venue.distanceKm} km
-                    </span>
-                  )}
                   {mood && (
                     <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter">
                       {mood.emoji} {mood.label}

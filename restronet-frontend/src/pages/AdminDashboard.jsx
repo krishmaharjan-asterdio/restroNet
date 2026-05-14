@@ -4,15 +4,20 @@ import { Users, Store, MessageSquare, Menu as MenuIcon, TrendingUp, Star } from 
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-const StatCard = ({ title, value, icon: Icon, colorClass, trend }) => (
-  <div className="hearth-card p-6 flex items-start gap-5 group">
+const StatCard = ({ title, value, icon: Icon, colorClass, trend, borderColor }) => (
+  <div className={`hearth-card p-6 flex items-start gap-5 group relative overflow-hidden border-l-4 ${borderColor}`}>
     <div className={`p-4 rounded-2xl ${colorClass} shrink-0 transition-transform group-hover:scale-110`}>
       <Icon size={24} />
     </div>
     <div className="flex-1 min-w-0">
       <p className="text-label mb-2">{title}</p>
       <h3 className="text-4xl font-black text-gray-900 tabular-nums mb-1">{value ?? '—'}</h3>
-      {trend && <p className="text-xs text-gray-400 font-medium">{trend}</p>}
+      {trend && (
+        <div className="flex items-center gap-1.5 mt-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${borderColor.replace('border-', 'bg-')}`} />
+          <p className="text-xs text-gray-400 font-medium">{trend}</p>
+        </div>
+      )}
     </div>
   </div>
 );
@@ -70,11 +75,39 @@ const AdminDashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {admin?.role === 'superadmin' && (
-          <StatCard title="Total Users" value={mainStats.totalUsers} icon={Users} colorClass="bg-blue-50 text-blue-600" trend="Active members" />
+          <StatCard 
+            title="Total Users" 
+            value={mainStats.totalUsers} 
+            icon={Users} 
+            colorClass="bg-blue-50 text-blue-600" 
+            borderColor="border-blue-500"
+            trend="Active members" 
+          />
         )}
-        <StatCard title="Restaurants" value={mainStats.totalVenues} icon={Store} colorClass="bg-orange-50 text-orange-600" trend="Live venues" />
-        <StatCard title="Total Reviews" value={mainStats.totalReviews} icon={MessageSquare} colorClass="bg-green-50 text-green-600" trend="Guest feedback" />
-        <StatCard title="Menu Items" value={mainStats.totalMenus} icon={MenuIcon} colorClass="bg-purple-50 text-purple-600" trend="Across catalog" />
+        <StatCard 
+          title="Restaurants" 
+          value={mainStats.totalVenues} 
+          icon={Store} 
+          colorClass="bg-orange-50 text-orange-600" 
+          borderColor="border-orange-500"
+          trend="Live venues" 
+        />
+        <StatCard 
+          title="Total Reviews" 
+          value={mainStats.totalReviews} 
+          icon={MessageSquare} 
+          colorClass="bg-green-50 text-green-600" 
+          borderColor="border-green-500"
+          trend="Guest feedback" 
+        />
+        <StatCard 
+          title="Menu Items" 
+          value={mainStats.totalMenus} 
+          icon={MenuIcon} 
+          colorClass="bg-purple-50 text-purple-600" 
+          borderColor="border-purple-500"
+          trend="Across catalog" 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

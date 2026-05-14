@@ -1,9 +1,10 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, Utensils, User as UserIcon, ArrowRight, ArrowLeft, CheckCircle2, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Utensils, User as UserIcon, ArrowRight, ArrowLeft, CheckCircle2, Sparkles, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import api from '../services/api';
 
 const Register = () => {
   const { registerUser } = useContext(AuthContext);

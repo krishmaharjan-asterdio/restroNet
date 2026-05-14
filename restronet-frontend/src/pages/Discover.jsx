@@ -46,48 +46,65 @@ const Discover = () => {
   const [userCoords, setUserCoords]             = useState(null);
   const [locationError, setLocationError]       = useState(null);
   const [maxDistance, setMaxDistance]           = useState(10);
+  const [aiExplanation, setAiExplanation]       = useState(null);
 
   const debounceRef = useRef(null);
 
-  // Load cuisines on mount
+  // Load cuisines and auto-request location on mount
   useEffect(() => {
     api.get('/metadata/cuisines').then(res => {
       setCuisines(res.data.cuisines || []);
     }).catch(() => {});
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setLocationEnabled(true);
+        },
+        err => console.warn("Location denied", err)
+      );
+    }
   }, []);
 
   // Fetch recommendations with debounce whenever filters change
   useEffect(() => {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchRecommendations();
-    }, 350);
-    return () => clearTimeout(debounceRef.current);
-  }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance]);
+    let active = true;
+    
+    const fetchRecommendations = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (selectedCuisines.length) params.set('cuisines', selectedCuisines.join(','));
+        if (selectedPrices.length)   params.set('priceRange', selectedPrices.join(','));
+        if (selectedMood)            params.set('mood', selectedMood);
+        if (userCoords) {
+          params.set('lat', userCoords.lat);
+          params.set('lng', userCoords.lng);
+          params.set('maxDistance', maxDistance);
+        }
+        params.set('limit', '24');
 
-  const fetchRecommendations = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
+        const res = await api.get(`/recommendations/smart?${params.toString()}`);
+        if (!active) return;
 
-      if (selectedCuisines.length) params.set('cuisines', selectedCuisines.join(','));
-      if (selectedPrices.length)   params.set('priceRange', selectedPrices.join(','));
-      if (selectedMood)            params.set('mood', selectedMood);
-      if (userCoords) {
-        params.set('lat', userCoords.lat);
-        params.set('lng', userCoords.lng);
-        params.set('maxDistance', maxDistance);
+        setResults(res.data.recommendations || []);
+        setAiExplanation(res.data.aiExplanation || null);
+      } catch (err) {
+        console.error("Fetch failed", err);
+      } finally {
+        if (active) {
+          setLoading(false);
+          setInitialLoad(false);
+        }
       }
-      params.set('limit', '24');
+    };
 
-      const res = await api.get(`/recommendations/smart?${params.toString()}`);
-      setResults(res.data.recommendations || []);
-    } catch {
-      setResults([]);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
+    const timer = setTimeout(fetchRecommendations, 350);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance]);
 
   const requestLocation = () => {
@@ -439,6 +456,25 @@ const Discover = () => {
                   <SkeletonCard key={i} />
                 ))}
               </div>
+            )}
+
+            {/* AI Insight */}
+            {aiExplanation && !loading && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 p-6 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent border-l-4 border-primary rounded-r-2xl"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shrink-0">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-primary uppercase tracking-widest mb-1">AI Recommendation Insight</h4>
+                    <p className="text-gray-700 font-medium italic">"{aiExplanation}"</p>
+                  </div>
+                </div>
+              </motion.div>
             )}
 
             {/* Results grid */}
