@@ -132,16 +132,14 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
             <div className="flex items-center justify-between border-t border-warm-200 pt-3">
               {/* Price dots + category */}
               <div className="flex items-center gap-2.5">
-                <div className="flex gap-1">
+                 <div className="flex gap-0.5 text-xs font-bold">
                   {[1, 2, 3, 4].map(s => (
-                    <div
+                    <span
                       key={s}
-                      className={`w-3 h-3 rounded-full ${
-                        s <= (venue.priceRange || 2)
-                          ? 'bg-primary'
-                          : 'bg-warm-200'
-                      }`}
-                    />
+                      className={s <= (venue.priceRange || 2) ? 'text-primary' : 'text-warm-300'}
+                    >
+                      $
+                    </span>
                   ))}
                 </div>
                 <span className="text-[10px] font-semibold text-warm-500 uppercase tracking-wide truncate max-w-[70px]">

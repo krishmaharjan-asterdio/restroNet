@@ -300,12 +300,14 @@ const AdminRestaurants = () => {
       dataIndex: 'priceRange',
       key: 'priceRange',
       render: (price) => (
-        <div className="flex gap-0.5">
+        <div className="flex gap-0.5 text-xs font-extrabold tracking-wider">
           {[1, 2, 3, 4].map((step) => (
-            <div
+            <span
               key={step}
-              className={`h-1.5 w-4 rounded-full ${step <= (price || 2) ? 'bg-indigo-500' : 'bg-slate-200'}`}
-            />
+              className={step <= (price || 2) ? 'text-slate-800' : 'text-slate-200'}
+            >
+              $
+            </span>
           ))}
         </div>
       ),

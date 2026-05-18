@@ -527,18 +527,17 @@ const RestaurantDetail = () => {
                   Npr {venue.priceRange * 500}
                   <span className="text-sm font-normal text-warm-400 ml-1">/ guest</span>
                 </div>
-                <div className="flex gap-1 mt-2 items-center">
-                  {[1, 2, 3, 4].map((s) => (
-                    <div
-                      key={s}
-                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${s <= (venue.priceRange || 2)
-                        ? 'bg-amber-400 text-white'
-                        : 'bg-warm-100 text-warm-300'
-                        }`}
-                    >
-                      <span className="text-[9px] font-bold">$</span>
-                    </div>
-                  ))}
+                <div className="flex gap-1 mt-2 items-center text-sm font-extrabold">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4].map((s) => (
+                      <span
+                        key={s}
+                        className={s <= (venue.priceRange || 2) ? 'text-amber-500' : 'text-warm-300'}
+                      >
+                        $
+                      </span>
+                    ))}
+                  </div>
                   <span className="ml-2 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">
                     {['Economy', 'Moderate', 'Premium', 'Elite'][venue.priceRange - 1] || 'Moderate'}
                   </span>
@@ -723,7 +722,6 @@ const RestaurantDetail = () => {
               "Your reservation will be pending until confirmed by the restaurant owner. You will receive a notification."
             </p>
           </div>
-
           <Button
             type="primary"
             htmlType="submit"
