@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Space, Tag } from 'antd';
-import { Plus, UserPlus, Mail, Shield, User } from 'lucide-react';
+import { Plus, UserPlus, Shield } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -59,8 +59,8 @@ const AdminOwners = () => {
             {text.charAt(0)}
           </div>
           <div>
-            <div className="font-bold text-gray-900">{text}</div>
-            <div className="text-xs text-gray-500">{record.email}</div>
+            <div className="font-bold text-warm-900">{text}</div>
+            <div className="text-xs text-warm-500">{record.email}</div>
           </div>
         </div>
       ),
@@ -90,10 +90,8 @@ const AdminOwners = () => {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button 
-            type="text" 
-            danger 
-            className="hover:bg-red-50 flex items-center gap-1"
+          <button
+            className="text-red-500 hover:underline text-sm font-medium"
             onClick={() => {
               Modal.confirm({
                 title: 'Delete Owner Account?',
@@ -105,7 +103,7 @@ const AdminOwners = () => {
             }}
           >
             Delete
-          </Button>
+          </button>
         </Space>
       ),
     }
@@ -113,64 +111,101 @@ const AdminOwners = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
-            <Shield className="text-primary" size={24} />
+          <h1
+            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
+            className="text-3xl font-medium text-warm-900 flex items-center gap-2"
+          >
+            <Shield className="text-primary" size={26} />
             Restaurant Owners
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Manage platform accounts for restaurant operators.</p>
+          <p className="text-sm text-warm-500 mt-1">Manage platform accounts for restaurant operators.</p>
         </div>
-        <Button 
-          type="primary" 
-          icon={<Plus size={18} />} 
-          size="large"
-          className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
+        <button
           onClick={() => setIsModalVisible(true)}
+          className="bg-primary text-white font-semibold px-5 py-2.5 rounded-xl shadow-primary hover:bg-primary-hover transition-all flex items-center gap-2"
         >
+          <Plus size={18} />
           Create Owner Account
-        </Button>
+        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <Table 
-          columns={columns} 
-          dataSource={owners} 
-          rowKey="_id" 
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
+        <Table
+          columns={columns}
+          dataSource={owners}
+          rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10, className: 'px-4 py-4' }}
           className="admin-table"
         />
       </div>
 
+      {/* Create Owner Modal */}
       <Modal
-        title={
-          <div className="flex items-center gap-2 mb-2">
-            <UserPlus size={20} className="text-primary" />
-            <span>Create Restaurant Owner Account</span>
-          </div>
-        }
+        title={null}
         open={isModalVisible}
-        onOk={() => form.submit()}
         onCancel={() => setIsModalVisible(false)}
-        okText="Create Account"
-        okButtonProps={{ className: "bg-primary hover:bg-primary-hover rounded-lg font-semibold" }}
-        cancelButtonProps={{ className: "rounded-lg" }}
+        footer={null}
+        centered
+        className="modern-admin-modal"
+        styles={{ body: { padding: 0 } }}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreateOwner} className="mt-4">
-          <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
-            <Input placeholder="John Doe" size="large" className="rounded-lg" />
-          </Form.Item>
-          <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email' }]}>
-            <Input placeholder="owner@restro.com" size="large" className="rounded-lg" />
-          </Form.Item>
-          <Form.Item name="password" label="Initial Password" rules={[{ required: true, min: 8 }]}>
-            <Input.Password placeholder="Min. 8 characters" size="large" className="rounded-lg" />
-          </Form.Item>
-          <p className="text-xs text-gray-400 italic">
-            Note: You will need to provide these credentials to the restaurant owner.
-          </p>
-        </Form>
+        {/* Modal Header */}
+        <div className="bg-[#1e293b] px-6 py-5 border-b border-[#334155] rounded-t-2xl relative">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+              <UserPlus className="text-white" size={20} />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-lg leading-tight">Create Restaurant Owner</h2>
+              <p className="text-slate-400 text-xs font-medium tracking-wide uppercase mt-0.5">New operator account</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsModalVisible(false)}
+            className="absolute top-5 right-6 text-slate-400 hover:text-white transition-colors"
+          >
+            <Plus size={22} className="rotate-45" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <Form form={form} layout="vertical" onFinish={handleCreateOwner} className="mt-2">
+            <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
+              <Input placeholder="John Doe" size="large" className="rounded-lg" />
+            </Form.Item>
+            <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email' }]}>
+              <Input placeholder="owner@restro.com" size="large" className="rounded-lg" />
+            </Form.Item>
+            <Form.Item name="password" label="Initial Password" rules={[{ required: true, min: 8 }]}>
+              <Input.Password placeholder="Min. 8 characters" size="large" className="rounded-lg" />
+            </Form.Item>
+            <p className="text-xs text-warm-400 italic mb-6">
+              Note: You will need to provide these credentials to the restaurant owner.
+            </p>
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <Button
+                onClick={() => setIsModalVisible(false)}
+                size="large"
+                className="rounded-xl border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-400 font-semibold px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => form.submit()}
+                type="primary"
+                size="large"
+                className="rounded-xl bg-primary border-0 hover:bg-primary-hover text-white font-semibold px-6"
+              >
+                Create Account
+              </Button>
+            </div>
+          </Form>
+        </div>
       </Modal>
     </div>
   );

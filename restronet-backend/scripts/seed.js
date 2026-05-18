@@ -490,7 +490,14 @@ const seedDB = async () => {
       }
     ];
 
-    const createdVenues = await Venue.create(venuesData);
+    // Reset ratings and review counts to 0 so they are driven solely by user actions
+    const cleanedVenuesData = venuesData.map(v => ({
+      ...v,
+      averageRating: 0,
+      totalReviews: 0
+    }));
+
+    const createdVenues = await Venue.create(cleanedVenuesData);
     console.log(`✅ Successfully created ${createdVenues.length} venues.`);
 
     // ─── FEATURE VECTORS ──────────────────────────────────────────────────────

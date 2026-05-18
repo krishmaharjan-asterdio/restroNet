@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Table, Button, Popconfirm, Tag, Space, Avatar } from 'antd';
-import { EyeOff, Eye, Star, Trash2 } from 'lucide-react';
+import { EyeOff, Eye, Star, MessageSquare } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -54,8 +54,8 @@ const AdminReviews = () => {
       width: '40%',
       render: (text, record) => (
         <div>
-          <div className="font-bold text-gray-900 mb-1">{record.title}</div>
-          <div className="text-gray-600 text-sm line-clamp-2">{text}</div>
+          <div className="font-bold text-warm-900 mb-1">{record.title}</div>
+          <div className="text-warm-600 text-sm line-clamp-2">{text}</div>
         </div>
       ),
     },
@@ -71,7 +71,7 @@ const AdminReviews = () => {
       key: 'user',
       render: (userName, record) => (
         <div className="flex items-center gap-2">
-          <Avatar className="bg-gray-200 text-gray-600">{userName ? userName.charAt(0) : '?'}</Avatar>
+          <Avatar className="bg-warm-200 text-warm-600">{userName ? userName.charAt(0) : '?'}</Avatar>
           <span>{userName || 'Deleted User'}</span>
         </div>
       ),
@@ -81,7 +81,7 @@ const AdminReviews = () => {
       dataIndex: ['rating', 'overall'],
       key: 'rating',
       render: (rating) => (
-        <div className="flex items-center gap-1 font-bold text-gray-800">
+        <div className="flex items-center gap-1 font-bold text-warm-800">
           {rating} <Star size={14} className="fill-yellow-400 text-yellow-400" />
         </div>
       ),
@@ -91,9 +91,15 @@ const AdminReviews = () => {
       dataIndex: 'isHidden',
       key: 'isHidden',
       render: (isHidden) => (
-        <Tag color={isHidden ? 'orange' : 'green'} className="rounded-full px-3 py-0.5 font-semibold">
-          {isHidden ? 'Hidden' : 'Visible'}
-        </Tag>
+        isHidden ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            Hidden
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Visible
+          </span>
+        )
       ),
     },
     {
@@ -109,11 +115,11 @@ const AdminReviews = () => {
             cancelText="No"
             okButtonProps={{ danger: !record.isHidden }}
           >
-            <Button 
-              type="text" 
-              icon={record.isHidden ? <Eye size={16} /> : <EyeOff size={16} />} 
-              className={record.isHidden ? "text-green-600 hover:bg-green-50" : "text-orange-600 hover:bg-orange-50"}
-            />
+            <button
+              className={record.isHidden ? "text-primary hover:underline text-sm font-medium" : "text-red-500 hover:underline text-sm font-medium"}
+            >
+              {record.isHidden ? 'Unhide' : 'Hide'}
+            </button>
           </Popconfirm>
         </Space>
       ),
@@ -122,18 +128,26 @@ const AdminReviews = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Review Moderation</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage platform reviews, hide inappropriate content.</p>
+          <h1
+            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
+            className="text-3xl font-medium text-warm-900 flex items-center gap-2"
+          >
+            <MessageSquare className="text-primary" size={26} />
+            Review Moderation
+          </h1>
+          <p className="text-sm text-warm-500 mt-1">Manage platform reviews, hide inappropriate content.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <Table 
-          columns={columns} 
-          dataSource={reviews} 
-          rowKey="_id" 
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
+        <Table
+          columns={columns}
+          dataSource={reviews}
+          rowKey="_id"
           loading={loading}
           pagination={pagination}
           onChange={handleTableChange}

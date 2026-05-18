@@ -8,6 +8,7 @@ import L from 'leaflet';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUrl';
 
 // Fix for default Leaflet marker icons
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -22,10 +23,16 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const MapUpdater = ({ venueCoords, userCoords }) => {
   const map = useMap();
   useEffect(() => {
+    map.invalidateSize();
+    const timer = setTimeout(() => map.invalidateSize(), 250);
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  useEffect(() => {
     if (venueCoords) {
       const points = [[venueCoords[1], venueCoords[0]]];
       if (userCoords) points.push([userCoords.lat, userCoords.lng]);
-      
+
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
@@ -100,7 +107,7 @@ const RestaurantDetail = () => {
       toast.success('Review submitted successfully!');
       setIsReviewModalVisible(false);
       reviewForm.resetFields();
-      fetchVenueData(); // Refresh reviews and ratings
+      fetchVenueData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit review');
     } finally {
@@ -117,8 +124,8 @@ const RestaurantDetail = () => {
     try {
       await api.post('/reservations', {
         venueId: venue._id,
-        date: values.date, // already a string from type="date"
-        time: values.time, // already a string from type="time"
+        date: values.date,
+        time: values.time,
         guests: values.guests,
         contactPhone: values.phone,
         specialRequests: values.requests
@@ -145,37 +152,46 @@ const RestaurantDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-warm-50">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>
       </div>
     );
   }
 
   if (!venue) {
-    return <div className="text-center p-20 text-2xl font-bold text-gray-800">Restaurant not found</div>;
+    return (
+      <div className="text-center p-20 text-2xl font-medium text-warm-900" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
+        Restaurant not found
+      </div>
+    );
   }
 
   const coverImage = venue.gallery?.length > 0
-    ? `http://localhost:5000${venue.gallery[0]}`
+    ? getImageUrl(venue.gallery[0])
     : 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1920&q=80';
 
   // Ant Design Tabs for Menu/Reviews
   const tabItems = [
     {
       key: 'menu',
-      label: <span className="text-base font-black uppercase tracking-widest px-4">Items</span>,
+      label: <span className="text-sm font-semibold px-4">Items</span>,
       children: (
         <div className="pt-10">
           {menus.length === 0 ? (
-            <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-              <Utensils className="mx-auto text-gray-200 mb-4" size={48} />
-              <p className="text-gray-500 font-bold">Digital menu items are currently not listed.</p>
+            <div className="text-center py-16 bg-warm-50 rounded-3xl border border-dashed border-warm-200">
+              <Utensils className="mx-auto text-warm-200 mb-4" size={48} />
+              <p className="text-warm-500 font-medium">Digital menu items are currently not listed.</p>
             </div>
           ) : (
             <div className="space-y-10">
               {menus.map(menu => (
                 <div key={menu._id}>
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-100 pb-3">{menu.name}</h3>
+                  <h3
+                    className="text-2xl font-medium mb-6 text-warm-900 border-b border-warm-200 pb-3"
+                    style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+                  >
+                    {menu.name}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {menu.items.map((item, idx) => (
                       <motion.div
@@ -183,13 +199,13 @@ const RestaurantDetail = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.05 }}
                         key={item._id}
-                        className="flex justify-between p-5 rounded-2xl hover:bg-gray-50 transition-colors border border-gray-100 hover:border-primary/20 hover:shadow-md group"
+                        className="flex justify-between p-5 rounded-2xl hover:bg-warm-50 transition-colors border border-warm-200 hover:border-primary/20 hover:shadow-md group"
                       >
                         <div className="pr-4">
-                          <h4 className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors">{item.name}</h4>
-                          {item.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>}
+                          <h4 className="font-semibold text-warm-900 text-lg group-hover:text-primary transition-colors">{item.name}</h4>
+                          {item.description && <p className="text-sm text-warm-500 mt-1 leading-relaxed">{item.description}</p>}
                         </div>
-                        <div className="font-extrabold text-gray-900 text-lg">Npr {item.price}</div>
+                        <div className="font-semibold text-warm-900 text-lg whitespace-nowrap">Npr {item.price}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -202,21 +218,21 @@ const RestaurantDetail = () => {
     },
     {
       key: 'menu_images',
-      label: <span className="text-base font-black uppercase tracking-widest px-4">Menu Photos</span>,
+      label: <span className="text-sm font-semibold px-4">Menu Photos</span>,
       children: (
         <div className="pt-10">
           {venue.menu?.length === 0 ? (
-            <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-              <List className="mx-auto text-gray-200 mb-4" size={48} />
-              <p className="text-gray-500 font-bold">No menu photos uploaded yet.</p>
+            <div className="text-center py-16 bg-warm-50 rounded-3xl border border-dashed border-warm-200">
+              <List className="mx-auto text-warm-200 mb-4" size={48} />
+              <p className="text-warm-500 font-medium">No menu photos uploaded yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {venue.menu.map((img, idx) => (
                 <img
                   key={idx}
-                  src={`http://localhost:5000${img}`}
-                  className="w-full rounded-2xl border border-gray-100 shadow-sm"
+                  src={getImageUrl(img)}
+                  className="w-full rounded-2xl border border-warm-200 shadow-sm"
                   alt={`Menu ${idx + 1}`}
                 />
               ))}
@@ -227,47 +243,52 @@ const RestaurantDetail = () => {
     },
     {
       key: 'reviews',
-      label: <span className="text-base font-black uppercase tracking-widest px-4">Reviews ({reviews.length})</span>,
+      label: <span className="text-sm font-semibold px-4">Reviews ({reviews.length})</span>,
       children: (
         <div className="pt-10 space-y-8">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-gray-900">User Reviews</h3>
+            <h3
+              className="text-2xl font-medium text-warm-900"
+              style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+            >
+              User Reviews
+            </h3>
             {user ? (
               <button
                 onClick={() => setIsReviewModalVisible(true)}
-                className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-md active:scale-95"
+                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 px-5 rounded-xl shadow-primary transition-all"
               >
-                <MessageSquarePlus size={18} /> Write a Review
+                <MessageSquarePlus size={16} /> Write a Review
               </button>
             ) : (
-              <p className="text-sm font-medium text-gray-500">Log in to write a review</p>
+              <p className="text-sm font-medium text-warm-500">Log in to write a review</p>
             )}
           </div>
 
           {reviews.length === 0 ? (
-            <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
-              <p className="text-gray-500 font-medium">No reviews yet. Be the first to share your experience!</p>
+            <div className="text-center py-10 bg-warm-50 rounded-2xl border border-warm-200">
+              <p className="text-warm-500 font-medium">No reviews yet. Be the first to share your experience!</p>
             </div>
           ) : (
             reviews.map(review => (
-              <div key={review._id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+              <div key={review._id} className="bg-white border border-warm-200 p-6 rounded-2xl shadow-card">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-orange-400 text-white rounded-full flex items-center justify-center font-bold text-xl shadow-md">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-orange-400 text-white rounded-full flex items-center justify-center font-semibold text-xl shadow-sm">
                     {review.user?.name?.charAt(0) || 'U'}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{review.user?.name || 'Anonymous User'}</p>
-                    <p className="text-sm text-gray-500">{new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    <p className="font-semibold text-warm-900">{review.user?.name || 'Anonymous User'}</p>
+                    <p className="text-sm text-warm-400">{new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                   <div className="ml-auto flex items-center gap-3">
                     <div className="flex items-center bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200">
-                      <span className="font-bold mr-1">{review.rating.overall}</span>
-                      <Star size={16} className="fill-current" />
+                      <span className="font-semibold mr-1">{review.rating.overall}</span>
+                      <Star size={14} className="fill-current" />
                     </div>
                     {user && review.user && user._id === review.user._id && (
                       <button
                         onClick={() => handleDeleteReview(review._id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
                         title="Delete your review"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
@@ -275,8 +296,8 @@ const RestaurantDetail = () => {
                     )}
                   </div>
                 </div>
-                <h4 className="font-bold text-lg mb-2 text-gray-900">{review.title}</h4>
-                <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                <h4 className="font-semibold text-lg mb-2 text-warm-900">{review.title}</h4>
+                <p className="text-warm-600 leading-relaxed">{review.comment}</p>
               </div>
             ))
           )}
@@ -286,65 +307,77 @@ const RestaurantDetail = () => {
   ];
 
   return (
-    <div className="bg-white min-h-screen pb-20">
+    <div className="bg-warm-50 min-h-screen pb-20">
 
       {/* ─── HEADER / HERO GALLERY ─── */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-6 pb-4">
-        <div className="flex justify-between items-start mb-4">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-4">
+        <div className="flex justify-between items-start mb-6">
           <div className="flex-1">
-            <div className="flex items-center gap-4 mb-2">
-              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">{venue.name}</h1>
+            <div className="flex flex-wrap items-center gap-4 mb-3">
+              <h1
+                className="text-4xl md:text-5xl font-medium text-warm-900 leading-tight"
+                style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+              >
+                {venue.name}
+              </h1>
               {venue.distanceKm && (
-                <div className="bg-primary text-white px-3 py-1.5 rounded-2xl font-black text-xs flex items-center gap-2 shadow-lg shadow-primary/20 mt-1">
-                  <Utensils size={14} className="fill-current" /> {venue.distanceKm} km away
+                <div className="bg-primary text-white px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1.5 shadow-primary mt-1">
+                  <Navigation size={12} /> {venue.distanceKm} km away
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-6 text-gray-500 font-bold text-sm">
-              <span className="flex items-center hover:text-primary cursor-pointer transition-colors"><MapPin size={16} className="mr-2 text-primary" /> {venue.address.city}, {venue.address.country}</span>
-              <span className="flex items-center"><Star size={16} className="mr-2 text-amber-400 fill-current" /> <span className="font-black text-gray-900 mr-1">{venue.averageRating.toFixed(1)}</span> ({reviews.length} actual reviews)</span>
+            <div className="flex flex-wrap items-center gap-5 text-warm-600 text-sm font-medium">
+              <span className="flex items-center gap-1.5 hover:text-primary cursor-pointer transition-colors">
+                <MapPin size={15} className="text-primary" /> {venue.address.city}, {venue.address.country}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Star size={15} className="text-amber-400 fill-current" />
+                <span className="font-bold text-warm-900">{venue.averageRating.toFixed(1)}</span>
+                <span className="text-warm-400">({reviews.length} reviews)</span>
+              </span>
             </div>
           </div>
           <div className="hidden sm:flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 font-medium transition-colors">
-              <Share size={18} /> Share
+            <button className="bg-white border border-warm-200 rounded-xl px-4 py-2 text-sm font-medium text-warm-700 hover:bg-warm-50 flex items-center gap-2 transition-all">
+              <Share size={16} /> Share
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 font-medium transition-colors">
-              <Heart size={18} /> Save
+            <button className="bg-white border border-warm-200 rounded-xl px-4 py-2 text-sm font-medium text-warm-700 hover:bg-warm-50 flex items-center gap-2 transition-all">
+              <Heart size={16} /> Save
             </button>
           </div>
         </div>
 
-        {/* Editorial Image Gallery - Staggered & Asymmetric */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-12 h-auto md:h-[700px]">
+        {/* Editorial Image Gallery — Asymmetric */}
+        <div className="overflow-hidden rounded-2xl grid grid-cols-1 md:grid-cols-12 gap-3 mt-10 h-auto md:h-[640px]">
           {/* Main Hero Image */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="md:col-span-7 h-[400px] md:h-full relative group overflow-hidden rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.2)]"
+            transition={{ duration: 0.6 }}
+            className="md:col-span-7 h-[360px] md:h-full relative group overflow-hidden rounded-2xl"
           >
             <img
-              src={venue.gallery?.length > 0 ? `http://localhost:5000${venue.gallery[0]}` : coverImage}
+              src={venue.gallery?.length > 0 ? getImageUrl(venue.gallery[0]) : coverImage}
               alt="Cover"
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+            <div className="absolute inset-0 bg-black/8 group-hover:bg-transparent transition-colors"></div>
           </motion.div>
 
           {/* Right Column Staggered */}
-          <div className="md:col-span-5 grid grid-cols-2 grid-rows-2 gap-6 h-full">
+          <div className="md:col-span-5 grid grid-cols-2 grid-rows-2 gap-3 h-full">
             {(venue.gallery || []).slice(1, 5).map((img, idx) => (
-              <motion.div 
-                key={idx} 
-                initial={{ opacity: 0, y: 30 }}
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className={`${idx === 0 ? 'col-span-2 row-span-1 h-[250px]' : 'col-span-1 row-span-1 h-full'} relative group overflow-hidden rounded-[2rem] shadow-xl`}
+                className={`${idx === 0 ? 'col-span-2 row-span-1 h-[220px]' : 'col-span-1 row-span-1 h-full'} relative group overflow-hidden rounded-2xl`}
               >
-                <img 
-                  src={`http://localhost:5000${img}`} 
-                  alt={`Gallery ${idx + 1}`} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                <img
+                  src={getImageUrl(img)}
+                  alt={`Gallery ${idx + 1}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-black/5" />
               </motion.div>
@@ -358,63 +391,80 @@ const RestaurantDetail = () => {
 
         {/* Left Column: Details */}
         <div className="lg:col-span-2">
-          {/* Description & Features */}
-          <div className="mb-12 pb-12 border-b border-gray-200">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">About this restaurant</h2>
-            <p className="text-gray-700 leading-relaxed text-lg mb-8">{venue.description || 'Welcome to our restaurant. Experience the best dining with us.'}</p>
 
-            <div className="flex flex-wrap gap-4">
-              <div className="w-full sm:w-[48%] flex items-center gap-3">
-                <CheckCircle2 className="text-primary" size={24} />
-                <span className="font-medium text-gray-700">{venue.category?.name || 'Restaurant'} Category</span>
-              </div>
-              <div className="w-full sm:w-[48%] flex items-center gap-3">
-                <CheckCircle2 className="text-primary" size={24} />
-                <span className="font-medium text-gray-700">{venue.cuisines?.map(c => c.name).join(', ') || 'Various'} Cuisine</span>
-              </div>
+          {/* Description & Features */}
+          <div className="mb-12 pb-12 border-b border-warm-200">
+            <h2
+              className="text-2xl font-medium text-warm-900 mb-4"
+              style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+            >
+              About this restaurant
+            </h2>
+            <p className="text-warm-700 leading-relaxed text-base mb-8">{venue.description || 'Welcome to our restaurant. Experience the best dining with us.'}</p>
+
+            {/* Category & Cuisine feature tags */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {venue.category?.name && (
+                <span className="px-3 py-1.5 rounded-full text-sm font-medium bg-warm-100 text-warm-700 border border-warm-200">
+                  {venue.category.name}
+                </span>
+              )}
+              {venue.cuisines?.map(c => (
+                <span key={c._id || c.name} className="px-3 py-1.5 rounded-full text-sm font-medium bg-warm-100 text-warm-700 border border-warm-200">
+                  {c.name}
+                </span>
+              ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-2">
+            {/* Tags */}
+            <div className="flex flex-wrap gap-2">
               {venue.tags?.map(t => (
-                <span key={t._id} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold text-gray-700 bg-gray-50">{t.name}</span>
+                <span key={t._id} className="px-3 py-1.5 rounded-full text-sm font-medium bg-warm-100 text-warm-700 border border-warm-200">
+                  {t.name}
+                </span>
               ))}
             </div>
           </div>
 
           {/* Location & Map Section */}
-          <div className="mb-12 pb-12 border-b border-gray-200">
+          <div className="mb-12 pb-12 border-b border-warm-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Location & Directions</h2>
+              <h2
+                className="text-2xl font-medium text-warm-900"
+                style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+              >
+                Location &amp; Directions
+              </h2>
               {venue.distanceKm && (
-                <span className="text-primary font-black text-sm uppercase tracking-widest flex items-center gap-2">
-                  <Navigation size={14} className="fill-current" /> {venue.distanceKm} km from you
+                <span className="text-primary font-semibold text-sm flex items-center gap-1.5">
+                  <Navigation size={13} /> {venue.distanceKm} km from you
                 </span>
               )}
             </div>
-            
-            <div className="h-[400px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 z-0 relative">
-              <MapContainer 
-                center={[venue.location.coordinates[1], venue.location.coordinates[0]]} 
-                zoom={15} 
+
+            <div className="h-[400px] w-full rounded-2xl overflow-hidden border border-warm-200 z-0 relative">
+              <MapContainer
+                center={[venue.location.coordinates[1], venue.location.coordinates[0]]}
+                zoom={15}
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={false}
               >
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <MapUpdater venueCoords={venue.location.coordinates} userCoords={coords} />
-                
+
                 {/* Restaurant Marker */}
                 <Marker position={[venue.location.coordinates[1], venue.location.coordinates[0]]}>
                   <Popup>
-                    <div className="p-2 font-bold text-gray-900">{venue.name}</div>
+                    <div className="p-2 font-semibold text-warm-900">{venue.name}</div>
                   </Popup>
                 </Marker>
 
                 {/* User Location Marker */}
                 {coords && (
-                  <Marker 
+                  <Marker
                     position={[coords.lat, coords.lng]}
                     icon={L.divIcon({
                       className: 'user-location-marker',
@@ -431,19 +481,20 @@ const RestaurantDetail = () => {
                 )}
               </MapContainer>
             </div>
-            <div className="mt-6 p-6 bg-gray-50 rounded-3xl flex items-center gap-4 border border-gray-100">
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary">
-                <MapPin size={24} />
+
+            <div className="mt-4 p-5 bg-white rounded-2xl flex items-center gap-4 border border-warm-200">
+              <div className="w-10 h-10 rounded-xl bg-warm-50 flex items-center justify-center text-primary flex-shrink-0">
+                <MapPin size={20} />
               </div>
-              <div>
-                <p className="font-black text-gray-900">{venue.address.street}</p>
-                <p className="text-gray-500 font-bold text-xs uppercase tracking-widest">{venue.address.city}, {venue.address.country}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-warm-900 truncate">{venue.address.street}</p>
+                <p className="text-warm-500 text-xs mt-0.5 font-medium uppercase tracking-wider">{venue.address.city}, {venue.address.country}</p>
               </div>
-              <a 
+              <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${venue.location.coordinates[1]},${venue.location.coordinates[0]}`}
                 target="_blank"
                 rel="noreferrer"
-                className="ml-auto bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200"
+                className="bg-primary hover:bg-primary-hover text-white font-semibold px-5 py-2.5 rounded-xl shadow-primary transition-all text-sm whitespace-nowrap"
               >
                 Get Directions
               </a>
@@ -451,7 +502,7 @@ const RestaurantDetail = () => {
           </div>
 
           {/* Menu & Reviews Tabs */}
-          <div className="restaurant-tabs mt-16">
+          <div className="restaurant-tabs mt-10">
             <Tabs
               defaultActiveKey="menu"
               items={tabItems}
@@ -464,73 +515,80 @@ const RestaurantDetail = () => {
 
         {/* Right Column: Sticky Booking / Info Card */}
         <div className="relative">
-          <div className="sticky top-32 hearth-card p-8 bg-white border border-gray-100 shadow-2xl">
-            <div className="flex justify-between items-end mb-8">
-              <div className="flex flex-col">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-gray-900">Npr {venue.priceRange * 500}</span>
-                  <span className="text-gray-400 font-bold text-sm">/ guest</span>
+          <div className="bg-white rounded-2xl border border-warm-200 shadow-float p-6 sticky top-24">
+
+            {/* Price & Rating */}
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <div
+                  className="text-2xl font-medium text-warm-900"
+                  style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+                >
+                  Npr {venue.priceRange * 500}
+                  <span className="text-sm font-normal text-warm-400 ml-1">/ guest</span>
                 </div>
-                <div className="flex gap-1 mt-2">
+                <div className="flex gap-1 mt-2 items-center">
                   {[1, 2, 3, 4].map((s) => (
                     <div
                       key={s}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${s <= (venue.priceRange || 2)
-                          ? 'bg-amber-400 text-white shadow-sm shadow-amber-200'
-                          : 'bg-gray-100 text-gray-300'
+                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${s <= (venue.priceRange || 2)
+                        ? 'bg-amber-400 text-white'
+                        : 'bg-warm-100 text-warm-300'
                         }`}
                     >
-                      <span className="text-[10px] font-black">₨</span>
+                      <span className="text-[9px] font-bold">$</span>
                     </div>
                   ))}
-                  <div className="ml-3 px-3 py-1 bg-slate-50 rounded-full border border-slate-100 flex items-center">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                      {['Economy', 'Moderate', 'Premium', 'Elite'][venue.priceRange - 1] || 'Moderate'}
-                    </span>
-                  </div>
+                  <span className="ml-2 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">
+                    {['Economy', 'Moderate', 'Premium', 'Elite'][venue.priceRange - 1] || 'Moderate'}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                <Star className="fill-primary text-primary" size={14} />
-                <span className="font-black text-gray-900 text-sm">{venue.averageRating.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 bg-warm-50 px-3 py-1.5 rounded-xl border border-warm-200">
+                <Star className="fill-primary text-primary" size={13} />
+                <span className="font-bold text-warm-900 text-sm">{venue.averageRating.toFixed(1)}</span>
               </div>
             </div>
 
+            {/* Reserve Button */}
             <button
               onClick={() => setIsReservationModalVisible(true)}
-              className="btn-primary-hearth w-full py-4 text-lg rounded-2xl mb-8"
+              className="bg-primary hover:bg-primary-hover text-white font-semibold px-5 py-2.5 rounded-xl shadow-primary transition-all w-full text-base mb-6"
             >
               Reserve a Table
             </button>
 
-            <div className="space-y-6 pt-8 border-t border-gray-100">
-              <h3 className="text-label">Location & Contact</h3>
+            {/* Contact Info */}
+            <div className="space-y-4 pt-6 border-t border-warm-200">
+              <p className="text-xs font-semibold text-warm-400 uppercase tracking-widest">Location &amp; Contact</p>
 
-              <div className="flex items-start gap-4 group">
-                <div className="mt-1 w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
-                  <MapPin size={20} />
+              <div className="flex items-start gap-3 group">
+                <div className="mt-0.5 w-9 h-9 rounded-xl bg-warm-50 flex items-center justify-center text-warm-400 group-hover:text-primary transition-colors flex-shrink-0">
+                  <MapPin size={18} />
                 </div>
-                <div>
-                  <p className="font-bold text-gray-900 leading-tight">{venue.address.street}</p>
-                  <p className="text-gray-500 text-xs mt-1 font-medium">{venue.address.city}, {venue.address.country}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-warm-900 text-sm leading-tight">{venue.address.street}</p>
+                  <p className="text-warm-500 text-xs mt-0.5">{venue.address.city}, {venue.address.country}</p>
                 </div>
               </div>
 
               {venue.phone && (
-                <div className="flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
-                    <Phone size={18} />
+                <div className="flex items-center gap-3 group">
+                  <div className="w-9 h-9 rounded-xl bg-warm-50 flex items-center justify-center text-warm-400 group-hover:text-primary transition-colors flex-shrink-0">
+                    <Phone size={16} />
                   </div>
-                  <span className="font-bold text-gray-900">{venue.phone}</span>
+                  <span className="text-sm text-warm-600 font-medium">{venue.phone}</span>
                 </div>
               )}
 
               {venue.website && (
-                <div className="flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
-                    <Globe size={18} />
+                <div className="flex items-center gap-3 group">
+                  <div className="w-9 h-9 rounded-xl bg-warm-50 flex items-center justify-center text-warm-400 group-hover:text-primary transition-colors flex-shrink-0">
+                    <Globe size={16} />
                   </div>
-                  <a href={venue.website} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline line-clamp-1">{venue.website.replace(/(^\w+:|^)\/\//, '')}</a>
+                  <a href={venue.website} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline line-clamp-1">
+                    {venue.website.replace(/(^\w+:|^)\/\//, '')}
+                  </a>
                 </div>
               )}
             </div>
@@ -563,7 +621,7 @@ const RestaurantDetail = () => {
             htmlType="submit"
             loading={submittingReview}
             size="large"
-            className="w-full bg-primary hover:bg-primary-hover font-bold rounded-lg border-none mt-2"
+            className="w-full bg-primary hover:bg-primary-hover font-semibold rounded-xl border-none mt-2"
           >
             Submit Review
           </Button>
@@ -575,7 +633,7 @@ const RestaurantDetail = () => {
         title={
           <div className="flex items-center gap-2">
             <Calendar className="text-primary" size={20} />
-            <span className="text-xl font-bold">Reserve a Table at {venue.name}</span>
+            <span className="text-xl font-semibold">Reserve a Table at {venue.name}</span>
           </div>
         }
         open={isReservationModalVisible}
@@ -620,7 +678,6 @@ const RestaurantDetail = () => {
                   let current = new Date(`2024-01-01T${openTime}:00`);
                   const end = new Date(`2024-01-01T${closeTime}:00`);
 
-                  // If closing time is earlier than opening (e.g. past midnight), adjust end date
                   if (end <= current) {
                     end.setDate(end.getDate() + 1);
                   }
@@ -661,8 +718,8 @@ const RestaurantDetail = () => {
             <Input.TextArea rows={3} placeholder="Birthday surprise, window seat, allergies..." className="rounded-lg" />
           </Form.Item>
 
-          <div className="bg-gray-50 p-4 rounded-xl mb-6">
-            <p className="text-sm text-gray-500 leading-relaxed text-center italic">
+          <div className="bg-warm-50 p-4 rounded-xl mb-6 border border-warm-200">
+            <p className="text-sm text-warm-500 leading-relaxed text-center italic">
               "Your reservation will be pending until confirmed by the restaurant owner. You will receive a notification."
             </p>
           </div>
@@ -672,7 +729,7 @@ const RestaurantDetail = () => {
             htmlType="submit"
             loading={submittingReservation}
             size="large"
-            className="w-full bg-primary hover:bg-primary-hover h-14 text-lg font-bold rounded-xl border-none shadow-lg shadow-primary/20"
+            className="w-full bg-primary hover:bg-primary-hover h-14 text-base font-semibold rounded-xl border-none shadow-primary"
           >
             Request Reservation
           </Button>
@@ -681,7 +738,14 @@ const RestaurantDetail = () => {
 
       {/* Gallery Modal */}
       <Modal
-        title={<span className="text-2xl font-black uppercase tracking-tighter">Restaurant Gallery</span>}
+        title={
+          <span
+            className="text-2xl font-medium text-warm-900"
+            style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+          >
+            Restaurant Gallery
+          </span>
+        }
         open={isGalleryModalVisible}
         onCancel={() => setIsGalleryModalVisible(false)}
         footer={null}
@@ -694,18 +758,19 @@ const RestaurantDetail = () => {
             <motion.div
               key={idx}
               whileHover={{ scale: 1.02 }}
-              className="aspect-square rounded-2xl overflow-hidden shadow-lg border border-gray-100"
+              className="aspect-square rounded-2xl overflow-hidden border border-warm-200"
             >
               <img
-                src={`http://localhost:5000${img}`}
+                src={getImageUrl(img)}
                 alt={`Gallery ${idx}`}
                 className="w-full h-full object-cover cursor-pointer"
-                onClick={() => window.open(`http://localhost:5000${img}`, '_blank')}
+                onClick={() => window.open(getImageUrl(img), '_blank')}
               />
             </motion.div>
           ))}
         </div>
       </Modal>
+
     </div>
   );
 };

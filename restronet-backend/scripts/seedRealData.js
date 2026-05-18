@@ -175,8 +175,15 @@ const seed = async () => {
       });
     }
 
-    await Venue.insertMany(venues);
-    console.log(`Successfully seeded ${venues.length} venues around Thamel!`);
+    // Reset ratings and review counts to 0 so they are driven solely by user actions
+    const cleanedVenues = venues.map(v => ({
+      ...v,
+      averageRating: 0,
+      totalReviews: 0
+    }));
+
+    await Venue.insertMany(cleanedVenues);
+    console.log(`Successfully seeded ${cleanedVenues.length} venues around Thamel!`);
 
     process.exit();
   } catch (error) {

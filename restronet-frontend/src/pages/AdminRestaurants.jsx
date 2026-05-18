@@ -7,6 +7,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUrl';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -22,6 +23,12 @@ const customIcon = L.divIcon({
 // Component to update map view when coordinates change
 const ChangeView = ({ center }) => {
   const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const timer = setTimeout(() => map.invalidateSize(), 250);
+    return () => clearTimeout(timer);
+  }, [map]);
+
   useEffect(() => {
     if (center[0] && center[1]) {
       map.setView(center, map.getZoom());
@@ -55,6 +62,7 @@ const AdminRestaurants = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [form] = Form.useForm();
 
@@ -152,17 +160,26 @@ const AdminRestaurants = () => {
   const handleModalSubmit = async () => {
     try {
       const values = await form.validateFields();
+      
+      // Support both flat keys (e.g. values['address.city']) and nested keys (e.g. values.address.city)
+      const street = values['address.street'] !== undefined ? values['address.street'] : values.address?.street;
+      const city = values['address.city'] !== undefined ? values['address.city'] : values.address?.city;
+      const country = values['address.country'] !== undefined ? values['address.country'] : values.address?.country;
+      
+      const latVal = values['location.lat'] !== undefined ? values['location.lat'] : values.location?.lat;
+      const lngVal = values['location.lng'] !== undefined ? values['location.lng'] : values.location?.lng;
+
       const payload = {
         name: values.name,
         description: values.description,
         address: {
-          street: values['address.street'],
-          city: values['address.city'],
-          country: values['address.country']
+          street: street,
+          city: city,
+          country: country
         },
         location: {
           type: 'Point',
-          coordinates: [parseFloat(values['location.lng']) || 0, parseFloat(values['location.lat']) || 0]
+          coordinates: [parseFloat(lngVal) || 0, parseFloat(latVal) || 0]
         },
         phone: values.phone,
         website: values.website,
@@ -225,6 +242,15 @@ const AdminRestaurants = () => {
     }
   };
 
+  const filteredRestaurants = restaurants.filter(r => {
+    const query = searchQuery.toLowerCase();
+    return (
+      (r.name && r.name.toLowerCase().includes(query)) ||
+      (r.address?.city && r.address.city.toLowerCase().includes(query)) ||
+      (r.category?.name && r.category.name.toLowerCase().includes(query))
+    );
+  });
+
   const columns = [
     {
       title: 'Restaurant Name',
@@ -232,16 +258,16 @@ const AdminRestaurants = () => {
       key: 'name',
       render: (text, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+          <div className="w-10 h-10 rounded-lg overflow-hidden bg-warm-100 border border-warm-200">
             {record.logo ? (
-              <img src={`http://localhost:5000${record.logo}`} className="w-full h-full object-cover" alt="logo" />
+              <img src={getImageUrl(record.logo)} className="w-full h-full object-cover" alt="logo" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{text.charAt(0)}</div>
+              <div className="w-full h-full flex items-center justify-center text-warm-400 font-bold">{text.charAt(0)}</div>
             )}
           </div>
           <div>
-            <div className="font-bold text-gray-900">{text}</div>
-            <div className="text-xs text-gray-500">{record.address?.city}</div>
+            <div className="font-bold text-warm-900">{text}</div>
+            <div className="text-xs text-warm-500">{record.address?.city}</div>
           </div>
         </div>
       ),
@@ -257,7 +283,7 @@ const AdminRestaurants = () => {
       dataIndex: 'owner',
       key: 'owner',
       hidden: admin?.role !== 'superadmin',
-      render: (owner) => owner?.name || <span className="text-gray-400 italic">Platform</span>,
+      render: (owner) => owner?.name || <span className="text-warm-400 italic">Platform</span>,
     },
     {
       title: 'Rating',
@@ -276,7 +302,7 @@ const AdminRestaurants = () => {
       render: (price) => (
         <div className="flex gap-0.5">
           {[1, 2, 3, 4].map((step) => (
-            <div 
+            <div
               key={step}
               className={`h-1.5 w-4 rounded-full ${step <= (price || 2) ? 'bg-indigo-500' : 'bg-slate-200'}`}
             />
@@ -289,12 +315,12 @@ const AdminRestaurants = () => {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button
-            type="text"
-            icon={<Edit size={16} />}
+          <button
             onClick={() => showModal(record)}
-            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-          />
+            className="text-primary hover:underline text-sm font-medium"
+          >
+            Edit
+          </button>
           <Popconfirm
             title="Delete this restaurant?"
             description="Are you sure you want to delete this restaurant and all its data?"
@@ -303,44 +329,61 @@ const AdminRestaurants = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 size={16} />}
-              className="hover:bg-red-50"
-            />
+            <button className="text-red-500 hover:underline text-sm font-medium">
+              Delete
+            </button>
           </Popconfirm>
         </Space>
       ),
     },
-  ].filter(c => !c.hidden); return (
+  ].filter(c => !c.hidden);
+
+  return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">
+          <h1
+            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
+            className="text-3xl font-medium text-warm-900"
+          >
             {admin?.role === 'superadmin' ? 'Restaurants' : 'My Restaurants'}
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Manage platform venues, menus, and details.</p>
+          <p className="text-sm text-warm-500 mt-1">Manage platform venues, menus, and details.</p>
         </div>
-        <div className="flex gap-3">
-          {admin?.role === 'superadmin' && (
-            <Button
-              type="primary"
-              icon={<Plus size={18} />}
-              size="large"
-              className="bg-primary hover:bg-primary-hover flex items-center gap-1 shadow-md shadow-primary/20 rounded-xl font-semibold"
-              onClick={() => showModal()}
-            >
-              Add Restaurant
-            </Button>
-          )}
+        {admin?.role === 'superadmin' && (
+          <button
+            onClick={() => showModal()}
+            className="bg-primary text-white font-semibold px-5 py-2.5 rounded-xl shadow-primary hover:bg-primary-hover transition-all flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Add Restaurant
+          </button>
+        )}
+      </div>
+
+      {/* Search and Table Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-warm-200 shadow-card mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Input
+            prefix={<SearchIcon size={18} className="text-warm-400 mr-1.5" />}
+            placeholder="Search by restaurant name, city, or category..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="rounded-xl border-warm-200 hover:border-primary focus:border-primary py-2.5 px-4 text-warm-700 shadow-sm"
+            allowClear
+          />
+        </div>
+        <div className="text-xs font-semibold text-warm-500 bg-warm-50 border border-warm-200 px-4 py-2.5 rounded-xl">
+          Showing {filteredRestaurants.length} of {restaurants.length} restaurants
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
         <Table
           columns={columns}
-          dataSource={restaurants}
+          dataSource={filteredRestaurants}
           rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10, className: 'px-4' }}
@@ -348,6 +391,7 @@ const AdminRestaurants = () => {
         />
       </div>
 
+      {/* Modal */}
       <Modal
         title={null}
         open={isModalVisible}
@@ -359,26 +403,25 @@ const AdminRestaurants = () => {
         styles={{ body: { padding: 0 } }}
       >
         {/* Custom Header */}
-        <div className="bg-slate-900 p-6 rounded-t-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+        <div className="bg-[#1e293b] px-6 py-5 border-b border-[#334155] rounded-t-2xl relative overflow-hidden">
           <div className="flex items-center gap-4 relative z-10">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
-              {editingId ? <Edit className="text-white" size={24} /> : <Plus className="text-white" size={24} />}
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+              {editingId ? <Edit className="text-white" size={20} /> : <Plus className="text-white" size={20} />}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white leading-tight">
+              <h2 className="text-white font-bold text-lg leading-tight">
                 {editingId ? "Refine Restaurant" : "Onboard New Restaurant"}
               </h2>
-              <p className="text-slate-400 text-xs font-medium tracking-wide uppercase mt-1">
+              <p className="text-slate-400 text-xs font-medium tracking-wide uppercase mt-0.5">
                 {editingId ? "Update existing details" : "Configure platform entry"}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsModalVisible(false)}
-            className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+            className="absolute top-5 right-6 text-slate-400 hover:text-white transition-colors"
           >
-            <Plus size={24} className="rotate-45" />
+            <Plus size={22} className="rotate-45" />
           </button>
         </div>
 
@@ -475,7 +518,7 @@ const AdminRestaurants = () => {
 
           <Form form={form} layout="vertical">
             <Tabs defaultActiveKey="1" className="restaurant-form-tabs">
-              <Tabs.TabPane tab="Basic Information" key="1" icon={<Info size={16} />}>
+              <Tabs.TabPane tab="Basic Information" key="1" icon={<Info size={16} />} forceRender>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 pt-4">
                   <Form.Item name="name" label={<span className="text-slate-600 font-semibold">Restaurant Name</span>} rules={[{ required: true }]}>
                     <Input placeholder="e.g. The Spicy Kitchen" size="large" className="rounded-xl border-slate-200" />
@@ -519,7 +562,7 @@ const AdminRestaurants = () => {
                 </div>
               </Tabs.TabPane>
 
-              <Tabs.TabPane tab="Contact & Media" key="2" icon={<Camera size={16} />}>
+              <Tabs.TabPane tab="Contact & Media" key="2" icon={<Camera size={16} />} forceRender>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 pt-4">
                   <Form.Item name="phone" label={<span className="text-slate-600 font-semibold">Contact Number</span>}>
                     <Input placeholder="+977 98XXXXXXXX" size="large" className="rounded-xl" />
@@ -550,7 +593,7 @@ const AdminRestaurants = () => {
                       <div className="flex flex-wrap gap-2">
                         {existingGallery.slice(0, 4).map((url, idx) => (
                           <div key={idx} className="w-14 h-14 rounded-lg overflow-hidden border border-slate-100 shadow-sm relative group">
-                            <img src={`http://localhost:5000${url}`} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(url)} className="w-full h-full object-cover" alt="gallery" />
                             <button onClick={() => setExistingGallery(prev => prev.filter((_, i) => i !== idx))} className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                               <Trash2 size={12} />
                             </button>
@@ -585,7 +628,7 @@ const AdminRestaurants = () => {
                 </div>
               </Tabs.TabPane>
 
-              <Tabs.TabPane tab="Geo-Location" key="3" icon={<MapPin size={16} />}>
+              <Tabs.TabPane tab="Geo-Location" key="3" icon={<MapPin size={16} />} forceRender>
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                     <Form.Item name="address.street" label={<span className="text-slate-600 font-semibold">Street Address</span>}>
@@ -602,7 +645,7 @@ const AdminRestaurants = () => {
                       zoom={15}
                       style={{ height: '100%', width: '100%' }}
                     >
-                      <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                       <ChangeView center={[parseFloat(lat), parseFloat(lng)]} />
                       <MapClicker form={form} />
                       {lat && lng && <Marker position={[parseFloat(lat), parseFloat(lng)]} icon={customIcon} />}
@@ -633,7 +676,7 @@ const AdminRestaurants = () => {
               <Button
                 onClick={() => setIsModalVisible(false)}
                 size="large"
-                className="rounded-xl border-slate-200 text-slate-500 font-semibold px-8 h-12"
+                className="rounded-xl border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-400 font-semibold px-8 h-12"
               >
                 Discard
               </Button>

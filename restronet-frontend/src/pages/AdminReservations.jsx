@@ -38,12 +38,32 @@ const AdminReservations = () => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusTag = (status) => {
     switch (status) {
-      case 'confirmed': return 'green';
-      case 'cancelled': return 'red';
-      case 'completed': return 'blue';
-      default: return 'orange';
+      case 'confirmed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Confirmed
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-red-50 text-red-600 border border-red-200">
+            Cancelled
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-blue-50 text-blue-700 border border-blue-200">
+            Completed
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-amber-50 text-amber-700 border border-amber-200">
+            Pending
+          </span>
+        );
     }
   };
 
@@ -52,7 +72,7 @@ const AdminReservations = () => {
       title: 'Restaurant',
       dataIndex: 'venue',
       key: 'venue',
-      render: (venue) => <span className="font-bold text-gray-900">{venue?.name || 'Deleted Venue'}</span>,
+      render: (venue) => <span className="font-bold text-warm-900">{venue?.name || 'Deleted Venue'}</span>,
       hidden: admin?.role !== 'superadmin'
     },
     {
@@ -61,8 +81,8 @@ const AdminReservations = () => {
       key: 'user',
       render: (user, record) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-gray-900">{user?.name || 'Guest'}</span>
-          <span className="text-xs text-gray-500 flex items-center gap-1"><Phone size={10} /> {record.contactPhone}</span>
+          <span className="font-semibold text-warm-900">{user?.name || 'Guest'}</span>
+          <span className="text-xs text-warm-500 flex items-center gap-1"><Phone size={10} /> {record.contactPhone}</span>
         </div>
       ),
     },
@@ -72,11 +92,11 @@ const AdminReservations = () => {
       render: (_, record) => (
         <div className="flex flex-col">
           <span className="text-sm font-medium flex items-center gap-1">
-            <Calendar size={14} className="text-gray-400" /> 
+            <Calendar size={14} className="text-warm-400" />
             {new Date(record.date).toLocaleDateString()}
           </span>
-          <span className="text-xs text-gray-500 flex items-center gap-1">
-            <Clock size={14} className="text-gray-400" /> 
+          <span className="text-xs text-warm-500 flex items-center gap-1">
+            <Clock size={14} className="text-warm-400" />
             {record.time}
           </span>
         </div>
@@ -92,11 +112,7 @@ const AdminReservations = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)} className="uppercase font-bold">
-          {status}
-        </Tag>
-      ),
+      render: (status) => getStatusTag(status),
     },
     {
       title: 'Actions',
@@ -105,31 +121,27 @@ const AdminReservations = () => {
         <Space>
           {record.status === 'pending' && (
             <>
-              <Button 
-                type="text" 
-                className="text-green-600 hover:bg-green-50 flex items-center gap-1"
+              <button
+                className="text-primary hover:underline text-sm font-medium"
                 onClick={() => updateStatus(record._id, 'confirmed')}
               >
-                <CheckCircle size={16} /> Confirm
-              </Button>
-              <Button 
-                type="text" 
-                danger 
-                className="hover:bg-red-50 flex items-center gap-1"
+                Confirm
+              </button>
+              <button
+                className="text-red-500 hover:underline text-sm font-medium"
                 onClick={() => updateStatus(record._id, 'cancelled')}
               >
-                <XCircle size={16} /> Cancel
-              </Button>
+                Cancel
+              </button>
             </>
           )}
           {record.status === 'confirmed' && (
-            <Button 
-              type="text" 
-              className="text-blue-600 hover:bg-blue-50"
+            <button
+              className="text-primary hover:underline text-sm font-medium"
               onClick={() => updateStatus(record._id, 'completed')}
             >
               Mark Completed
-            </Button>
+            </button>
           )}
         </Space>
       ),
@@ -138,21 +150,26 @@ const AdminReservations = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
-            <Calendar className="text-primary" size={24} />
+          <h1
+            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
+            className="text-3xl font-medium text-warm-900 flex items-center gap-2"
+          >
+            <Calendar className="text-primary" size={26} />
             Reservations
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Manage table bookings and guest schedules.</p>
+          <p className="text-sm text-warm-500 mt-1">Manage table bookings and guest schedules.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <Table 
-          columns={columns} 
-          dataSource={reservations} 
-          rowKey="_id" 
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
+        <Table
+          columns={columns}
+          dataSource={reservations}
+          rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10 }}
         />

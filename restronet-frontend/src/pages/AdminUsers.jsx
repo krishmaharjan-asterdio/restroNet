@@ -51,19 +51,19 @@ const AdminUsers = () => {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <span className="font-bold text-gray-900">{text}</span>,
+      render: (text) => <span className="font-bold text-warm-900">{text}</span>,
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      render: (text) => <span className="text-gray-600">{text}</span>,
+      render: (text) => <span className="text-warm-600">{text}</span>,
     },
     {
       title: 'Joined Date',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date) => <span className="text-gray-600">{new Date(date).toLocaleDateString()}</span>,
+      render: (date) => <span className="text-warm-600">{new Date(date).toLocaleDateString()}</span>,
     },
     {
       title: 'Status',
@@ -88,9 +88,9 @@ const AdminUsers = () => {
             cancelText="No"
             okButtonProps={{ danger: record.isActive }}
           >
-            <Button 
-              type="text" 
-              icon={record.isActive ? <UserX size={16} /> : <UserCheck size={16} />} 
+            <Button
+              type="text"
+              icon={record.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
               className={record.isActive ? "text-orange-600 hover:bg-orange-50" : "text-green-600 hover:bg-green-50"}
             />
           </Popconfirm>
@@ -102,10 +102,10 @@ const AdminUsers = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button 
-              type="text" 
-              danger 
-              icon={<Trash2 size={16} />} 
+            <Button
+              type="text"
+              danger
+              icon={<Trash2 size={16} />}
               className="hover:bg-red-50"
             />
           </Popconfirm>
@@ -116,18 +116,25 @@ const AdminUsers = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">User Management</h1>
-          <p className="text-gray-500 text-sm mt-1">View, block, or delete user accounts.</p>
+          <h1
+            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
+            className="text-3xl font-medium text-warm-900"
+          >
+            Users
+          </h1>
+          <p className="text-sm text-warm-500 mt-1">Manage user accounts and access.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <Table 
-          columns={columns} 
-          dataSource={users} 
-          rowKey="_id" 
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10, className: 'px-4' }}
           className="admin-table"

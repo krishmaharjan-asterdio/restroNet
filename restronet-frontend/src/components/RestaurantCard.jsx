@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, MapPin, Heart, Navigation, Sparkles, Banknote } from 'lucide-react';
+import { Star, MapPin, Heart, Navigation, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
+import { getImageUrl } from '../utils/imageUrl';
 
 const PRICE_MAP = { 1: 'Npr', 2: 'Npr x2', 3: 'Npr x3', 4: 'Npr x4' };
 const MOOD_LABEL = {
@@ -20,115 +21,139 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
   const { user } = useContext(AuthContext);
   const [isSaved, setIsSaved] = useState(false);
 
-  const imageUrl = venue.gallery?.length > 0
-    ? `http://localhost:5000${venue.gallery[0]}`
-    : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80';
+  const imageUrl =
+    venue.gallery?.length > 0
+      ? getImageUrl(venue.gallery[0])
+      : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80';
 
-  const logoUrl = venue.logo ? `http://localhost:5000${venue.logo}` : null;
-  const isNew = venue.createdAt && (new Date() - new Date(venue.createdAt)) < (1000 * 60 * 60 * 24 * 7);
-  const matchPct = venue.recommendationScore ? Math.round(venue.recommendationScore * 100) : null;
+  const logoUrl = getImageUrl(venue.logo);
+  const isNew =
+    venue.createdAt &&
+    new Date() - new Date(venue.createdAt) < 1000 * 60 * 60 * 24 * 7;
+  const matchPct = venue.recommendationScore
+    ? Math.round(venue.recommendationScore * 100)
+    : null;
   const mood = venue.matchedMood ? MOOD_LABEL[venue.matchedMood] : null;
 
   return (
     <motion.div
-      whileHover={{ y: -12 }}
+      whileHover={{ y: -8 }}
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="relative group h-[500px] w-full rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] transition-all duration-700"
+      className="relative group h-[500px] w-full rounded-3xl overflow-hidden shadow-card transition-all duration-300"
     >
-
-
       <Link to={`/restaurant/${venue.slug}`} className="block h-full w-full">
         {/* Background Image */}
         <img
           src={imageUrl}
           alt={venue.name}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
         />
 
-        {/* Dynamic Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent opacity-90" />
-        <div className="absolute inset-0 bg-primary/5 mix-blend-overlay group-hover:opacity-0 transition-opacity duration-700" />
+        {/* Gradient overlay — clean single layer */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
         {/* Top Badges */}
-        <div className="absolute top-6 left-6 right-6 flex justify-between items-start">
+        <div className="absolute top-5 left-5 right-5 flex justify-between items-start">
+          {/* Left: distance + match */}
           <div className="flex flex-col gap-2">
             {venue.distanceKm !== undefined && venue.distanceKm !== null && (
-              <span className="bg-primary text-white text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
-                <Navigation size={10} className="fill-current" /> {venue.distanceKm} KM AWAY
+              <span className="bg-white/90 backdrop-blur-sm text-warm-900 text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                <Navigation size={10} />
+                {venue.distanceKm} km away
               </span>
             )}
             {user && matchPct && (
-              <span className="bg-black/40 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
+              <span className="bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold px-3 py-1 rounded-full">
                 {matchPct}% Match
               </span>
             )}
           </div>
+
+          {/* Right: heart + rating */}
           <div className="flex flex-col items-end gap-2">
             <button
-              onClick={e => { e.preventDefault(); setIsSaved(s => !s); }}
-              className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white hover:bg-white hover:text-red-500 transition-all active:scale-90 shadow-lg"
+              onClick={e => {
+                e.preventDefault();
+                setIsSaved(s => !s);
+              }}
+              className="w-9 h-9 bg-white/15 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center hover:bg-white/25 transition-all active:scale-90"
             >
-              <Heart size={18} className={isSaved ? 'fill-current text-red-500' : ''} />
+              <Heart
+                size={16}
+                className={isSaved ? 'fill-current text-red-400' : 'text-white'}
+              />
             </button>
-            <div className="flex gap-2">
-              <div className="bg-gray-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-xl border border-white/10">
-                {(venue.averageRating || 0).toFixed(1)} <Star size={12} className="fill-primary text-primary" />
-              </div>
+
+            <div className="bg-black/60 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5">
+              {(venue.averageRating || 0).toFixed(1)}
+              <Star size={11} className="fill-primary text-primary" />
             </div>
           </div>
         </div>
 
-        {/* Bottom Content Card - Float on top with deep blur */}
-        <div className="absolute bottom-6 left-6 right-6">
-          <div className="bg-white/90 backdrop-blur-2xl rounded-[2rem] p-6 shadow-xl border border-white/50 group-hover:-translate-y-2 transition-transform duration-500 relative">
-
-            {/* Logo Overlay - Smaller and subtler */}
+        {/* Bottom Content Card */}
+        <div className="absolute bottom-5 left-5 right-5">
+          <div
+            className="backdrop-blur-xl rounded-2xl p-5 border border-white/40 shadow-xl group-hover:-translate-y-1.5 transition-transform duration-300 relative"
+            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+          >
+            {/* Logo */}
             {logoUrl && (
-              <div className="absolute -top-8 left-6 w-14 h-14 bg-white rounded-2xl p-1.5 shadow-xl border border-gray-100 overflow-hidden group-hover:scale-110 transition-transform duration-500">
-                <img src={logoUrl} className="w-full h-full object-cover rounded-xl" alt="logo" />
+              <div className="absolute -top-6 left-5 w-12 h-12 bg-white rounded-xl p-1 shadow-lg border border-warm-200 overflow-hidden">
+                <img
+                  src={logoUrl}
+                  className="w-full h-full object-cover rounded-lg"
+                  alt="logo"
+                />
               </div>
             )}
 
-            <div className="mb-4">
-              <div className={logoUrl ? 'mt-4' : ''}>
-                <h3 className="text-xl font-black text-gray-900 leading-tight mb-2 line-clamp-1">
-                  {venue.name}
-                </h3>
-                <div className="flex flex-wrap items-center gap-2 text-gray-500 text-[10px] font-bold">
-                  <span className="flex items-center gap-1">
-                    <MapPin size={10} className="text-primary" /> {venue.address?.city || 'Kathmandu'}
+            {/* Name + location */}
+            <div className={`mb-3 ${logoUrl ? 'mt-5' : ''}`}>
+              <h3 className="text-lg font-bold text-warm-900 leading-snug line-clamp-1 mb-1">
+                {venue.name}
+              </h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-warm-500 font-medium flex items-center gap-1">
+                  <MapPin size={10} className="text-primary" />
+                  {venue.address?.city || 'Kathmandu'}
+                </span>
+                {mood && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                    {mood.emoji} {mood.label}
                   </span>
-                  {mood && (
-                    <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter">
-                      {mood.emoji} {mood.label}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-0.5">
+            {/* Footer row */}
+            <div className="flex items-center justify-between border-t border-warm-200 pt-3">
+              {/* Price dots + category */}
+              <div className="flex items-center gap-2.5">
+                <div className="flex gap-1">
                   {[1, 2, 3, 4].map(s => (
                     <div
                       key={s}
-                      className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black transition-all ${s <= (venue.priceRange || 2) ? 'bg-amber-400 text-white shadow-sm' : 'bg-gray-100 text-gray-300'
-                        }`}
-                    >
-                      ₨
-                    </div>
+                      className={`w-3 h-3 rounded-full ${
+                        s <= (venue.priceRange || 2)
+                          ? 'bg-primary'
+                          : 'bg-warm-200'
+                      }`}
+                    />
                   ))}
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 truncate max-w-[80px]">{venue.category?.name || 'Restro'}</span>
+                <span className="text-[10px] font-semibold text-warm-500 uppercase tracking-wide truncate max-w-[70px]">
+                  {venue.category?.name || 'Restro'}
+                </span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-primary group-hover:gap-2.5 transition-all duration-500">
-                <span className="text-[10px] font-black uppercase tracking-widest">Open</span>
-                <Navigation size={12} className="rotate-90 fill-current" />
-              </div>
+              {/* View indicator */}
+              <span className="text-primary text-xs font-semibold flex items-center gap-0.5 group-hover:gap-1.5 transition-all duration-300">
+                View
+                <ChevronRight size={14} />
+              </span>
             </div>
           </div>
         </div>
