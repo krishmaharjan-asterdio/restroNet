@@ -2,120 +2,508 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── DESIGN TOKENS ─────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 40 20% 98%;
+    --foreground: 30 12% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 30 12% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    
+    --popover-foreground: 30 12% 10%;
+
     /* Kathmandu Sunset */
     --primary: 24.2 100% 49%;
-    --primary-hover: 24.2 100% 44%;
-    --primary-foreground: 210 40% 98%;
-    
-    --secondary: 0 0% 96.9%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 24.6 100% 49%;
-    --radius: 0.75rem;
+    --primary-hover: 23 100% 44%;
+    --primary-foreground: 40 20% 98%;
 
-    /* Himalayan Hearth Elevation */
-    --hearth-glow: 0 10px 40px rgba(0, 0, 0, 0.08);
-    --interactive-lift: 0 20px 50px rgba(0, 0, 0, 0.12);
+    --secondary: 40 15% 95%;
+    --secondary-foreground: 30 12% 20%;
+    --muted: 40 12% 94%;
+    --muted-foreground: 30 8% 46%;
+    --accent: 40 12% 94%;
+    --accent-foreground: 30 12% 20%;
+    --destructive: 0 80% 56%;
+    --destructive-foreground: 40 20% 98%;
+    --border: 35 15% 88%;
+    --input: 35 15% 88%;
+    --ring: 24.2 100% 49%;
+    --radius: 0.75rem;
   }
 }
 
+/* ─── BASE STYLES ────────────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
+
+  html {
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    @apply bg-white text-gray-900 font-inter antialiased selection:bg-primary/20 selection:text-primary;
+    background-color: #fafaf9;
+    color: #1a1814;
+    @apply antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    selection-background-color: rgba(250,101,0,0.15);
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight font-black text-gray-900;
+
+  ::selection {
+    background: rgba(250,101,0,0.15);
+    color: #fa6500;
+  }
+
+  /* Display headings use Cormorant */
+  .font-display,
+  .display-heading {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Remove Ant Design's forced font */
+  .ant-typography,
+  .ant-btn,
+  .ant-input,
+  .ant-select,
+  .ant-table,
+  .ant-form-item-label {
+    font-family: 'DM Sans', system-ui, sans-serif !important;
   }
 }
 
-/* ─── HIMALAYAN HEARTH TOKENS ─── */
-.hearth-card {
-  @apply bg-white rounded-[1.5rem] border border-gray-100/60 shadow-[var(--hearth-glow)] transition-all duration-300;
+/* ─── COMPONENT UTILITIES ────────────────────────────────────────────────────── */
+@layer components {
+
+  /* Cards */
+  .card {
+    background-color: #ffffff;
+    border-color: #ede9e4;
+    box-shadow: 0 2px 12px rgba(26,24,20,0.06);
+    @apply rounded-2xl border transition-all duration-300;
+  }
+  .card:hover {
+    box-shadow: 0 8px 32px rgba(26,24,20,0.10);
+    @apply -translate-y-0.5;
+  }
+  .card-flat {
+    background-color: #ffffff;
+    border-color: #ede9e4;
+    @apply rounded-2xl border;
+  }
+
+  /* Legacy hearth-card compatibility */
+  .hearth-card {
+    background-color: #ffffff;
+    border-color: #ede9e4;
+    box-shadow: 0 2px 12px rgba(26,24,20,0.06);
+    @apply rounded-2xl border transition-all duration-300;
+  }
+  .hearth-card:hover {
+    box-shadow: 0 8px 32px rgba(26,24,20,0.10);
+    @apply -translate-y-0.5;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    background-color: #fa6500;
+    color: #ffffff;
+    box-shadow: 0 8px 24px rgba(250,101,0,0.22);
+    @apply inline-flex items-center justify-center gap-2
+           font-semibold tracking-wide rounded-xl px-6 py-3
+           transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+  .btn-primary:hover {
+    background-color: #e05800;
+  }
+  .btn-primary-hearth {
+    @apply btn-primary;
+  }
+
+  .btn-secondary {
+    background-color: #ffffff;
+    color: #3a3632;
+    border-color: #ede9e4;
+    box-shadow: 0 2px 12px rgba(26,24,20,0.06);
+    @apply inline-flex items-center justify-center gap-2
+           font-semibold rounded-xl px-6 py-3 border
+           transition-all duration-200 active:scale-[0.98];
+  }
+  .btn-secondary:hover {
+    background-color: #fafaf9;
+  }
+  .btn-secondary-modern {
+    @apply btn-secondary;
+  }
+  .btn-secondary-hearth {
+    @apply btn-secondary;
+  }
+
+  .btn-ghost {
+    color: #5c5752;
+    @apply inline-flex items-center justify-center gap-2
+           font-medium rounded-xl px-4 py-2 transition-all duration-200;
+  }
+  .btn-ghost:hover {
+    background-color: #f5f3f0;
+    color: #fa6500;
+  }
+
+  /* Input fields */
+  .input-field {
+    background-color: #fafaf9;
+    border-color: #ede9e4;
+    color: #1a1814;
+    @apply w-full border rounded-xl px-4 py-3 font-medium outline-none transition-all duration-200;
+  }
+  .input-field:focus {
+    background-color: #ffffff;
+    border-color: rgba(250, 101, 0, 0.4);
+    box-shadow: 0 0 0 4px rgba(250, 101, 0, 0.08);
+  }
+  .input-field::placeholder {
+    color: #c8c1b8;
+  }
+
+  /* Pill / badge */
+  .badge {
+    @apply inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  .badge-primary {
+    background-color: rgba(250, 101, 0, 0.1);
+    color: #fa6500;
+    @apply badge;
+  }
+  .badge-success {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-error {
+    @apply badge bg-red-50 text-red-700;
+  }
+  .badge-neutral {
+    background-color: #f5f3f0;
+    color: #78746e;
+    @apply badge;
+  }
+
+  /* Typography */
+  .text-display {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    @apply text-[clamp(2.5rem,5vw,4.5rem)] font-medium leading-[1.08] tracking-[-0.01em];
+  }
+
+  .text-heading {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    @apply text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.2];
+  }
+
+  .text-label {
+    color: #a8a096;
+    @apply text-[10px] font-bold uppercase tracking-[0.18em];
+  }
+  .text-label-sm {
+    color: #c8c1b8;
+    @apply text-[9px] font-bold uppercase tracking-[0.2em];
+  }
+
+  /* Glass nav (legacy compat) */
+  .glass-nav {
+    border-bottom-color: rgba(237, 233, 228, 0.6);
+    @apply bg-white/90 backdrop-blur-xl border-b shadow-[0_1px_3px_rgba(0,0,0,0.04)];
+  }
+
+  /* Section layout */
+  .section-container {
+    @apply max-w-7xl mx-auto px-6 md:px-10 xl:px-12;
+  }
+
+  /* Divider */
+  .divider {
+    border-top-color: #ede9e4;
+    @apply border-t;
+  }
+
+  /* Skeleton loader */
+  .skeleton {
+    background-color: #ede9e4;
+    @apply rounded-lg animate-pulse;
+  }
+
+  /* Scrollbar hide */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Focus ring */
+  .focus-ring:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(250, 101, 0, 0.12);
+  }
 }
 
-.hearth-card:hover {
-  @apply shadow-[var(--interactive-lift)] -translate-y-1;
+/* ─── ANT DESIGN OVERRIDES ───────────────────────────────────────────────────── */
+
+/* Table */
+.ant-table {
+  font-family: 'DM Sans', system-ui, sans-serif !important;
+  font-size: 14px !important;
+}
+.ant-table-thead > tr > th {
+  background: #fafaf9 !important;
+  color: #78746e !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  border-bottom: 1px solid #e5e1db !important;
+  padding: 12px 16px !important;
+}
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f0ede8 !important;
+  padding: 14px 16px !important;
+  color: #1a1814 !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: #fafaf9 !important;
+}
+.ant-table-wrapper {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid #e5e1db !important;
+}
+.ant-pagination-item-active {
+  border-color: #fa6500 !important;
+}
+.ant-pagination-item-active a {
+  color: #fa6500 !important;
 }
 
-.hearth-shadow {
-  @apply shadow-[var(--hearth-glow)];
+/* Tags */
+.ant-tag {
+  border-radius: 999px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  padding: 2px 10px !important;
 }
 
-.text-display {
-  @apply text-[clamp(2.5rem,5vw,4rem)] font-black leading-[1.1] tracking-[-0.02em];
+/* Buttons */
+.ant-btn {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+}
+.ant-btn-primary {
+  background: #fa6500 !important;
+  border-color: #fa6500 !important;
+  box-shadow: 0 4px 12px rgba(250,101,0,0.2) !important;
+}
+.ant-btn-primary:hover {
+  background: #e05800 !important;
+  border-color: #e05800 !important;
 }
 
-.text-label {
-  @apply text-[10px] font-black uppercase tracking-[0.2em] text-gray-400;
+/* Modal */
+.ant-modal-content {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.15) !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+.ant-modal-header {
+  border-bottom: 1px solid #f0ede8 !important;
+  padding: 20px 24px !important;
+}
+.ant-modal-title {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
 }
 
-.btn-primary-hearth {
-  @apply bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2;
+/* Form */
+.ant-form-item-label > label {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  color: #5c5752 !important;
+}
+.ant-input, .ant-input-password, .ant-select-selector, .ant-picker {
+  border-radius: 10px !important;
+  border-color: #e5e1db !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 14px !important;
+}
+.ant-input:focus, .ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #fa6500 !important;
+  box-shadow: 0 0 0 3px rgba(250,101,0,0.1) !important;
 }
 
-.btn-secondary-hearth {
-  @apply bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-8 rounded-xl border border-gray-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2;
+/* Select */
+.ant-select-dropdown {
+  border-radius: 12px !important;
+  border: 1px solid #e5e1db !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+.ant-select-item-option-selected {
+  background: #fff3eb !important;
+  color: #fa6500 !important;
+  font-weight: 600 !important;
 }
 
-.glass-nav {
-  @apply bg-white/70 backdrop-blur-xl border-b border-gray-200/40 shadow-sm transition-all;
+/* Profile page tabs */
+.profile-tabs .ant-tabs-nav::before {
+  border-bottom-color: #ede9e4 !important;
+}
+.profile-tabs .ant-tabs-nav {
+  margin-bottom: 20px !important;
+}
+.profile-tabs .ant-tabs-tab {
+  padding: 12px 0 !important;
+  margin-right: 28px !important;
+}
+.profile-tabs .ant-tabs-tab-btn {
+  font-family: 'DM Sans', sans-serif !important;
+  color: #a8a096 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: color 0.2s !important;
+}
+.profile-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #1a1814 !important;
+}
+.profile-tabs .ant-tabs-ink-bar {
+  background: #fa6500 !important;
+  height: 2px !important;
+  border-radius: 2px !important;
 }
 
-/* Utilities */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* AntD Overrides for a cleaner look */
+/* Restaurant detail tabs */
 .restaurant-tabs .ant-tabs-nav::before {
-  border-bottom-color: #f3f4f6 !important;
+  border-bottom-color: #e5e1db !important;
 }
 .restaurant-tabs .ant-tabs-tab {
-  padding: 16px 0 !important;
+  padding: 14px 0 !important;
   margin: 0 !important;
 }
 .restaurant-tabs .ant-tabs-tab-btn {
-  color: #6b7280 !important;
-  font-size: 1.125rem !important;
-  transition: all 0.3s !important;
+  font-family: 'DM Sans', sans-serif !important;
+  color: #a8a096 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s !important;
 }
 .restaurant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: #111827 !important;
+  color: #1a1814 !important;
 }
 .restaurant-tabs .ant-tabs-ink-bar {
-  background: #111827 !important;
-  height: 3px !important;
+  background: #fa6500 !important;
+  height: 2px !important;
+  border-radius: 2px !important;
 }
 
-/* Custom Leaflet Popup override */
+/* Admin form tabs */
+.restaurant-form-tabs .ant-tabs-nav {
+  margin-bottom: 20px !important;
+  border-bottom: 1px solid #334155 !important;
+}
+.restaurant-form-tabs .ant-tabs-tab {
+  padding: 12px 8px !important;
+}
+.restaurant-form-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  color: #94a3b8 !important;
+  transition: color 0.2s !important;
+}
+.restaurant-form-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn,
+.restaurant-form-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #f8fafc !important;
+}
+.restaurant-form-tabs .ant-tabs-ink-bar {
+  background: #fa6500 !important;
+  height: 2px !important;
+  border-radius: 2px !important;
+}
+
+/* Modern admin modal */
+.modern-admin-modal .ant-modal-content {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+.modern-admin-modal .ant-modal-header {
+  background: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+.modern-admin-modal .ant-modal-title {
+  color: #f8fafc !important;
+}
+.modern-admin-modal .ant-modal-close {
+  color: #94a3b8 !important;
+}
+.modern-admin-modal .ant-form-item-label > label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+.modern-admin-modal .ant-input,
+.modern-admin-modal .ant-input-password,
+.modern-admin-modal .ant-select-selector,
+.modern-admin-modal .ant-picker,
+.modern-admin-modal .ant-input-number {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+.modern-admin-modal .ant-input::placeholder {
+  color: #94a3b8 !important;
+}
+.modern-admin-modal .ant-tabs-tab .ant-tabs-tab-btn {
+  color: #64748b !important;
+}
+.modern-admin-modal .ant-tabs-tab:hover .ant-tabs-tab-btn,
+.modern-admin-modal .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #0f172a !important;
+}
+.modern-admin-modal .ant-form-item-explain-error {
+  color: #ef4444 !important;
+}
+.modern-admin-modal .ant-upload-drag {
+  background: #fafaf9 !important;
+  border-color: #e2e8f0 !important;
+}
+.modern-admin-modal .ant-upload-drag-icon .anticon {
+  color: #64748b !important;
+}
+.modern-admin-modal .ant-upload-text {
+  color: #94a3b8 !important;
+}
+
+/* Custom search select */
+.custom-search-select .ant-select-selector {
+  border-radius: 10px !important;
+  border-color: #e5e1db !important;
+}
+.custom-search-select.ant-select-focused .ant-select-selector {
+  border-color: #fa6500 !important;
+  box-shadow: 0 0 0 3px rgba(250,101,0,0.1) !important;
+}
+
+/* Leaflet popup */
 .leaflet-popup-content-wrapper {
   padding: 0 !important;
-  border-radius: 12px !important;
+  border-radius: 16px !important;
   overflow: hidden !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+  border: 1px solid #e5e1db !important;
 }
 .leaflet-popup-content {
   margin: 0 !important;
@@ -123,33 +511,4 @@
 }
 .leaflet-popup-tip {
   box-shadow: none !important;
-}
-
-/* ─── MODERN ADMIN MODAL ─── */
-.modern-admin-modal .ant-modal-content {
-  @apply rounded-2xl overflow-hidden border-0 shadow-2xl;
-}
-
-.restaurant-form-tabs .ant-tabs-nav {
-  @apply mb-6 border-b border-slate-100;
-}
-
-.restaurant-form-tabs .ant-tabs-tab {
-  @apply py-4 px-2 transition-all !important;
-}
-
-.restaurant-form-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-  @apply text-slate-900 font-bold !important;
-}
-
-.restaurant-form-tabs .ant-tabs-ink-bar {
-  @apply bg-slate-900 h-1 rounded-t-full !important;
-}
-
-.custom-search-select .ant-select-selector {
-  @apply rounded-xl border-slate-200 shadow-sm !important;
-}
-
-.custom-search-select.ant-select-focused .ant-select-selector {
-  @apply border-indigo-400 shadow-indigo-100 !important;
 }

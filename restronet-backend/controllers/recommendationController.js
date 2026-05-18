@@ -24,6 +24,25 @@ const getUserRecommendations = async (req, res, next) => {
 const { parsePrompt } = require('../services/nlpParser');
 const aiService = require('../services/aiService');
 
+// Words that signal a natural-language intent query (vs. a direct restaurant-name lookup).
+// If the prompt is short AND contains none of these, skip AI/NLP parsing entirely.
+const INTENT_KEYWORDS = [
+  'near', 'nearby', 'close', 'around',
+  'cheap', 'budget', 'affordable', 'inexpensive', 'expensive', 'luxury', 'premium', 'upscale',
+  'best', 'top', 'popular', 'famous', 'highest', 'rated',
+  'romantic', 'family', 'casual', 'aesthetic', 'nightlife', 'work',
+  'food', 'cuisine', 'dish', 'meal',
+  'italian', 'nepali', 'indian', 'chinese', 'mexican', 'thai', 'japanese',
+];
+
+function isIntentQuery(prompt) {
+  const lower = prompt.toLowerCase();
+  const wordCount = lower.trim().split(/\s+/).length;
+  // Short prompts with no intent signals → treat as restaurant-name lookup
+  if (wordCount <= 3 && !INTENT_KEYWORDS.some(kw => lower.includes(kw))) return false;
+  return true;
+}
+
 /**
  * @desc    Smart multi-factor recommendations (public, guest-friendly)
  * @route   GET /api/recommendations/smart
@@ -41,24 +60,29 @@ const aiService = require('../services/aiService');
  */
 const getSmartRecommendationsHandler = async (req, res, next) => {
   try {
-    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit } = req.query;
+    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit, minRating } = req.query;
 
-    let cuisineIds  = cuisines    ? cuisines.split(',').filter(Boolean)             : [];
-    let categoryIds = [];
-    let tagIds      = [];
-    let priceRanges = priceRange  ? priceRange.split(',').filter(Boolean).map(Number) : [];
-    let isNearMe = false;
-    let isTopRated = false;
-    let city = null;
-    let aiSortBy = null;
+    // userCuisineIds: explicitly selected by the user via UI chips
+    // aiCuisineIds:  extracted by AI/NLP from the natural-language prompt
+    // Only userCuisineIds trigger the strict cuisine hard-filter in the service.
+    let userCuisineIds = cuisines ? cuisines.split(',').filter(Boolean) : [];
+    let aiCuisineIds   = [];
+    let categoryIds    = [];
+    let tagIds         = [];
+    let priceRanges    = priceRange ? priceRange.split(',').filter(Boolean).map(Number) : [];
+    let isNearMe    = false;
+    let isTopRated  = false;
+    let city        = null;
+    let aiSortBy    = null;
 
     let parsedFilters = null;
     let aiExplanation = null;
 
-    if (prompt) {
+    if (prompt && isIntentQuery(prompt)) {
+      // Natural-language query — parse intent via AI or rule-based NLP.
       // 1. Try AI-powered parsing first (Gemini)
       parsedFilters = await aiService.parseIntent(prompt);
-      
+
       // 2. Fallback to rule-based parsing if AI fails or key is missing
       if (!parsedFilters) {
         parsedFilters = await parsePrompt(prompt);
@@ -66,32 +90,38 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
         aiExplanation = parsedFilters.explanation;
       }
 
-      if (parsedFilters.cuisineIds?.length) cuisineIds = [...new Set([...cuisineIds, ...parsedFilters.cuisineIds])];
-      if (parsedFilters.categoryIds?.length) categoryIds = [...new Set([...categoryIds, ...parsedFilters.categoryIds])];
-      if (parsedFilters.tagIds?.length) tagIds = [...new Set([...tagIds, ...parsedFilters.tagIds])];
-      if (parsedFilters.priceRanges?.length) priceRanges = [...new Set([...priceRanges, ...parsedFilters.priceRanges])];
-      if (parsedFilters.mood) mood = parsedFilters.mood;
-      if (parsedFilters.isNearMe) isNearMe = true;
+      if (parsedFilters.cuisineIds?.length) aiCuisineIds = [...parsedFilters.cuisineIds];
+      if (parsedFilters.categoryIds?.length) categoryIds  = [...new Set([...categoryIds,  ...parsedFilters.categoryIds])];
+      if (parsedFilters.tagIds?.length)      tagIds       = [...new Set([...tagIds,       ...parsedFilters.tagIds])];
+      if (parsedFilters.priceRanges?.length) priceRanges  = [...new Set([...priceRanges,  ...parsedFilters.priceRanges])];
+      if (parsedFilters.mood)       mood       = parsedFilters.mood;
+      if (parsedFilters.isNearMe)   isNearMe   = true;
       if (parsedFilters.isTopRated) isTopRated = true;
-      if (parsedFilters.location) city = parsedFilters.location;
-      if (parsedFilters.sortBy) aiSortBy = parsedFilters.sortBy;
+      if (parsedFilters.location)   city       = parsedFilters.location;
+      if (parsedFilters.sortBy)     aiSortBy   = parsedFilters.sortBy;
     }
+    // Short prompts with no intent signals bypass AI/NLP and go straight to text matching.
+
+    // Merged cuisineIds passed for scoring; strict filter uses only userCuisineIds
+    const cuisineIds = [...new Set([...userCuisineIds, ...aiCuisineIds])];
 
     const { results, suggestions, searchMeta } = await getSmartRecommendations({
       userId:         req.user?._id || null,
-      searchTerm:     prompt      || null,
+      searchTerm:     prompt        || null,
       cuisineIds,
+      userCuisineIds,
       categoryIds,
       tagIds,
       priceRanges,
-      mood:           mood        || null,
-      city:           city        || null,
-      sortBy:         aiSortBy    || null,
-      lat:            lat         ? parseFloat(lat)         : null,
-      lng:            lng         ? parseFloat(lng)         : null,
-      maxDistanceKm:  maxDistance ? parseFloat(maxDistance) : (isNearMe ? 10 : 20),
-      limit:          limit       ? parseInt(limit, 10)     : 12,
+      mood:           mood          || null,
+      city:           city          || null,
+      sortBy:         aiSortBy      || null,
+      lat:            lat           ? parseFloat(lat)         : null,
+      lng:            lng           ? parseFloat(lng)         : null,
+      maxDistanceKm:  maxDistance   ? parseFloat(maxDistance) : (isNearMe ? 10 : 20),
+      limit:          limit         ? parseInt(limit, 10)     : 12,
       isTopRated,
+      minRating:      minRating     ? parseFloat(minRating)   : 0,
     });
 
     res.json({

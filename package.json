@@ -1,0 +1,15 @@
+{
+  "name": "restronet-root",
+  "version": "1.0.0",
+  "description": "RestroNet - Main Workspace Runner",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail -n \"backend,frontend\" -c \"yellow,blue\" \"npm run dev --prefix restronet-backend\" \"npm run dev --prefix restronet-frontend\"",
+    "start": "concurrently --kill-others-on-fail -n \"backend,frontend\" -c \"yellow,blue\" \"npm run start --prefix restronet-backend\" \"npm run dev --prefix restronet-frontend\"",
+    "install:all": "npm install && npm install --prefix restronet-backend && npm install --prefix restronet-frontend",
+    "backend": "npm run dev --prefix restronet-backend",
+    "frontend": "npm run dev --prefix restronet-frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

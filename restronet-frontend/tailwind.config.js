@@ -15,7 +15,8 @@ export default {
         primary: {
           DEFAULT: '#fa6500',
           foreground: "hsl(var(--primary-foreground))",
-          hover: '#e05a00',
+          hover: '#e05800',
+          light: '#fff3eb',
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -33,33 +34,65 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+        warm: {
+          50: '#fafaf9',
+          100: '#f5f3f0',
+          200: '#ede9e4',
+          300: '#e0dbd4',
+          400: '#c8c1b8',
+          500: '#a8a096',
+          600: '#78746e',
+          700: '#5c5752',
+          800: '#3a3632',
+          900: '#1a1814',
         },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        admin: {
+          bg: '#0f172a',
+          surface: '#1e293b',
+          border: '#334155',
+          text: '#94a3b8',
+          hover: '#1e293b',
         },
+      },
+      fontFamily: {
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        display: ['Cormorant Garamond', 'Georgia', 'serif'],
+        mono: ['DM Mono', 'monospace'],
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      fontFamily: {
-        inter: ['Inter', 'sans-serif'],
+      boxShadow: {
+        'card': '0 2px 12px rgba(26,24,20,0.06)',
+        'card-hover': '0 8px 32px rgba(26,24,20,0.10)',
+        'primary': '0 8px 24px rgba(250,101,0,0.22)',
+        'primary-lg': '0 16px 48px rgba(250,101,0,0.28)',
+        'float': '0 20px 60px rgba(26,24,20,0.12)',
+        'admin': '4px 0 24px rgba(0,0,0,0.15)',
       },
       animation: {
         'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+        'fade-in': 'fadeIn 0.4s ease-out forwards',
+        'scale-in': 'scaleIn 0.3s ease-out forwards',
       },
       keyframes: {
         fadeInUp: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
-        }
-      }
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+      },
     },
   },
   plugins: [],
 }
+/* Triggered HMR reload updated */

@@ -27,6 +27,7 @@ const getSmartRecommendations = async ({
   userId = null,
   searchTerm = null,
   cuisineIds = [],
+  userCuisineIds = [],   // UI-chip-selected cuisines — drives the strict cuisine hard-filter
   categoryIds = [],
   tagIds = [],
   priceRanges = [],
@@ -38,8 +39,11 @@ const getSmartRecommendations = async ({
   isTopRated = false,
   city = null,
   sortBy = null,
+  minRating = 0,
 }) => {
-  let explicitCuisineIds = [...cuisineIds]; // Keep track of what was explicitly asked for
+  // Only cuisines the user explicitly picked via UI chips trigger the strict hard-filter.
+  // AI-parsed cuisines (already merged into cuisineIds) only influence scoring weights.
+  let explicitCuisineIds = [...userCuisineIds];
 
   // Merge stored user preferences when authenticated
   if (userId) {
@@ -184,21 +188,33 @@ const getSmartRecommendations = async ({
   //         honour that intent — but still require a minimum finalScore.
   // Rule 3: when both fail → empty result, no fallback expansion.
   if (searchTerm) {
+    // categoryIds and tagIds are excluded: the NLP parser matches them too broadly
+    // (e.g. the word "restaurant" in a name query hits Category:Restaurant), which
+    // would open the filter-context fallback and inject unrelated high-scoring venues.
+    // cuisineIds (user-explicit + AI-parsed) and mood are specific enough to be trusted.
     const hasFilterContext =
-      explicitCuisineIds.length > 0 || categoryIds.length > 0 ||
-      tagIds.length > 0 || priceRanges.length > 0 || !!mood;
+      cuisineIds.length > 0 || priceRanges.length > 0 || !!mood;
 
-    const textMatched = filtered.filter(s => s.textMatchScore > 0);
-    if (textMatched.length > 0) {
-      filtered = selectByConfidenceTier(textMatched);
+    const textMatched   = filtered.filter(s => s.textMatchScore > 0);
+    const strongMatched = selectByConfidenceTier(textMatched);
+
+    if (strongMatched.length > 0) {
+      // At least one result cleared the HIGH_CONFIDENCE_THRESHOLD — use only those.
+      filtered = strongMatched;
     } else if (hasFilterContext) {
-      // AI understood the query (e.g. "Italian food" → Italian cuisineId).
-      // Return those venues only if they score well enough to be genuinely relevant.
+      // Text search found nothing above the confidence floor, but the query carried
+      // explicit semantic intent (cuisine, price, mood).  Honour that intent — return
+      // venues that score well enough on the combined multi-factor score.
       filtered = filtered.filter(s => s.finalScore > SEARCH_THRESHOLDS.FILTER_CONTEXT_SCORE);
     } else {
-      // No text match, no AI-parsed filter — strict empty result.
+      // No text match and no explicit filter intent — return empty rather than guessing.
       filtered = [];
     }
+  }
+
+  // Rating floor — applied server-side so pagination counts are accurate
+  if (minRating > 0) {
+    filtered = filtered.filter(s => (s.venue.averageRating || 0) >= minRating);
   }
 
   // STRICT FILTER: ONLY apply if cuisines were EXPLICITLY provided in the request
