@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
-import { User, Heart } from 'lucide-react';
+import { User, Heart, Camera, Shield } from 'lucide-react';
 import { Select, Form, Input, Button, Tabs } from 'antd';
 import toast from 'react-hot-toast';
 
@@ -45,10 +45,10 @@ const Profile = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-warm-50">
+      <div className="bg-background min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-warm-200 border-t-primary animate-spin" />
-          <p className="text-sm text-warm-500 font-medium">Loading your profile…</p>
+          <div className="w-10 h-10 rounded-full border-2 border-border border-t-primary animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Loading your profile…</p>
         </div>
       </div>
     );
@@ -91,14 +91,16 @@ const Profile = () => {
       label: (
         <span className="flex items-center gap-2 text-sm font-semibold">
           <User size={15} />
-          General Info
+          Profile
         </span>
       ),
       children: (
-        <div className="bg-white rounded-2xl border border-warm-200 p-6 shadow-card">
+        <div className="card p-6">
           <div className="mb-6">
-            <h3 className="text-sm font-bold text-warm-900 tracking-wide">Personal Details</h3>
-            <p className="text-xs text-warm-500 mt-0.5">Update your name and contact information.</p>
+            <p className="text-label mb-1">Personal Details</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Update your name and contact information.
+            </p>
           </div>
 
           <Form form={form} layout="vertical" onFinish={handleUpdateProfile} className="space-y-1">
@@ -110,7 +112,6 @@ const Profile = () => {
               <Input
                 size="large"
                 placeholder="Your full name"
-                className="!rounded-xl !border-warm-200 !bg-warm-50 !text-warm-900 !font-medium focus:!bg-white focus:!border-primary/40"
               />
             </Form.Item>
 
@@ -119,16 +120,16 @@ const Profile = () => {
                 value={user.email}
                 disabled
                 size="large"
-                className="!rounded-xl !bg-warm-100 !border-warm-200 !text-warm-500 !cursor-not-allowed"
               />
-              <p className="text-[11px] text-warm-400 mt-1.5 ml-0.5">Email cannot be changed.</p>
+              <p className="text-xs text-muted-foreground mt-1.5 ml-0.5 opacity-75">
+                Email cannot be changed.
+              </p>
             </Form.Item>
 
             <Form.Item label="Phone Number" name="phone">
               <Input
                 size="large"
                 placeholder="+977 98xxxxxxxx"
-                className="!rounded-xl !border-warm-200 !bg-warm-50 !text-warm-900 !font-medium focus:!bg-white focus:!border-primary/40"
               />
             </Form.Item>
 
@@ -138,7 +139,6 @@ const Profile = () => {
                 htmlType="submit"
                 loading={submitting}
                 size="large"
-                className="!bg-primary hover:!bg-primary-hover !text-white !font-semibold !px-6 !rounded-xl !border-none !shadow-primary transition-all"
               >
                 Save Changes
               </Button>
@@ -152,15 +152,16 @@ const Profile = () => {
       label: (
         <span className="flex items-center gap-2 text-sm font-semibold">
           <Heart size={15} />
-          Dietary Preferences
+          Preferences
         </span>
       ),
       children: (
-        <div className="bg-white rounded-2xl border border-warm-200 p-6 shadow-card">
+        <div className="card p-6">
           <div className="mb-6">
-            <h3 className="text-sm font-bold text-warm-900 tracking-wide">Taste Profile</h3>
-            <p className="text-xs text-warm-500 mt-0.5 leading-relaxed">
-              RestroNet uses content-based filtering to surface restaurants that perfectly match your palate. The more you add, the smarter your recommendations get.
+            <p className="text-label mb-1">Taste Profile</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              RestroNet uses content-based filtering to surface restaurants that perfectly match your palate.
+              The more you add, the smarter your recommendations get.
             </p>
           </div>
 
@@ -199,7 +200,6 @@ const Profile = () => {
                 htmlType="submit"
                 loading={submitting}
                 size="large"
-                className="!bg-primary hover:!bg-primary-hover !text-white !font-semibold !px-6 !rounded-xl !border-none !shadow-primary transition-all"
               >
                 Update Recommendation Engine
               </Button>
@@ -211,37 +211,76 @@ const Profile = () => {
   ];
 
   return (
-    <div className="bg-warm-50 min-h-[calc(100vh-80px)]">
-      <div className="max-w-3xl mx-auto px-6 py-12">
+    <div className="bg-background min-h-screen">
 
-        {/* Page header */}
-        <div className="mb-8">
-          <h1
-            className="text-3xl font-medium text-warm-900"
-            style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
-          >
-            My Profile
-          </h1>
-          <p className="text-warm-500 text-sm mt-1 font-medium">
-            Manage your account details and dining preferences.
+      {/* Hero banner — warm editorial strip */}
+      <div className="h-44 relative overflow-hidden bg-warm-900 dark:bg-[#0d0b08]">
+        {/* Grain texture */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            backgroundSize: '200px 200px',
+          }}
+        />
+        {/* Saffron radial glow */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '-40%', left: '30%',
+            width: '500px', height: '400px',
+            background: 'radial-gradient(ellipse at center, rgba(250,101,0,0.12) 0%, transparent 65%)',
+          }}
+        />
+        {/* Editorial page label */}
+        <div className="absolute bottom-6 left-0 right-0 section-container">
+          <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-white/20">
+            Your Account
           </p>
         </div>
+      </div>
 
-        {/* Avatar card */}
-        <div className="bg-white rounded-2xl border border-warm-200 shadow-card p-6 mb-6 flex items-center gap-5">
-          <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center text-3xl font-bold shrink-0 select-none">
-            {user.name.charAt(0).toUpperCase()}
+      {/* Avatar + identity row */}
+      <div className="section-container">
+        <div className="-mt-12 relative z-10 flex items-end gap-5 pb-4">
+          {/* Avatar circle overlapping banner */}
+          <div className="relative group shrink-0">
+            <div className="w-24 h-24 text-white rounded-2xl flex items-center justify-center text-3xl font-bold select-none bg-primary shadow-primary">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            {/* Upload photo overlay on hover */}
+            <button
+              className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200 cursor-pointer"
+              title="Change photo"
+            >
+              <Camera size={20} className="text-white" />
+            </button>
           </div>
-          <div className="min-w-0">
-            <p className="text-lg font-bold text-warm-900 leading-tight truncate">{user.name}</p>
-            <p className="text-sm text-warm-500 font-medium mt-0.5 truncate">{user.email}</p>
-            {user.phone && (
-              <p className="text-xs text-warm-400 mt-1">{user.phone}</p>
-            )}
+
+          {/* Name + email + role */}
+          <div className="pb-1 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1
+                className="text-[clamp(1.5rem,3vw,2rem)] font-medium text-foreground leading-tight truncate"
+                style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', letterSpacing: '-0.01em' }}
+              >
+                {user.name}
+              </h1>
+              {user.role && (
+                <span className="badge badge-primary flex items-center gap-1">
+                  <Shield size={10} />
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5 truncate">{user.email}</p>
+            <p className="text-xs text-muted-foreground mt-1 opacity-70 font-medium">Edit your profile and dining preferences below</p>
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
+      {/* Content area */}
+      <div className="section-container pt-6 pb-16">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
