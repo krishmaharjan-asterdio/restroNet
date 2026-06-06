@@ -1,4 +1,9 @@
-const { getCBFRecommendations, getSmartRecommendations, MOOD_KEYWORDS } = require('../services/recommendationService');
+const {
+  getCBFRecommendations,
+  getSmartRecommendations,
+  buildFilterExplanation,
+  MOOD_KEYWORDS,
+} = require('../services/recommendationService');
 const { rebuildAllVectors } = require('../services/cbf-pipeline');
 
 /**
@@ -10,7 +15,7 @@ const getUserRecommendations = async (req, res, next) => {
   try {
     const { limit = 10, lat, lng } = req.query;
     const recommendations = await getCBFRecommendations(
-      req.user._id, 
+      req.user._id,
       parseInt(limit, 10),
       lat ? parseFloat(lat) : null,
       lng ? parseFloat(lng) : null
@@ -25,7 +30,6 @@ const { parsePrompt } = require('../services/nlpParser');
 const aiService = require('../services/aiService');
 
 // Words that signal a natural-language intent query (vs. a direct restaurant-name lookup).
-// If the prompt is short AND contains none of these, skip AI/NLP parsing entirely.
 const INTENT_KEYWORDS = [
   'near', 'nearby', 'close', 'around',
   'cheap', 'budget', 'affordable', 'inexpensive', 'expensive', 'luxury', 'premium', 'upscale',
@@ -38,9 +42,23 @@ const INTENT_KEYWORDS = [
 function isIntentQuery(prompt) {
   const lower = prompt.toLowerCase();
   const wordCount = lower.trim().split(/\s+/).length;
-  // Short prompts with no intent signals → treat as restaurant-name lookup
   if (wordCount <= 3 && !INTENT_KEYWORDS.some(kw => lower.includes(kw))) return false;
   return true;
+}
+
+/**
+ * Maps frontend sort values to service sort keys.
+ * Frontend sends: 'recommended' | 'rating' | 'distance' | 'price_asc' | 'price_desc'
+ */
+function mapSortValue(frontendSort) {
+  const map = {
+    recommended: null,
+    rating:      'rating_desc',
+    distance:    'distance_asc',
+    price_asc:   'price_asc',
+    price_desc:  'price_desc',
+  };
+  return map[frontendSort] ?? null;
 }
 
 /**
@@ -53,6 +71,7 @@ function isIntentQuery(prompt) {
  *   cuisines     — comma-separated Cuisine ObjectIds
  *   priceRange   — comma-separated values: 1,2,3,4
  *   mood         — one of: romantic | family-friendly | cafe | luxury | nightlife | casual | work-friendly | aesthetic
+ *   sortBy       — recommended | rating | distance | price_asc | price_desc
  *   lat          — float latitude
  *   lng          — float longitude
  *   maxDistance  — km (default 20)
@@ -60,11 +79,8 @@ function isIntentQuery(prompt) {
  */
 const getSmartRecommendationsHandler = async (req, res, next) => {
   try {
-    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit, minRating } = req.query;
+    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit, minRating, sortBy } = req.query;
 
-    // userCuisineIds: explicitly selected by the user via UI chips
-    // aiCuisineIds:  extracted by AI/NLP from the natural-language prompt
-    // Only userCuisineIds trigger the strict cuisine hard-filter in the service.
     let userCuisineIds = cuisines ? cuisines.split(',').filter(Boolean) : [];
     let aiCuisineIds   = [];
     let categoryIds    = [];
@@ -79,11 +95,8 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
     let aiExplanation = null;
 
     if (prompt && isIntentQuery(prompt)) {
-      // Natural-language query — parse intent via AI or rule-based NLP.
-      // 1. Try AI-powered parsing first (Gemini)
       parsedFilters = await aiService.parseIntent(prompt);
 
-      // 2. Fallback to rule-based parsing if AI fails or key is missing
       if (!parsedFilters) {
         parsedFilters = await parsePrompt(prompt);
       } else {
@@ -100,10 +113,18 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       if (parsedFilters.location)   city       = parsedFilters.location;
       if (parsedFilters.sortBy)     aiSortBy   = parsedFilters.sortBy;
     }
-    // Short prompts with no intent signals bypass AI/NLP and go straight to text matching.
 
-    // Merged cuisineIds passed for scoring; strict filter uses only userCuisineIds
     const cuisineIds = [...new Set([...userCuisineIds, ...aiCuisineIds])];
+
+    // Explicit sortBy from frontend takes precedence over AI-parsed sort
+    // (user deliberately chose it via the sort dropdown)
+    const resolvedSortBy = sortBy && sortBy !== 'recommended'
+      ? mapSortValue(sortBy)
+      : aiSortBy || null;
+
+    const parsedLat = lat ? parseFloat(lat) : null;
+    const parsedLng = lng ? parseFloat(lng) : null;
+    const parsedMaxDistance = maxDistance ? parseFloat(maxDistance) : (isNearMe ? 10 : 20);
 
     const { results, suggestions, searchMeta } = await getSmartRecommendations({
       userId:         req.user?._id || null,
@@ -115,14 +136,26 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       priceRanges,
       mood:           mood          || null,
       city:           city          || null,
-      sortBy:         aiSortBy      || null,
-      lat:            lat           ? parseFloat(lat)         : null,
-      lng:            lng           ? parseFloat(lng)         : null,
-      maxDistanceKm:  maxDistance   ? parseFloat(maxDistance) : (isNearMe ? 10 : 20),
-      limit:          limit         ? parseInt(limit, 10)     : 12,
+      sortBy:         resolvedSortBy,
+      lat:            parsedLat,
+      lng:            parsedLng,
+      maxDistanceKm:  parsedMaxDistance,
+      limit:          limit ? parseInt(limit, 10) : 12,
       isTopRated,
-      minRating:      minRating     ? parseFloat(minRating)   : 0,
+      minRating:      minRating ? parseFloat(minRating) : 0,
     });
+
+    // Generate a filter-based explanation if no AI explanation exists but filters are active
+    if (!aiExplanation && !prompt) {
+      aiExplanation = buildFilterExplanation({
+        mood:          mood || null,
+        priceRanges,
+        hasLocation:   !!(parsedLat && parsedLng),
+        maxDistanceKm: parsedMaxDistance,
+        cuisineIds:    userCuisineIds,
+        sortBy:        resolvedSortBy,
+      });
+    }
 
     res.json({
       success:         true,
