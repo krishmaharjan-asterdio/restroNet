@@ -95,6 +95,39 @@ const getVenueById = async (req, res, next) => {
       venue.distanceKm = Math.round(distance * 10) / 10;
     }
 
+    // Auto-generate AI summary on-the-fly if missing or stale
+    if (!venue.aiSummary || !venue.aiSummary.summaryText) {
+      const Review = require('../models/Review');
+      const aiService = require('../services/aiService');
+      const reviews = await Review.find({ venue: venue._id, isApproved: true, isHidden: false })
+        .select('rating.overall comment')
+        .lean();
+      
+      const hasComments = reviews.some(r => r.comment && r.comment.trim());
+      if (hasComments) {
+        const summary = await aiService.generateReviewSummary(venue.name, reviews);
+        if (summary) {
+          venue.aiSummary = {
+            summaryText: summary.summaryText,
+            positives: summary.positives,
+            constructives: summary.constructives,
+            lastUpdated: new Date(),
+            reviewCountSnapshot: reviews.length,
+          };
+          // Save it back to DB asynchronously
+          await Venue.findByIdAndUpdate(venue._id, { aiSummary: venue.aiSummary });
+        }
+      } else {
+        venue.aiSummary = {
+          summaryText: 'No detailed feedback has been left by diners yet.',
+          positives: ['Quiet ambience'],
+          constructives: ['Needs more user reviews for detailed summary insights.'],
+          lastUpdated: new Date(),
+          reviewCountSnapshot: reviews.length,
+        };
+      }
+    }
+
     res.json({ success: true, venue });
   } catch (error) {
     next(error);

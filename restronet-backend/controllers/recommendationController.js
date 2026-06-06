@@ -28,6 +28,8 @@ const getUserRecommendations = async (req, res, next) => {
 
 const { parsePrompt } = require('../services/nlpParser');
 const aiService = require('../services/aiService');
+const Venue = require('../models/Venue');
+const Review = require('../models/Review');
 
 // Words that signal a natural-language intent query (vs. a direct restaurant-name lookup).
 const INTENT_KEYWORDS = [
@@ -173,6 +175,49 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
 };
 
 /**
+ * Rebuilds AI summaries for all active venues in the database.
+ */
+const rebuildAllAISummaries = async () => {
+  try {
+    const venues = await Venue.find({ isActive: true });
+    console.log(`Starting batch AI Review Summary rebuild for ${venues.length} venues...`);
+    for (const venue of venues) {
+      const reviews = await Review.find({ venue: venue._id, isApproved: true, isHidden: false })
+        .select('rating.overall comment')
+        .lean();
+      
+      const hasComments = reviews.some(r => r.comment && r.comment.trim());
+      if (!hasComments) {
+        venue.aiSummary = {
+          summaryText: 'No detailed feedback has been left by diners yet.',
+          positives: ['Quiet ambience'],
+          constructives: ['Needs more user reviews for detailed summary insights.'],
+          lastUpdated: new Date(),
+          reviewCountSnapshot: reviews.length,
+        };
+        await venue.save({ validateBeforeSave: false });
+        continue;
+      }
+
+      const summary = await aiService.generateReviewSummary(venue.name, reviews);
+      if (summary) {
+        venue.aiSummary = {
+          summaryText: summary.summaryText,
+          positives: summary.positives,
+          constructives: summary.constructives,
+          lastUpdated: new Date(),
+          reviewCountSnapshot: reviews.length,
+        };
+        await venue.save({ validateBeforeSave: false });
+      }
+    }
+    console.log('✅ Batch AI summary rebuild completed.');
+  } catch (error) {
+    console.error('Batch AI summary rebuild failed:', error.message);
+  }
+};
+
+/**
  * @desc    Force rebuild of all feature vectors
  * @route   POST /api/recommendations/admin/rebuild-vectors
  * @access  Private (Admin)
@@ -186,8 +231,23 @@ const triggerVectorRebuild = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Force rebuild of all AI review summaries
+ * @route   POST /api/recommendations/admin/rebuild-summaries
+ * @access  Private (Admin)
+ */
+const triggerAISummariesRebuild = async (req, res, next) => {
+  try {
+    rebuildAllAISummaries().catch(console.error);
+    res.json({ success: true, message: 'Background rebuild of AI review summaries has been started.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUserRecommendations,
   getSmartRecommendationsHandler,
   triggerVectorRebuild,
+  triggerAISummariesRebuild,
 };

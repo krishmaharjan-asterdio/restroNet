@@ -3,6 +3,7 @@ const {
   getUserRecommendations,
   getSmartRecommendationsHandler,
   triggerVectorRebuild,
+  triggerAISummariesRebuild,
 } = require('../controllers/recommendationController');
 const { protectUser, protectAdmin, optionalAuth } = require('../middleware/authMiddleware');
 
@@ -16,5 +17,6 @@ router.get('/', protectUser, getUserRecommendations);
 
 // Admin
 router.post('/admin/rebuild-vectors', protectAdmin, triggerVectorRebuild);
+router.post('/admin/rebuild-summaries', protectAdmin, triggerAISummariesRebuild);
 
 module.exports = router;
