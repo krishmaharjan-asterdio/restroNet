@@ -49,25 +49,25 @@ const AdminReservations = () => {
     switch (status) {
       case 'confirmed':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-emerald-900/40 text-emerald-400">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
             Confirmed
           </span>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-slate-800 text-slate-500">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500">
             Cancelled
           </span>
         );
       case 'completed':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-blue-900/40 text-blue-400">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
             Completed
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-amber-900/40 text-amber-400">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
             Pending
           </span>
         );
@@ -101,9 +101,9 @@ const AdminReservations = () => {
               {initials}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-slate-100 text-sm truncate">{name}</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm truncate">{name}</span>
               {record.contactPhone && (
-                <span className="text-xs text-[#8b98b0] flex items-center gap-1">
+                <span className="text-xs text-slate-500 dark:text-[#8b98b0] flex items-center gap-1">
                   <Phone size={10} />
                   {record.contactPhone}
                 </span>
@@ -118,7 +118,7 @@ const AdminReservations = () => {
       dataIndex: 'venue',
       key: 'venue',
       render: (venue) => (
-        <span className="font-semibold text-slate-200">{venue?.name || 'Deleted Venue'}</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">{venue?.name || 'Deleted Venue'}</span>
       ),
       hidden: admin?.role !== 'superadmin',
     },
@@ -127,7 +127,7 @@ const AdminReservations = () => {
       key: 'dateTime',
       render: (_, record) => (
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
             <Calendar size={13} className="text-[#fa6500]" />
             {new Date(record.date).toLocaleDateString('en-US', {
               month: 'short',
@@ -135,8 +135,8 @@ const AdminReservations = () => {
               year: 'numeric',
             })}
           </span>
-          <span className="text-xs text-[#8b98b0] flex items-center gap-1.5">
-            <Clock size={12} className="text-[#8b98b0]" />
+          <span className="text-xs text-slate-500 dark:text-[#8b98b0] flex items-center gap-1.5">
+            <Clock size={12} className="text-slate-400 dark:text-[#8b98b0]" />
             {record.time}
           </span>
         </div>
@@ -148,9 +148,9 @@ const AdminReservations = () => {
       key: 'guests',
       render: (guests) => (
         <div className="flex items-center gap-1.5">
-          <User size={13} className="text-[#8b98b0]" />
-          <span className="text-slate-300 text-sm font-medium">{guests}</span>
-          <span className="text-[#8b98b0] text-xs">guests</span>
+          <User size={13} className="text-slate-400 dark:text-[#8b98b0]" />
+          <span className="text-slate-600 dark:text-slate-300 text-sm font-medium">{guests}</span>
+          <span className="text-slate-500 dark:text-[#8b98b0] text-xs">guests</span>
         </div>
       ),
     },
@@ -168,14 +168,14 @@ const AdminReservations = () => {
           {record.status === 'pending' && (
             <>
               <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-800/60 bg-emerald-900/20 hover:bg-emerald-900/50 hover:border-emerald-700 transition-all duration-150"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-150"
                 onClick={() => updateStatus(record._id, 'confirmed')}
               >
                 <CheckCircle size={13} />
                 Confirm
               </button>
               <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 border border-red-800/60 bg-red-900/20 hover:bg-red-900/50 hover:border-red-700 transition-all duration-150"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/50 hover:border-red-300 dark:hover:border-red-700 transition-all duration-150"
                 onClick={() => updateStatus(record._id, 'cancelled')}
               >
                 <XCircle size={13} />
@@ -185,7 +185,7 @@ const AdminReservations = () => {
           )}
           {record.status === 'confirmed' && (
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 border border-blue-800/60 bg-blue-900/20 hover:bg-blue-900/50 hover:border-blue-700 transition-all duration-150"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-150"
               onClick={() => updateStatus(record._id, 'completed')}
             >
               <CheckCircle size={13} />
@@ -201,7 +201,7 @@ const AdminReservations = () => {
   ].filter((c) => !c.hidden);
 
   return (
-    <div className="min-h-screen bg-[#0f1629] p-6 space-y-6">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#fa6500] mb-1">
@@ -209,16 +209,16 @@ const AdminReservations = () => {
         </p>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
               <CalendarCheck size={24} className="text-[#fa6500]" />
               Reservation Management
             </h1>
-            <p className="text-sm text-[#8b98b0] mt-1">
+            <p className="text-sm text-slate-500 dark:text-[#8b98b0] mt-1">
               Manage table bookings and guest schedules across your platform.
             </p>
           </div>
-          <div className="text-sm text-[#8b98b0] bg-[#131e35] border border-[#1e2d47] rounded-lg px-4 py-2">
-            <span className="text-slate-300 font-semibold">{filteredReservations.length}</span>{' '}
+          <div className="text-sm text-slate-500 dark:text-[#8b98b0] bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-lg px-4 py-2">
+            <span className="text-slate-700 dark:text-slate-300 font-semibold">{filteredReservations.length}</span>{' '}
             {activeFilter === 'all' ? 'total' : activeFilter} reservations
           </div>
         </div>
@@ -232,13 +232,13 @@ const AdminReservations = () => {
             onClick={() => setActiveFilter(f.key)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
               activeFilter === f.key
-                ? 'bg-[#fa6500] text-white shadow-lg shadow-orange-900/30'
-                : 'bg-[#131e35] border border-[#1e2d47] text-[#8b98b0] hover:border-[#fa6500]/40 hover:text-slate-300'
+                ? 'bg-[#fa6500] text-white shadow-lg shadow-orange-950/20'
+                : 'bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] text-slate-500 dark:text-[#8b98b0] hover:border-[#fa6500]/40 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
             {f.label}
             {f.key !== 'all' && (
-              <span className={`ml-1.5 text-xs ${activeFilter === f.key ? 'text-orange-200' : 'text-[#8b98b0]'}`}>
+              <span className={`ml-1.5 text-xs ${activeFilter === f.key ? 'text-orange-200' : 'text-slate-400 dark:text-[#8b98b0]'}`}>
                 ({reservations.filter((r) => r.status === f.key).length})
               </span>
             )}
@@ -247,7 +247,7 @@ const AdminReservations = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-[#131e35] rounded-2xl border border-[#1e2d47] overflow-hidden">
+      <div className="bg-white dark:bg-[#131e35] rounded-2xl border border-slate-200 dark:border-[#1e2d47] overflow-hidden">
         <div className="admin-table">
           <Table
             columns={columns}
@@ -266,9 +266,9 @@ const AdminReservations = () => {
             locale={{
               emptyText: (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <CalendarCheck size={40} className="text-[#1e2d47]" />
+                  <CalendarCheck size={40} className="text-slate-300 dark:text-[#1e2d47]" />
                   <p className="text-slate-400 font-semibold text-base">No reservations found</p>
-                  <p className="text-[#8b98b0] text-sm">
+                  <p className="text-slate-500 dark:text-[#8b98b0] text-sm">
                     {activeFilter === 'all'
                       ? 'There are no reservations on the platform yet.'
                       : `No ${activeFilter} reservations at this time.`}
