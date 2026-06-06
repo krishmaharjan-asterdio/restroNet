@@ -1,5 +1,7 @@
 const Menu = require('../models/Menu');
 const Venue = require('../models/Venue');
+const aiService = require('../services/aiService');
+const fs = require('fs');
 
 /**
  * @desc    Get menus for a specific venue
@@ -94,9 +96,51 @@ const deleteMenu = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    AI OCR Menu extraction from uploaded image
+ * @route   POST /api/menu/venue/:venueId/extract-ocr
+ * @access  Private (Admin)
+ */
+const extractMenuFromImage = async (req, res, next) => {
+  try {
+    const venue = await Venue.findById(req.params.venueId);
+    if (!venue) {
+      return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+
+    // Ownership check for owners
+    if (req.admin.role === 'owner' && venue.owner?.toString() !== req.admin._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to manage menus for this venue' });
+    }
+
+    const file = req.file || (req.files && req.files.length > 0 ? req.files[0] : null);
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: 'Menu image is required' });
+    }
+
+    // Call Gemini to parse
+    const extractedData = await aiService.parseMenuImage(file.path, file.mimetype);
+    
+    // Clean up uploaded file from local server storage asynchronously
+    fs.unlink(file.path, (err) => {
+      if (err) console.error('Failed to delete temp menu upload:', err);
+    });
+
+    if (!extractedData) {
+      return res.status(500).json({ success: false, message: 'AI failed to parse menu image.' });
+    }
+
+    res.json({ success: true, ...extractedData });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMenusByVenue,
   addMenu,
   updateMenu,
   deleteMenu,
+  extractMenuFromImage,
 };
