@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const Venue = require('../models/Venue');
+const Review = require('../models/Review');
+const Reservation = require('../models/Reservation');
 const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
 const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
@@ -16,18 +18,81 @@ const MOOD_KEYWORDS = {
   aesthetic:          ['aesthetic', 'instagram', 'rooftop view', 'beautiful', 'trendy', 'modern', 'artsy', 'themed'],
 };
 
+// ─── Implicit profile builder ─────────────────────────────────────────────────
+/**
+ * Builds an implicit preference profile for a user from their reviews & reservations.
+ * Returns { cuisineIds, tagIds, priceRanges, venueIds (already-visited) }.
+ *
+ * Reviews rated 4–5 stars signal strong positive preference.
+ * Reservations signal intent (venue visited at least once).
+ */
+const buildImplicitProfile = async (userId) => {
+  const [positiveReviews, reservations] = await Promise.all([
+    Review.find({ user: userId, 'rating.overall': { $gte: 4 }, isHidden: false })
+      .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .lean(),
+    Reservation.find({ user: userId, status: { $in: ['confirmed', 'completed'] } })
+      .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean(),
+  ]);
+
+  const cuisineFreq  = {};
+  const tagFreq      = {};
+  const priceFreq    = {};
+  const visitedIds   = new Set();
+
+  const processVenue = (venue, weight = 1) => {
+    if (!venue) return;
+    visitedIds.add(venue._id.toString());
+    (venue.cuisines || []).forEach(c => {
+      cuisineFreq[c._id.toString()] = (cuisineFreq[c._id.toString()] || 0) + weight;
+    });
+    (venue.tags || []).forEach(t => {
+      tagFreq[t._id.toString()] = (tagFreq[t._id.toString()] || 0) + weight;
+    });
+    if (venue.priceRange) {
+      priceFreq[venue.priceRange] = (priceFreq[venue.priceRange] || 0) + weight;
+    }
+  };
+
+  positiveReviews.forEach(r => {
+    // Weight by rating: 5 stars → 1.0, 4 stars → 0.7
+    const w = r.rating.overall === 5 ? 1.0 : 0.7;
+    processVenue(r.venue, w);
+  });
+
+  reservations.forEach(r => processVenue(r.venue, 0.4));
+
+  // Normalise frequencies to [0, 1] (top item = 1)
+  const normalise = (freq) => {
+    const max = Math.max(...Object.values(freq), 1);
+    return Object.fromEntries(Object.entries(freq).map(([k, v]) => [k, v / max]));
+  };
+
+  return {
+    cuisineAffinity: normalise(cuisineFreq),
+    tagAffinity:     normalise(tagFreq),
+    priceAffinity:   normalise(priceFreq),
+    visitedIds,
+  };
+};
+
 /**
  * Smart multi-factor recommendation engine.
  * Works for both authenticated users (userId) and guests (explicit params).
  *
- * Scoring = Σ weight_i * score_i across 5 factors:
- *   cuisine match | price proximity | rating | distance decay | mood/vibe match
+ * Scoring = Σ weight_i * score_i across factors:
+ *   cuisine | category | tag | price | rating | distance | mood | popularity | implicit | featured
  */
 const getSmartRecommendations = async ({
   userId = null,
   searchTerm = null,
   cuisineIds = [],
-  userCuisineIds = [],   // UI-chip-selected cuisines — drives the strict cuisine hard-filter
+  userCuisineIds = [],
   categoryIds = [],
   tagIds = [],
   priceRanges = [],
@@ -41,27 +106,47 @@ const getSmartRecommendations = async ({
   sortBy = null,
   minRating = 0,
 }) => {
-  // Only cuisines the user explicitly picked via UI chips trigger the strict hard-filter.
-  // AI-parsed cuisines (already merged into cuisineIds) only influence scoring weights.
   let explicitCuisineIds = [...userCuisineIds];
+
+  // Build implicit profile from reviews + reservations (async, non-blocking if error)
+  let implicitProfile = null;
 
   // Merge stored user preferences when authenticated
   if (userId) {
-    const user = await User.findById(userId);
-    if (user) {
-      // If NO cuisines were explicitly provided, use user preferences for scoring
-      if (!cuisineIds.length && user.preferences.cuisines?.length)
-        cuisineIds = user.preferences.cuisines.map(c => c.toString());
+    const [user, profile] = await Promise.all([
+      User.findById(userId),
+      buildImplicitProfile(userId).catch(() => null),
+    ]);
+    implicitProfile = profile;
 
-      // Merge user tags into tagIds for scoring (but don't strictly filter)
+    if (user) {
+      if (!cuisineIds.length) {
+        // Prefer implicit signal; fall back to explicit preferences
+        if (implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length > 0) {
+          cuisineIds = Object.keys(implicitProfile.cuisineAffinity);
+        } else if (user.preferences.cuisines?.length) {
+          cuisineIds = user.preferences.cuisines.map(c => c.toString());
+        }
+      }
+
       if (user.preferences.tags?.length) {
         const userTagIds = user.preferences.tags.map(t => t.toString());
         tagIds = [...new Set([...tagIds, ...userTagIds])];
       }
-      
-      if (!priceRanges.length && user.preferences.priceRange)
-        priceRanges = [user.preferences.priceRange];
-      
+
+      if (!priceRanges.length) {
+        if (implicitProfile && Object.keys(implicitProfile.priceAffinity).length > 0) {
+          // Use the most preferred 1–2 price tiers
+          const sorted = Object.entries(implicitProfile.priceAffinity)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 2)
+            .map(([k]) => Number(k));
+          priceRanges = sorted;
+        } else if (user.preferences.priceRange) {
+          priceRanges = [user.preferences.priceRange];
+        }
+      }
+
       if (lat === null && user.location?.coordinates?.[1])
         lat = user.location.coordinates[1];
       if (lng === null && user.location?.coordinates?.[0])
@@ -81,6 +166,7 @@ const getSmartRecommendations = async ({
     hasLocation,
     hasPriceFilter: priceRanges.length > 0,
     isTopRated,
+    hasImplicit:   !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length),
   });
 
   // Resolve mood tag IDs via keyword match
@@ -100,19 +186,33 @@ const getSmartRecommendations = async ({
     .populate('cuisines tags category')
     .lean();
 
-  // Tokenize search term once — shared across all venue scorings
+  // Compute max totalReviews for normalisation (popularity signal)
+  const maxReviews = Math.max(...venues.map(v => v.totalReviews || 0), 1);
+
   const { normalized: searchNormalized, tokens: searchTokens } = tokenizeQuery(searchTerm || '');
 
   const scoredVenues = venues.map(venue => {
-    const cuisineScore  = computeCuisineScore(venue, cuisineIds);
-    const categoryScore = computeCategoryScore(venue, categoryIds);
-    const tagScore      = computeTagScore(venue, tagIds);
-    const priceScore    = computePriceScore(venue, priceRanges);
-    const ratingScore   = (venue.averageRating || 0) / 5.0;
+    const venueId = venue._id.toString();
+
+    const cuisineScore   = computeCuisineScore(venue, cuisineIds);
+    const categoryScore  = computeCategoryScore(venue, categoryIds);
+    const tagScore       = computeTagScore(venue, tagIds);
+    const priceScore     = computePriceScore(venue, priceRanges);
+    const ratingScore    = (venue.averageRating || 0) / 5.0;
     const { distanceKm, distanceScore } = computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation);
-    const moodScore     = computeMoodScore(venue, moodTagIds);
-    
-    // Tiered text match via searchService
+    const moodScore      = computeMoodScore(venue, moodTagIds);
+    const popularityScore = computePopularityScore(venue, maxReviews);
+    const featuredBoost  = venue.isFeatured ? 0.08 : 0;
+
+    // Implicit feedback: combined cuisine + tag affinity from behavior
+    const implicitScore = implicitProfile
+      ? computeImplicitScore(venue, implicitProfile)
+      : 0.5;
+
+    // Skip venues the user has already visited (soft penalty, not exclusion)
+    const visitedPenalty = (implicitProfile?.visitedIds?.has(venueId)) ? 0.85 : 1.0;
+
+    // Tiered text match
     const textMatch = searchTerm
       ? computeTextMatchScore(venue, searchNormalized, searchTokens)
       : { score: 0, matchedFields: [], matchReason: 'no_query' };
@@ -131,29 +231,30 @@ const getSmartRecommendations = async ({
         const matches = searchTokens.filter(t => vName.includes(t)).length;
         if (matches > 0) nameScore = (matches / searchTokens.length) * 0.6;
       }
-      // Boost: cuisine/tag/description matches raise nameScore so they rank above zero
       nameScore = Math.max(nameScore, textMatch.score * 0.65);
     }
 
-    // Dynamic weights adjustment for search
     const activeWeights = { ...weights };
     if (searchTerm) {
       activeWeights.name = 0.4;
-      // Normalize others
       const remaining = 0.6;
       const sumOthers = Object.keys(weights).reduce((acc, k) => acc + weights[k], 0);
       Object.keys(weights).forEach(k => { activeWeights[k] = (weights[k] / sumOthers) * remaining; });
     }
 
-    const finalScore =
-      (activeWeights.name || 0) * nameScore +
-      activeWeights.cuisine  * cuisineScore  +
-      activeWeights.category * categoryScore +
-      activeWeights.tag      * tagScore      +
-      activeWeights.price    * priceScore    +
-      activeWeights.rating   * ratingScore   +
-      activeWeights.distance * distanceScore +
-      activeWeights.mood     * moodScore;
+    const rawScore =
+      (activeWeights.name || 0)       * nameScore       +
+      activeWeights.cuisine            * cuisineScore    +
+      activeWeights.category           * categoryScore   +
+      activeWeights.tag                * tagScore        +
+      activeWeights.price              * priceScore      +
+      activeWeights.rating             * ratingScore     +
+      activeWeights.distance           * distanceScore   +
+      activeWeights.mood               * moodScore       +
+      (activeWeights.popularity || 0)  * popularityScore +
+      (activeWeights.implicit  || 0)   * implicitScore;
+
+    const finalScore = (rawScore + featuredBoost) * visitedPenalty;
 
     return {
       venue,
@@ -163,15 +264,17 @@ const getSmartRecommendations = async ({
       matchReason:    textMatch.matchReason,
       distanceKm,
       scoreBreakdown: {
-        name:          Math.round(nameScore     * 100),
-        cuisine:       Math.round(cuisineScore  * 100),
-        category:      Math.round(categoryScore * 100),
-        tag:           Math.round(tagScore      * 100),
-        price:         Math.round(priceScore    * 100),
-        rating:        Math.round(ratingScore   * 100),
-        distance:      Math.round(distanceScore * 100),
-        mood:          Math.round(moodScore     * 100),
-        textMatch:     Math.round(textMatch.score * 100),
+        name:          Math.round(nameScore        * 100),
+        cuisine:       Math.round(cuisineScore     * 100),
+        category:      Math.round(categoryScore    * 100),
+        tag:           Math.round(tagScore         * 100),
+        price:         Math.round(priceScore       * 100),
+        rating:        Math.round(ratingScore      * 100),
+        distance:      Math.round(distanceScore    * 100),
+        mood:          Math.round(moodScore        * 100),
+        popularity:    Math.round(popularityScore  * 100),
+        implicit:      Math.round(implicitScore    * 100),
+        featured:      venue.isFeatured ? 8 : 0,
         matchedFields: textMatch.matchedFields,
         matchReason:   textMatch.matchReason,
       },
@@ -182,52 +285,33 @@ const getSmartRecommendations = async ({
     ? scoredVenues.filter(s => s.distanceKm === null || s.distanceKm <= maxDistanceKm)
     : scoredVenues;
 
-  // Strict search filter — search is not a recommendation engine.
-  // Rule 1: text matches gate all results; confidence tier picks the best cohort.
-  // Rule 2: when text fails but AI parsed an explicit filter (cuisine/tag/mood),
-  //         honour that intent — but still require a minimum finalScore.
-  // Rule 3: when both fail → empty result, no fallback expansion.
   if (searchTerm) {
-    // categoryIds and tagIds are excluded: the NLP parser matches them too broadly
-    // (e.g. the word "restaurant" in a name query hits Category:Restaurant), which
-    // would open the filter-context fallback and inject unrelated high-scoring venues.
-    // cuisineIds (user-explicit + AI-parsed) and mood are specific enough to be trusted.
-    const hasFilterContext =
-      cuisineIds.length > 0 || priceRanges.length > 0 || !!mood;
-
-    const textMatched   = filtered.filter(s => s.textMatchScore > 0);
-    const strongMatched = selectByConfidenceTier(textMatched);
+    const hasFilterContext = cuisineIds.length > 0 || priceRanges.length > 0 || !!mood;
+    const textMatched    = filtered.filter(s => s.textMatchScore > 0);
+    const strongMatched  = selectByConfidenceTier(textMatched);
 
     if (strongMatched.length > 0) {
-      // At least one result cleared the HIGH_CONFIDENCE_THRESHOLD — use only those.
       filtered = strongMatched;
     } else if (hasFilterContext) {
-      // Text search found nothing above the confidence floor, but the query carried
-      // explicit semantic intent (cuisine, price, mood).  Honour that intent — return
-      // venues that score well enough on the combined multi-factor score.
       filtered = filtered.filter(s => s.finalScore > SEARCH_THRESHOLDS.FILTER_CONTEXT_SCORE);
     } else {
-      // No text match and no explicit filter intent — return empty rather than guessing.
       filtered = [];
     }
   }
 
-  // Rating floor — applied server-side so pagination counts are accurate
   if (minRating > 0) {
     filtered = filtered.filter(s => (s.venue.averageRating || 0) >= minRating);
   }
 
-  // STRICT FILTER: ONLY apply if cuisines were EXPLICITLY provided in the request
   if (explicitCuisineIds.length > 0) {
     filtered = filtered.filter(s => {
-        const venueIds = s.venue.cuisines.map(c => c._id.toString());
-        return explicitCuisineIds.some(id => venueIds.includes(id));
+      const venueIds = s.venue.cuisines.map(c => c._id.toString());
+      return explicitCuisineIds.some(id => venueIds.includes(id));
     });
   }
 
-  // 4. Sort
+  // Sort
   if (searchTerm && !sortBy) {
-    // textMatchScore is primary; finalScore breaks ties
     filtered.sort((a, b) => {
       if (b.textMatchScore !== a.textMatchScore) return b.textMatchScore - a.textMatchScore;
       return b.finalScore - a.finalScore;
@@ -237,14 +321,16 @@ const getSmartRecommendations = async ({
       switch (sortBy) {
         case 'price_desc':    return b.venue.priceRange - a.venue.priceRange;
         case 'price_asc':     return a.venue.priceRange - b.venue.priceRange;
+        case 'rating':
         case 'rating_desc':   return b.venue.averageRating - a.venue.averageRating;
         case 'rating_asc':    return a.venue.averageRating - b.venue.averageRating;
-        case 'distance_desc': return (b.distanceKm || 0) - (a.distanceKm || 0);
+        case 'distance':
         case 'distance_asc': {
           const distA = a.distanceKm === null ? Infinity : a.distanceKm;
           const distB = b.distanceKm === null ? Infinity : b.distanceKm;
           return distA - distB;
         }
+        case 'distance_desc': return (b.distanceKm || 0) - (a.distanceKm || 0);
         default:              return b.finalScore - a.finalScore;
       }
     });
@@ -252,7 +338,11 @@ const getSmartRecommendations = async ({
     filtered.sort((a, b) => b.finalScore - a.finalScore);
   }
 
-  const results = filtered.slice(0, limit).map(item => ({
+  // Diversity re-ranking: prevent cuisine monopoly in top results
+  // Cap any single cuisine to appear in at most 40% of the top-N results
+  const diversified = applyDiversityReranking(filtered, limit);
+
+  const results = diversified.slice(0, limit).map(item => ({
     ...item.venue,
     recommendationScore: Math.min(1, Math.max(0, item.finalScore)),
     scoreBreakdown: item.scoreBreakdown,
@@ -260,7 +350,6 @@ const getSmartRecommendations = async ({
     matchedMood: mood,
   }));
 
-  // Generate suggestions only when search yields zero results
   const suggestions = (searchTerm && results.length === 0)
     ? generateSuggestions(searchTerm, venues)
     : [];
@@ -279,18 +368,32 @@ const getSmartRecommendations = async ({
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
 
-function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated }) {
-  let w = { cuisine: 0.20, category: 0.15, tag: 0.10, mood: 0.10, rating: 0.25, distance: 0.10, price: 0.10 };
+function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit }) {
+  let w = {
+    cuisine:    0.18,
+    category:   0.12,
+    tag:        0.08,
+    mood:       0.10,
+    rating:     0.22,
+    distance:   0.10,
+    price:      0.08,
+    popularity: 0.07,
+    implicit:   0.05,
+  };
 
-  if (isTopRated)     { w.rating   += 0.40; w.cuisine -= 0.10; w.category -= 0.10; w.tag -= 0.05; w.distance -= 0.05; w.mood -= 0.05; w.price -= 0.05; }
-  if (hasCuisine)     { w.cuisine  += 0.10; w.rating -= 0.05; }
-  if (hasCategory)    { w.category += 0.10; w.rating -= 0.05; }
-  if (hasTag)         { w.tag      += 0.10; w.rating -= 0.05; }
-  if (hasMood)        { w.mood     += 0.10; w.rating -= 0.05; }
-  if (hasLocation)    { w.distance += 0.10; w.rating -= 0.05; }
-  if (hasPriceFilter) { w.price    += 0.05; w.rating -= 0.05; }
+  if (isTopRated)    { w.rating += 0.35; w.cuisine -= 0.08; w.category -= 0.08; w.tag -= 0.05; w.distance -= 0.05; w.mood -= 0.05; w.price -= 0.04; }
+  if (hasCuisine)    { w.cuisine  += 0.10; w.rating -= 0.05; }
+  if (hasCategory)   { w.category += 0.08; w.rating -= 0.04; }
+  if (hasTag)        { w.tag      += 0.08; w.rating -= 0.04; }
+  if (hasMood)       { w.mood     += 0.10; w.rating -= 0.05; }
+  if (hasLocation)   { w.distance += 0.10; w.rating -= 0.05; }
+  if (hasPriceFilter){ w.price    += 0.05; w.rating -= 0.05; }
+  if (hasImplicit)   { w.implicit += 0.08; w.rating -= 0.04; }
 
+  // Clamp negatives
   Object.keys(w).forEach(k => { w[k] = Math.max(0.02, w[k]); });
+
+  // Normalize to sum = 1
   const total = Object.values(w).reduce((a, b) => a + b, 0);
   Object.keys(w).forEach(k => { w[k] = w[k] / total; });
   return w;
@@ -330,7 +433,7 @@ function computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation) {
     [lng, lat],
     venue.location.coordinates
   );
-  // Exponential decay: score = 1 at 0 km, ~0.37 at maxDistance/2, ~0 at maxDistance
+  // Exponential decay: score = 1 at 0 km, ~0.37 at maxDistance/2
   const distanceScore = Math.exp(-distanceKm / (maxDistanceKm * 0.4));
   return {
     distanceKm: Math.round(distanceKm * 10) / 10,
@@ -345,14 +448,115 @@ function computeMoodScore(venue, moodTagIds) {
   return Math.min(1, matches / Math.max(1, Math.min(moodTagIds.length, 4)));
 }
 
+/**
+ * Popularity signal: log-normalized review count.
+ * A venue with 50 reviews scores ~0.85; one with 5 scores ~0.4.
+ * This prevents cold-start venues from dominating but lets proven ones surface.
+ */
+function computePopularityScore(venue, maxReviews) {
+  const reviews = venue.totalReviews || 0;
+  if (reviews === 0) return 0.1;
+  return Math.min(1, Math.log1p(reviews) / Math.log1p(maxReviews));
+}
+
+/**
+ * Implicit feedback score — measures how well this venue matches
+ * the user's historical preference profile (derived from reviews + reservations).
+ */
+function computeImplicitScore(venue, implicitProfile) {
+  const { cuisineAffinity, tagAffinity, priceAffinity } = implicitProfile;
+
+  let score = 0;
+  let components = 0;
+
+  const venuesCuisineIds = venue.cuisines.map(c => c._id.toString());
+  const cuisineMatch = venuesCuisineIds.reduce((sum, id) => sum + (cuisineAffinity[id] || 0), 0);
+  if (Object.keys(cuisineAffinity).length > 0) {
+    score += Math.min(1, cuisineMatch);
+    components++;
+  }
+
+  const venuesTagIds = venue.tags.map(t => t._id.toString());
+  const tagMatch = venuesTagIds.reduce((sum, id) => sum + (tagAffinity[id] || 0), 0);
+  if (Object.keys(tagAffinity).length > 0) {
+    score += Math.min(1, tagMatch * 0.5);
+    components++;
+  }
+
+  const priceMatch = priceAffinity[venue.priceRange] || 0;
+  if (Object.keys(priceAffinity).length > 0) {
+    score += priceMatch;
+    components++;
+  }
+
+  return components > 0 ? score / components : 0.5;
+}
+
+/**
+ * Diversity re-ranking: from the sorted candidate list, ensure no single
+ * cuisine accounts for more than ~40% of the final top-N results.
+ * Uses a window-based interleaving approach.
+ */
+function applyDiversityReranking(sortedVenues, limit) {
+  if (sortedVenues.length <= limit) return sortedVenues;
+
+  const maxPerCuisine = Math.ceil(limit * 0.40);
+  const cuisineCounts = {};
+  const selected = [];
+  const deferred  = [];
+
+  for (const item of sortedVenues) {
+    if (selected.length >= limit) break;
+
+    const primaryCuisine = item.venue.cuisines?.[0]?._id?.toString() || 'none';
+    const count = cuisineCounts[primaryCuisine] || 0;
+
+    if (count < maxPerCuisine) {
+      selected.push(item);
+      cuisineCounts[primaryCuisine] = count + 1;
+    } else {
+      deferred.push(item);
+    }
+  }
+
+  // Fill remaining slots with deferred items if we didn't hit the limit
+  for (const item of deferred) {
+    if (selected.length >= limit) break;
+    selected.push(item);
+  }
+
+  return selected;
+}
+
 // ─── Legacy CBF wrapper (backwards compat) ───────────────────────────────────
 const getCBFRecommendations = async (userId, limit = 10, lat = null, lng = null) => {
   const { results } = await getSmartRecommendations({ userId, limit, lat, lng });
   return results;
 };
 
+// ─── Build explanation for filter-based discovery (no NL prompt) ─────────────
+const buildFilterExplanation = ({ mood, priceRanges, hasLocation, maxDistanceKm, cuisineIds, sortBy }) => {
+  const parts = [];
+  if (mood) parts.push(`${mood.replace('-', ' ')} vibes`);
+  if (priceRanges?.length) {
+    const symbols = ['$', '$$', '$$$', '$$$$'];
+    const labels = priceRanges.map(p => symbols[p - 1] || p).join(', ');
+    parts.push(`${labels} price range`);
+  }
+  if (hasLocation) parts.push(`within ${maxDistanceKm} km of you`);
+  if (sortBy === 'rating' || sortBy === 'rating_desc') parts.push('sorted by top rating');
+  if (sortBy === 'distance' || sortBy === 'distance_asc') parts.push('sorted by nearest first');
+  if (sortBy === 'price_asc') parts.push('sorted from most affordable');
+  if (sortBy === 'price_desc') parts.push('sorted from most premium');
+
+  if (parts.length === 0) return null;
+  return `Showing restaurants matching: ${parts.join(' · ')}.`;
+};
+
 module.exports = {
   getSmartRecommendations,
   getCBFRecommendations,
+  buildImplicitProfile,
+  buildFilterExplanation,
   MOOD_KEYWORDS,
 };
