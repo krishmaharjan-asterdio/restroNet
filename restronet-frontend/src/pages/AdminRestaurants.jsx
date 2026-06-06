@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Popconfirm, Upload, Space, Tabs, Divider } from 'antd';
-import { Plus, Edit, Trash2, Upload as UploadIcon, Star, Search as SearchIcon, Info, Camera, MapPin, Store } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload as UploadIcon, Star, Search as SearchIcon, Info, Camera, MapPin, Store, Utensils, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -73,6 +73,99 @@ const AdminRestaurants = () => {
 
   const [existingGallery, setExistingGallery] = useState([]);
   const [existingMenu, setExistingMenu] = useState([]);
+
+  // Menu management states
+  const [isMenuModalVisible, setIsMenuModalVisible] = useState(false);
+  const [menuActiveVenue, setMenuActiveVenue] = useState(null);
+  const [menuData, setMenuData] = useState(null);
+  const [loadingMenu, setLoadingMenu] = useState(false);
+  const [editingMenuItemIdx, setEditingMenuItemIdx] = useState(null);
+  const [menuItemForm] = Form.useForm();
+
+  const handleManageMenu = async (venueRecord) => {
+    setMenuActiveVenue(venueRecord);
+    setIsMenuModalVisible(true);
+    setLoadingMenu(true);
+    try {
+      const res = await api.get(`/menu/venue/${venueRecord._id}`);
+      if (res.data.success && res.data.menus && res.data.menus.length > 0) {
+        setMenuData(res.data.menus[0]);
+      } else {
+        const createRes = await api.post(`/menu/venue/${venueRecord._id}`, {
+          name: 'Main Menu',
+          description: 'Main dining menu',
+          items: []
+        });
+        if (createRes.data.success) {
+          setMenuData(createRes.data.menu);
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to load menu');
+    } finally {
+      setLoadingMenu(false);
+    }
+  };
+
+  const handleSaveMenuItem = (values) => {
+    if (!menuData) return;
+    
+    const updatedItems = [...(menuData.items || [])];
+    const newItem = {
+      name: values.name,
+      price: Number(values.price),
+      description: values.description || '',
+      category: values.category || 'Mains',
+      isVegetarian: !!values.isVegetarian,
+      isVegan: !!values.isVegan,
+      isGlutenFree: !!values.isGlutenFree,
+      isAvailable: values.isAvailable !== false
+    };
+
+    if (editingMenuItemIdx !== null) {
+      updatedItems[editingMenuItemIdx] = newItem;
+    } else {
+      updatedItems.push(newItem);
+    }
+
+    setMenuData({
+      ...menuData,
+      items: updatedItems
+    });
+
+    menuItemForm.resetFields();
+    setEditingMenuItemIdx(null);
+    toast.success(editingMenuItemIdx !== null ? 'Item updated in list' : 'Item added to list');
+  };
+
+  const handleDeleteMenuItem = (index) => {
+    if (!menuData) return;
+    const updatedItems = menuData.items.filter((_, idx) => idx !== index);
+    setMenuData({
+      ...menuData,
+      items: updatedItems
+    });
+    toast.success('Item removed from list');
+  };
+
+  const handleSaveMenuToDB = async () => {
+    if (!menuData) return;
+    setLoadingMenu(true);
+    try {
+      const res = await api.put(`/menu/${menuData._id}`, {
+        items: menuData.items
+      });
+      if (res.data.success) {
+        toast.success('Menu changes saved to database!');
+        setIsMenuModalVisible(false);
+        setMenuData(null);
+      }
+    } catch (err) {
+      toast.error('Failed to save menu changes');
+    } finally {
+      setLoadingMenu(false);
+    }
+  };
 
   // Watch form fields for the map
   const lat = Form.useWatch('location.lat', form);
@@ -261,7 +354,7 @@ const AdminRestaurants = () => {
       key: 'name',
       render: (text, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#1e2d47] border border-[#1e2d47] flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 dark:bg-[#1e2d47] border border-slate-200 dark:border-[#1e2d47] flex-shrink-0">
             {record.logo ? (
               <img src={getImageUrl(record.logo)} className="w-full h-full object-cover" alt="logo" />
             ) : (
@@ -271,8 +364,8 @@ const AdminRestaurants = () => {
             )}
           </div>
           <div>
-            <div className="font-semibold text-slate-100 text-sm leading-tight">{text}</div>
-            <div className="text-xs text-[#8b98b0] mt-0.5">{record.address?.city || '—'}</div>
+            <div className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-tight">{text}</div>
+            <div className="text-xs text-slate-500 dark:text-[#8b98b0] mt-0.5">{record.address?.city || '—'}</div>
           </div>
         </div>
       ),
@@ -282,7 +375,7 @@ const AdminRestaurants = () => {
       dataIndex: 'category',
       key: 'category',
       render: (category) => (
-        <span className="text-slate-300 text-sm">{category?.name || <span className="text-[#8b98b0] italic">N/A</span>}</span>
+        <span className="text-slate-600 dark:text-slate-300 text-sm">{category?.name || <span className="text-slate-400 dark:text-[#8b98b0] italic">N/A</span>}</span>
       ),
     },
     {
@@ -291,8 +384,8 @@ const AdminRestaurants = () => {
       key: 'owner',
       hidden: admin?.role !== 'superadmin',
       render: (owner) => (
-        <span className="text-slate-300 text-sm">
-          {owner?.name || <span className="text-[#8b98b0] italic">Platform</span>}
+        <span className="text-slate-600 dark:text-slate-300 text-sm">
+          {owner?.name || <span className="text-slate-400 dark:text-[#8b98b0] italic">Platform</span>}
         </span>
       ),
     },
@@ -301,7 +394,7 @@ const AdminRestaurants = () => {
       dataIndex: 'averageRating',
       key: 'averageRating',
       render: (rating) => (
-        <div className="inline-flex items-center gap-1.5 bg-emerald-900/40 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold">
+        <div className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold">
           <Star size={11} className="fill-current" />
           {(rating || 0).toFixed(1)}
         </div>
@@ -316,7 +409,7 @@ const AdminRestaurants = () => {
           {[1, 2, 3, 4].map((step) => (
             <span
               key={step}
-              className={step <= (price || 2) ? 'text-[#fa6500]' : 'text-[#1e2d47]'}
+              className={step <= (price || 2) ? 'text-[#fa6500]' : 'text-slate-200 dark:text-[#1e2d47]'}
             >
               $
             </span>
@@ -329,39 +422,51 @@ const AdminRestaurants = () => {
       key: 'status',
       render: (_, record) => (
         record.isActive !== false
-          ? <span className="inline-flex items-center gap-1.5 bg-emerald-900/50 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />Active</span>
-          : <span className="inline-flex items-center gap-1.5 bg-red-900/40 text-red-400 px-2.5 py-1 rounded-lg text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />Inactive</span>
+          ? <span className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 inline-block" />Active</span>
+          : <span className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-900/40 text-red-700 dark:text-red-400 px-2.5 py-1 rounded-lg text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-red-500 dark:bg-red-400 inline-block" />Inactive</span>
       ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record) => (
-        <Space size={6}>
-          <button
-            onClick={() => showModal(record)}
-            className="bg-[#1e2d47] rounded-lg p-2 hover:bg-[#fa6500]/10 hover:text-[#fa6500] text-[#8b98b0] transition-all duration-150"
-            title="Edit"
-          >
-            <Edit size={15} />
-          </button>
-          <Popconfirm
-            title="Delete this restaurant?"
-            description="Are you sure you want to delete this restaurant and all its data?"
-            onConfirm={() => handleDelete(record._id)}
-            okText="Yes, Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
+      render: (_, record) => {
+        const isOwner = admin?.role === 'superadmin' || record.owner?._id === admin?._id || record.owner === admin?._id;
+        return (
+          <Space size={6}>
             <button
-              className="bg-[#1e2d47] rounded-lg p-2 hover:bg-red-900/20 hover:text-red-400 text-[#8b98b0] transition-all duration-150"
-              title="Delete"
+              onClick={() => showModal(record)}
+              className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 hover:bg-[#fa6500]/10 hover:text-[#fa6500] text-slate-500 dark:text-[#8b98b0] transition-all duration-150"
+              title="Edit"
             >
-              <Trash2 size={15} />
+              <Edit size={15} />
             </button>
-          </Popconfirm>
-        </Space>
-      ),
+            {isOwner && (
+              <button
+                onClick={() => handleManageMenu(record)}
+                className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 hover:bg-[#fa6500]/10 hover:text-[#fa6500] text-slate-500 dark:text-[#8b98b0] transition-all duration-150"
+                title="Manage Digital Menu"
+              >
+                <Utensils size={15} />
+              </button>
+            )}
+            <Popconfirm
+              title="Delete this restaurant?"
+              description="Are you sure you want to delete this restaurant and all its data?"
+              onConfirm={() => handleDelete(record._id)}
+              okText="Yes, Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <button
+                className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 hover:bg-red-900/20 hover:text-red-400 text-slate-500 dark:text-[#8b98b0] transition-all duration-150"
+                title="Delete"
+              >
+                <Trash2 size={15} />
+              </button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ].filter(c => !c.hidden);
 
@@ -375,10 +480,10 @@ const AdminRestaurants = () => {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <p className="text-[#8b98b0] text-xs font-bold uppercase tracking-widest mb-1">
+          <p className="text-slate-500 dark:text-[#8b98b0] text-xs font-bold uppercase tracking-widest mb-1">
             Admin Panel
           </p>
-          <h1 className="text-2xl font-bold text-slate-100">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
             {admin?.role === 'superadmin' ? 'Restaurants' : 'My Restaurants'}
           </h1>
         </div>
@@ -388,14 +493,14 @@ const AdminRestaurants = () => {
           <div className="relative">
             <SearchIcon
               size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b98b0] pointer-events-none"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#8b98b0] pointer-events-none"
             />
             <input
               type="text"
               placeholder="Search name, city, category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#131e35] border border-[#1e2d47] text-slate-100 placeholder-[#4a5a78] rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all w-64"
+              className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-[#4a5a78] rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all w-64"
             />
           </div>
 
@@ -419,20 +524,20 @@ const AdminRestaurants = () => {
         transition={{ duration: 0.3, delay: 0.05 }}
         className="flex flex-wrap gap-3"
       >
-        <div className="bg-[#131e35] border border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
-          <span className="text-[#8b98b0]">Total</span>
-          <span className="font-bold text-slate-100">{restaurants.length}</span>
+        <div className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
+          <span className="text-slate-500 dark:text-[#8b98b0]">Total</span>
+          <span className="font-bold text-slate-800 dark:text-slate-100">{restaurants.length}</span>
         </div>
-        <div className="bg-[#131e35] border border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-          <span className="text-[#8b98b0]">Active</span>
-          <span className="font-bold text-emerald-400">{activeCount}</span>
+        <div className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 inline-block" />
+          <span className="text-slate-500 dark:text-[#8b98b0]">Active</span>
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">{activeCount}</span>
         </div>
         {searchQuery && (
-          <div className="bg-[#131e35] border border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
-            <span className="text-[#8b98b0]">Showing</span>
+          <div className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-2 text-sm flex items-center gap-2">
+            <span className="text-slate-500 dark:text-[#8b98b0]">Showing</span>
             <span className="font-bold text-[#fa6500]">{filteredRestaurants.length}</span>
-            <span className="text-[#8b98b0]">results</span>
+            <span className="text-slate-500 dark:text-[#8b98b0]">results</span>
           </div>
         )}
       </motion.div>
@@ -444,14 +549,14 @@ const AdminRestaurants = () => {
         transition={{ duration: 0.35, delay: 0.1 }}
       >
         {!loading && filteredRestaurants.length === 0 ? (
-          <div className="bg-[#131e35] rounded-2xl border border-dashed border-[#1e2d47] p-16 text-center">
-            <div className="w-16 h-16 bg-[#1e2d47] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Store size={28} className="text-[#8b98b0]" />
+          <div className="bg-white dark:bg-[#131e35] rounded-2xl border border-dashed border-slate-200 dark:border-[#1e2d47] p-16 text-center">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-[#1e2d47] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Store size={28} className="text-slate-400 dark:text-[#8b98b0]" />
             </div>
-            <h3 className="text-slate-100 font-bold text-lg mb-2">
+            <h3 className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-2">
               {searchQuery ? 'No restaurants match your search' : 'No restaurants yet'}
             </h3>
-            <p className="text-[#8b98b0] text-sm mb-6 max-w-xs mx-auto">
+            <p className="text-slate-500 dark:text-[#8b98b0] text-sm mb-6 max-w-xs mx-auto">
               {searchQuery
                 ? 'Try adjusting your search query to find what you\'re looking for.'
                 : 'Get started by adding your first restaurant to the platform.'}
@@ -491,7 +596,7 @@ const AdminRestaurants = () => {
         styles={{ body: { padding: 0 } }}
       >
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-[#1e2d47] relative">
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-[#1e2d47] relative">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-[#fa6500]/10 rounded-xl flex items-center justify-center border border-[#fa6500]/20">
               {editingId
@@ -499,17 +604,17 @@ const AdminRestaurants = () => {
                 : <Plus className="text-[#fa6500]" size={18} />}
             </div>
             <div>
-              <h2 className="text-slate-100 font-bold text-lg leading-tight">
+              <h2 className="text-slate-800 dark:text-slate-100 font-bold text-lg leading-tight">
                 {editingId ? 'Edit Restaurant' : 'Add New Restaurant'}
               </h2>
-              <p className="text-[#8b98b0] text-xs font-medium tracking-wide uppercase mt-0.5">
+              <p className="text-slate-500 dark:text-[#8b98b0] text-xs font-medium tracking-wide uppercase mt-0.5">
                 {editingId ? 'Update restaurant details' : 'Configure a new platform entry'}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsModalVisible(false)}
-            className="absolute top-5 right-6 text-[#8b98b0] hover:text-slate-100 transition-colors"
+            className="absolute top-5 right-6 text-slate-400 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
           >
             <Plus size={20} className="rotate-45" />
           </button>
@@ -517,15 +622,15 @@ const AdminRestaurants = () => {
 
         <div className="p-6">
           {/* Smart Autofill Section */}
-          <div className="mb-6 bg-[#131e35] p-5 rounded-2xl border border-[#1e2d47] relative">
+          <div className="mb-6 bg-slate-50 dark:bg-[#131e35] p-5 rounded-2xl border border-slate-200 dark:border-[#1e2d47] relative">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-[#fa6500]/10 border border-[#fa6500]/20 rounded-xl flex items-center justify-center">
                   <SearchIcon size={16} className="text-[#fa6500]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-100 text-sm">Smart Autofill</h3>
-                  <p className="text-[10px] text-[#8b98b0] font-bold uppercase tracking-wider">Sync with OpenStreetMap</p>
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Smart Autofill</h3>
+                  <p className="text-[10px] text-slate-500 dark:text-[#8b98b0] font-bold uppercase tracking-wider">Sync with OpenStreetMap</p>
                 </div>
               </div>
               <Select
@@ -549,9 +654,9 @@ const AdminRestaurants = () => {
                     <div className="flex flex-col py-1">
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-sm">{s.name}</span>
-                        <span className="text-[9px] border border-[#1e2d47] rounded-md px-1.5 py-0.5 uppercase font-bold text-[#8b98b0]">Global</span>
+                        <span className="text-[9px] border border-slate-200 dark:border-[#1e2d47] rounded-md px-1.5 py-0.5 uppercase font-bold text-slate-500 dark:text-[#8b98b0]">Global</span>
                       </div>
-                      <span className="text-[11px] text-[#8b98b0] truncate mt-0.5">{s.address || 'Point of Interest'} • {s.city}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-[#8b98b0] truncate mt-0.5">{s.address || 'Point of Interest'} • {s.city}</span>
                     </div>
                   )
                 }))}
@@ -694,18 +799,18 @@ const AdminRestaurants = () => {
 
                   <Form.Item
                     name="website"
-                    label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Website URL</span>}
+                    label={<span className="text-slate-500 dark:text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Website URL</span>}
                   >
                     <Input placeholder="https://example.com" size="large" className="rounded-xl" />
                   </Form.Item>
 
-                  <div className="md:col-span-2 border-t border-[#1e2d47] my-2 pt-4">
-                    <p className="text-[#8b98b0] text-xs font-bold uppercase tracking-widest mb-4">Visual Assets</p>
+                  <div className="md:col-span-2 border-t border-slate-200 dark:border-[#1e2d47] my-2 pt-4">
+                    <p className="text-slate-500 dark:text-[#8b98b0] text-xs font-bold uppercase tracking-widest mb-4">Visual Assets</p>
                   </div>
 
                   <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                     <Form.Item
-                      label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Logo / Brand Identity</span>}
+                      label={<span className="text-slate-500 dark:text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Logo / Brand Identity</span>}
                     >
                       <Upload
                         beforeUpload={(file) => { setLogoFile(file); return false; }}
@@ -724,10 +829,10 @@ const AdminRestaurants = () => {
                     </Form.Item>
 
                     <div className="space-y-3">
-                      <label className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider block">Gallery Preview</label>
+                      <label className="text-slate-500 dark:text-[#8b98b0] font-semibold text-xs uppercase tracking-wider block">Gallery Preview</label>
                       <div className="flex flex-wrap gap-2">
                         {existingGallery.slice(0, 4).map((url, idx) => (
-                          <div key={idx} className="w-14 h-14 rounded-xl overflow-hidden border border-[#1e2d47] relative group">
+                          <div key={idx} className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-[#1e2d47] relative group">
                             <img src={getImageUrl(url)} className="w-full h-full object-cover" alt="gallery" />
                             <button
                               onClick={() => setExistingGallery(prev => prev.filter((_, i) => i !== idx))}
@@ -738,7 +843,7 @@ const AdminRestaurants = () => {
                           </div>
                         ))}
                         {existingGallery.length > 4 && (
-                          <div className="w-14 h-14 rounded-xl bg-[#1e2d47] flex items-center justify-center text-[10px] text-[#8b98b0] font-bold">
+                          <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-[#1e2d47] flex items-center justify-center text-[10px] text-slate-500 dark:text-[#8b98b0] font-bold">
                             +{existingGallery.length - 4}
                           </div>
                         )}
@@ -747,7 +852,7 @@ const AdminRestaurants = () => {
                   </div>
 
                   <Form.Item
-                    label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Atmosphere Gallery</span>}
+                    label={<span className="text-slate-500 dark:text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Atmosphere Gallery</span>}
                     className="md:col-span-1"
                   >
                     <Upload
@@ -800,7 +905,7 @@ const AdminRestaurants = () => {
                     </Form.Item>
                   </div>
 
-                  <div className="rounded-2xl overflow-hidden border border-[#1e2d47] h-[280px] relative">
+                  <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-[#1e2d47] h-[280px] relative">
                     <MapContainer
                       center={[parseFloat(lat) || 27.7172, parseFloat(lng) || 85.3240]}
                       zoom={15}
@@ -811,15 +916,15 @@ const AdminRestaurants = () => {
                       <MapClicker form={form} />
                       {lat && lng && <Marker position={[parseFloat(lat), parseFloat(lng)]} icon={customIcon} />}
                     </MapContainer>
-                    <div className="absolute top-3 right-3 z-[1000] bg-[#0f1629]/90 backdrop-blur border border-[#1e2d47] p-2.5 rounded-xl flex items-center gap-3">
+                    <div className="absolute top-3 right-3 z-[1000] bg-white/90 dark:bg-[#0f1629]/90 backdrop-blur border border-slate-200 dark:border-[#1e2d47] p-2.5 rounded-xl flex items-center gap-3">
                       <div className="flex flex-col">
-                        <span className="text-[9px] text-[#8b98b0] uppercase font-bold tracking-tight leading-none">Lat</span>
-                        <span className="text-xs font-mono font-bold text-slate-300">{lat ? parseFloat(lat).toFixed(4) : '--'}</span>
+                        <span className="text-[9px] text-slate-500 dark:text-[#8b98b0] uppercase font-bold tracking-tight leading-none">Lat</span>
+                        <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">{lat ? parseFloat(lat).toFixed(4) : '--'}</span>
                       </div>
-                      <div className="w-px h-5 bg-[#1e2d47]" />
+                      <div className="w-px h-5 bg-slate-200 dark:bg-[#1e2d47]" />
                       <div className="flex flex-col">
-                        <span className="text-[9px] text-[#8b98b0] uppercase font-bold tracking-tight leading-none">Lng</span>
-                        <span className="text-xs font-mono font-bold text-slate-300">{lng ? parseFloat(lng).toFixed(4) : '--'}</span>
+                        <span className="text-[9px] text-slate-500 dark:text-[#8b98b0] uppercase font-bold tracking-tight leading-none">Lng</span>
+                        <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">{lng ? parseFloat(lng).toFixed(4) : '--'}</span>
                       </div>
                     </div>
                   </div>
@@ -834,11 +939,11 @@ const AdminRestaurants = () => {
             </Tabs>
 
             {/* Modal Footer */}
-            <div className="flex justify-end items-center gap-3 mt-8 pt-5 border-t border-[#1e2d47]">
+            <div className="flex justify-end items-center gap-3 mt-8 pt-5 border-t border-slate-200 dark:border-[#1e2d47]">
               <Button
                 onClick={() => setIsModalVisible(false)}
                 size="large"
-                className="rounded-xl font-semibold px-6 h-11 border-[#1e2d47] text-[#8b98b0] hover:text-slate-100 hover:border-slate-500"
+                className="rounded-xl font-semibold px-6 h-11 border-slate-200 dark:border-[#1e2d47] text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-[#131e35]"
               >
                 Cancel
               </Button>
@@ -852,6 +957,278 @@ const AdminRestaurants = () => {
               </Button>
             </div>
           </Form>
+        </div>
+      </Modal>
+
+      {/* ── Menu Management Modal ────────────────────────────────────────────── */}
+      <Modal
+        title={null}
+        open={isMenuModalVisible}
+        onCancel={() => {
+          setIsMenuModalVisible(false);
+          setMenuData(null);
+        }}
+        footer={null}
+        width={1000}
+        centered
+        className="modern-admin-modal"
+        styles={{ body: { padding: 0 } }}
+      >
+        {/* Modal Header */}
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-[#1e2d47] relative">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#fa6500]/10 rounded-xl flex items-center justify-center border border-[#fa6500]/20">
+              <Utensils className="text-[#fa6500]" size={18} />
+            </div>
+            <div>
+              <h2 className="text-slate-800 dark:text-slate-100 font-bold text-lg leading-tight">
+                Manage Digital Menu
+              </h2>
+              <p className="text-slate-500 dark:text-[#8b98b0] text-xs font-medium tracking-wide uppercase mt-0.5">
+                Configure categories, items, and pricing for {menuActiveVenue?.name || 'Restaurant'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setIsMenuModalVisible(false);
+              setMenuData(null);
+            }}
+            className="absolute top-5 right-6 text-slate-400 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+          >
+            <Plus size={20} className="rotate-45" />
+          </button>
+        </div>
+
+        {/* AI Autofill Banner */}
+        <div className="mx-6 mt-6 bg-[#fa6500]/5 dark:bg-[#fa6500]/5 border border-[#fa6500]/20 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex gap-3">
+            <Sparkles className="text-[#fa6500] shrink-0 mt-0.5" size={16} />
+            <div>
+              <h4 className="text-slate-800 dark:text-slate-100 font-semibold text-sm leading-none">AI Menu Auto-Extractor</h4>
+              <p className="text-slate-500 dark:text-[#8b98b0] text-xs mt-1">Upload a photo of your paper menu (JPEG/PNG) to instantly extract dishes, prices, and descriptions.</p>
+            </div>
+          </div>
+          <Upload
+            accept="image/*"
+            showUploadList={false}
+            beforeUpload={async (file) => {
+              const formData = new FormData();
+              formData.append('menu', file);
+              setLoadingMenu(true);
+              const toastId = toast.loading('AI is scanning and extracting menu items...');
+              try {
+                const res = await api.post(`/menu/venue/${menuActiveVenue._id}/extract-ocr`, formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                toast.dismiss(toastId);
+                if (res.data.success && res.data.items && res.data.items.length > 0) {
+                  // Append extracted items to menuData
+                  const currentItems = [...(menuData?.items || [])];
+                  const newItems = res.data.items.map(item => ({
+                    ...item,
+                    isAvailable: true
+                  }));
+                  setMenuData({
+                    ...menuData,
+                    items: [...currentItems, ...newItems]
+                  });
+                  toast.success(`Successfully extracted ${newItems.length} menu items!`);
+                } else {
+                  toast.error('AI could not extract items. Please make sure the photo is clear.');
+                }
+              } catch (err) {
+                toast.dismiss(toastId);
+                toast.error('Failed to parse menu image');
+              } finally {
+                setLoadingMenu(false);
+              }
+              return false; // prevent automatic upload
+            }}
+          >
+            <button className="bg-[#fa6500] hover:bg-[#e05800] text-white text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center gap-2 transition-all">
+              <Camera size={14} /> Upload Menu Photo
+            </button>
+          </Upload>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+          {/* Left: Items list */}
+          <div className="lg:col-span-7 space-y-4">
+            <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-sm uppercase tracking-wider">Current Menu Items</h3>
+            {loadingMenu ? (
+              <div className="text-center py-12 text-slate-500 dark:text-[#8b98b0]">Loading menu details...</div>
+            ) : (!menuData || !menuData.items || menuData.items.length === 0) ? (
+              <div className="text-center py-12 text-slate-500 dark:text-[#8b98b0] border border-dashed border-slate-200 dark:border-[#1e2d47] rounded-xl bg-slate-50 dark:bg-[#0f192b]">
+                No items in this menu yet. Use the form to add items.
+              </div>
+            ) : (
+              <div className="max-h-[350px] overflow-y-auto border border-slate-200 dark:border-[#1e2d47] bg-white dark:bg-[#0f192b]">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-[#1e2d47] bg-slate-50 dark:bg-[#131e35] text-xs text-slate-500 dark:text-[#8b98b0] font-bold uppercase">
+                      <th className="p-3">Name</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">Price</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {menuData.items.map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-200 dark:border-[#1e2d47] text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#131e35]/40 transition-colors">
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-800 dark:text-slate-100">{item.name}</div>
+                          {item.description && <div className="text-xs text-slate-500 dark:text-[#8b98b0] truncate max-w-[180px]">{item.description}</div>}
+                        </td>
+                        <td className="p-3 text-xs capitalize">{item.category || 'Mains'}</td>
+                        <td className="p-3 text-xs">Rs. {item.price}</td>
+                        <td className="p-3 text-right space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingMenuItemIdx(idx);
+                              menuItemForm.setFieldsValue({
+                                name: item.name,
+                                price: item.price,
+                                description: item.description,
+                                category: item.category || 'Mains',
+                                isVegetarian: !!item.isVegetarian,
+                                isVegan: !!item.isVegan,
+                                isGlutenFree: !!item.isGlutenFree,
+                                isAvailable: item.isAvailable !== false
+                              });
+                            }}
+                            className="text-[#fa6500] hover:text-[#fa6500]/85 text-xs font-semibold"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMenuItem(idx)}
+                            className="text-red-400 hover:text-red-300 text-xs font-semibold"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-[#1e2d47]">
+              <button
+                onClick={() => {
+                  setIsMenuModalVisible(false);
+                  setMenuData(null);
+                }}
+                className="btn-secondary py-2 px-4"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMenuToDB}
+                disabled={loadingMenu}
+                className="btn-primary py-2 px-4 shadow-none"
+              >
+                {loadingMenu ? 'Saving...' : 'Save Menu to Database'}
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Item Form */}
+          <div className="lg:col-span-5 bg-slate-50 dark:bg-[#131e35] p-5 rounded-2xl border border-slate-200 dark:border-[#1e2d47] space-y-4">
+            <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-sm uppercase tracking-wider">
+              {editingMenuItemIdx !== null ? 'Edit Menu Item' : 'Add Menu Item'}
+            </h3>
+            
+            <Form
+              form={menuItemForm}
+              layout="vertical"
+              onFinish={handleSaveMenuItem}
+              className="space-y-4"
+            >
+              <Form.Item
+                label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Item Name</span>}
+                name="name"
+                rules={[{ required: true, message: 'Please input item name' }]}
+              >
+                <Input className="input-field" placeholder="e.g. Chicken Momo" />
+              </Form.Item>
+
+              <Form.Item
+                label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Price (NPR)</span>}
+                name="price"
+                rules={[{ required: true, message: 'Please input price' }]}
+              >
+                <Input type="number" className="input-field" placeholder="e.g. 350" />
+              </Form.Item>
+
+              <Form.Item
+                label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Category</span>}
+                name="category"
+                rules={[{ required: true, message: 'Please select or input category' }]}
+              >
+                <Select className="input-field" placeholder="Select category">
+                  <Select.Option value="Starters">Starters</Select.Option>
+                  <Select.Option value="Mains">Mains</Select.Option>
+                  <Select.Option value="Desserts">Desserts</Select.Option>
+                  <Select.Option value="Beverages">Beverages</Select.Option>
+                  <Select.Option value="Sides">Sides</Select.Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                label={<span className="text-slate-500 dark:text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Description</span>}
+                name="description"
+              >
+                <Input.TextArea className="bg-white dark:bg-[#0f192b] border border-slate-200 dark:border-[#1e2d47] rounded-xl text-slate-800 dark:text-slate-100 p-2 focus:outline-none focus:border-[#fa6500]/50" rows={2} placeholder="Ingredients, taste profiles..." />
+              </Form.Item>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Form.Item name="isVegetarian" valuePropName="checked" className="mb-0">
+                  <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs cursor-pointer">
+                    <input type="checkbox" className="rounded border-slate-200 dark:border-[#1e2d47] bg-white dark:bg-[#0f192b] text-[#fa6500]" /> Vegetarian
+                  </label>
+                </Form.Item>
+                <Form.Item name="isVegan" valuePropName="checked" className="mb-0">
+                  <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs cursor-pointer">
+                    <input type="checkbox" className="rounded border-slate-200 dark:border-[#1e2d47] bg-white dark:bg-[#0f192b] text-[#fa6500]" /> Vegan
+                  </label>
+                </Form.Item>
+                <Form.Item name="isGlutenFree" valuePropName="checked" className="mb-0">
+                  <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs cursor-pointer">
+                    <input type="checkbox" className="rounded border-slate-200 dark:border-[#1e2d47] bg-white dark:bg-[#0f192b] text-[#fa6500]" /> Gluten Free
+                  </label>
+                </Form.Item>
+                <Form.Item name="isAvailable" valuePropName="checked" initialValue={true} className="mb-0">
+                  <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs cursor-pointer">
+                    <input type="checkbox" className="rounded border-slate-200 dark:border-[#1e2d47] bg-white dark:bg-[#0f192b] text-[#fa6500]" /> Available
+                  </label>
+                </Form.Item>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full bg-[#fa6500] hover:bg-[#e05800] text-white py-2 rounded-xl text-sm font-semibold transition-all shadow-md shadow-[#fa6500]/10"
+                >
+                  {editingMenuItemIdx !== null ? 'Update Item' : 'Add Item'}
+                </button>
+                {editingMenuItemIdx !== null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingMenuItemIdx(null);
+                      menuItemForm.resetFields();
+                    }}
+                    className="w-full text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 mt-2 text-xs font-semibold"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </Form>
+          </div>
         </div>
       </Modal>
     </div>
