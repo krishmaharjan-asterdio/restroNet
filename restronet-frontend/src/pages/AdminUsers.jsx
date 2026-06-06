@@ -59,14 +59,14 @@ const AdminUsers = () => {
       key: 'user',
       render: (_, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#1e2d47] rounded-full text-[#8b98b0] font-bold text-sm flex items-center justify-center flex-shrink-0 uppercase">
+          <div className="w-9 h-9 bg-slate-100 dark:bg-[#1e2d47] rounded-full text-slate-500 dark:text-[#8b98b0] font-bold text-sm flex items-center justify-center flex-shrink-0 uppercase">
             {record.name?.charAt(0) || '?'}
           </div>
           <div>
-            <div className="font-semibold text-slate-100 text-sm leading-tight">
+            <div className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-tight">
               {record.name}
             </div>
-            <div className="text-[#8b98b0] text-xs mt-0.5">{record.email}</div>
+            <div className="text-slate-500 dark:text-[#8b98b0] text-xs mt-0.5">{record.email}</div>
           </div>
         </div>
       ),
@@ -76,7 +76,7 @@ const AdminUsers = () => {
       dataIndex: 'role',
       key: 'role',
       render: (role) => (
-        <span className="bg-blue-900/40 text-blue-400 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+        <span className="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full px-2.5 py-0.5 text-xs font-semibold">
           {role || 'user'}
         </span>
       ),
@@ -86,7 +86,7 @@ const AdminUsers = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => (
-        <span className="text-[#8b98b0] text-sm">
+        <span className="text-slate-500 dark:text-[#8b98b0] text-sm">
           {date
             ? new Date(date).toLocaleDateString('en-US', {
                 month: 'short',
@@ -105,13 +105,13 @@ const AdminUsers = () => {
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
             isActive
-              ? 'bg-emerald-900/40 text-emerald-400'
-              : 'bg-red-900/40 text-red-400'
+              ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+              : 'bg-red-50 dark:bg-red-900/40 text-red-700 dark:text-red-400'
           }`}
         >
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isActive ? 'bg-emerald-400' : 'bg-red-400'
+              isActive ? 'bg-emerald-500' : 'bg-red-500'
             }`}
           />
           {isActive ? 'Active' : 'Blocked'}
@@ -132,7 +132,7 @@ const AdminUsers = () => {
             okButtonProps={{ danger: record.isActive }}
           >
             <button
-              className="bg-[#1e2d47] rounded-lg p-2 text-[#8b98b0] hover:text-[#fa6500] hover:bg-[#fa6500]/10 transition-all duration-150"
+              className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 text-slate-500 dark:text-[#8b98b0] hover:text-[#fa6500] hover:bg-[#fa6500]/10 transition-all duration-150"
               title={record.isActive ? 'Block user' : 'Unblock user'}
             >
               {record.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
@@ -147,7 +147,7 @@ const AdminUsers = () => {
             okButtonProps={{ danger: true }}
           >
             <button
-              className="bg-[#1e2d47] rounded-lg p-2 text-[#8b98b0] hover:text-red-400 hover:bg-red-900/30 transition-all duration-150"
+              className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 text-slate-500 dark:text-[#8b98b0] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-150"
               title="Delete user"
             >
               <Trash2 size={15} />
@@ -163,13 +163,13 @@ const AdminUsers = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b98b0] mb-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-[#8b98b0] mb-1">
             Platform Management
           </p>
-          <h1 className="text-2xl font-bold text-slate-100 leading-tight">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-tight">
             User Management
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage customer accounts and access controls.
           </p>
         </div>
@@ -178,14 +178,14 @@ const AdminUsers = () => {
         <div className="relative">
           <Search
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b98b0] pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#8b98b0] pointer-events-none"
           />
           <input
             type="text"
             placeholder="Search users…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-[#131e35] border border-[#1e2d47] text-slate-100 placeholder-[#4a5a78] text-sm rounded-xl pl-9 pr-4 py-2.5 w-64 outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all duration-150"
+            className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-[#4a5a78] text-sm rounded-xl pl-9 pr-4 py-2.5 w-64 outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all duration-150"
           />
         </div>
       </div>
@@ -196,25 +196,25 @@ const AdminUsers = () => {
           {
             label: 'Total Users',
             value: users.length,
-            color: 'text-slate-100',
+            color: 'text-slate-800 dark:text-slate-100',
           },
           {
             label: 'Active',
             value: users.filter((u) => u.isActive).length,
-            color: 'text-emerald-400',
+            color: 'text-emerald-600 dark:text-emerald-400',
           },
           {
             label: 'Blocked',
             value: users.filter((u) => !u.isActive).length,
-            color: 'text-red-400',
+            color: 'text-red-600 dark:text-red-400',
           },
         ].map((stat) => (
           <div
             key={stat.label}
-            className="bg-[#131e35] border border-[#1e2d47] rounded-xl px-4 py-3"
+            className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-3"
           >
             <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
-            <div className="text-[#8b98b0] text-xs font-medium mt-0.5">
+            <div className="text-slate-500 dark:text-[#8b98b0] text-xs font-medium mt-0.5">
               {stat.label}
             </div>
           </div>
@@ -224,17 +224,17 @@ const AdminUsers = () => {
       {/* Table / Empty / Loading */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="border-2 border-[#1e2d47] border-t-[#fa6500] rounded-full w-10 h-10 animate-spin" />
+          <div className="border-2 border-slate-200 dark:border-[#1e2d47] border-t-[#fa6500] rounded-full w-10 h-10 animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-[#131e35] rounded-2xl border border-dashed border-[#1e2d47] p-16 text-center">
-          <div className="w-14 h-14 bg-[#1e2d47] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Users size={24} className="text-[#8b98b0]" />
+        <div className="bg-white dark:bg-[#131e35] rounded-2xl border border-dashed border-slate-200 dark:border-[#1e2d47] p-16 text-center">
+          <div className="w-14 h-14 bg-slate-100 dark:bg-[#1e2d47] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Users size={24} className="text-slate-400 dark:text-[#8b98b0]" />
           </div>
-          <h3 className="text-slate-100 font-semibold text-base mb-1">
+          <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-base mb-1">
             {search ? 'No matching users' : 'No users yet'}
           </h3>
-          <p className="text-[#8b98b0] text-sm">
+          <p className="text-slate-500 dark:text-[#8b98b0] text-sm">
             {search
               ? 'Try a different search term.'
               : 'Users will appear here once they register.'}

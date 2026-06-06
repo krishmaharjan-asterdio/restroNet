@@ -173,7 +173,7 @@ const MyReservations = () => {
                         alt={res.venue?.name}
                       />
                     ) : (
-                      <span className="text-xl font-bold" className="text-primary shrink-0">
+                      <span className="text-xl font-bold text-primary shrink-0">
                         {res.venue?.name?.charAt(0) ?? '?'}
                       </span>
                     )}
@@ -210,7 +210,7 @@ const MyReservations = () => {
                     {/* Detail chips row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
-                        <Calendar size={13} className="text-primary shrink-0" className="shrink-0" />
+                        <Calendar size={13} className="text-primary shrink-0" />
                         {new Date(res.date).toLocaleDateString(undefined, {
                           weekday: 'short',
                           month: 'short',
@@ -219,11 +219,11 @@ const MyReservations = () => {
                         })}
                       </span>
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
-                        <Clock size={13} className="text-primary shrink-0" className="shrink-0" />
+                        <Clock size={13} className="text-primary shrink-0" />
                         {res.time}
                       </span>
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
-                        <Users size={13} className="text-primary shrink-0" className="shrink-0" />
+                        <Users size={13} className="text-primary shrink-0" />
                         {res.guests} {res.guests === 1 ? 'Guest' : 'Guests'}
                       </span>
                     </div>

@@ -4,7 +4,7 @@ import {
   Star, MapPin, Phone, Globe, Clock, Heart, Share2, ArrowLeft,
   CheckCircle2, MessageSquarePlus, List, Calendar, Utensils,
   Navigation, Users, ChevronLeft, ChevronRight, ExternalLink,
-  Camera, X, Trash2, ChevronDown
+  Camera, X, Trash2, ChevronDown, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, Modal, Form, Input, Rate, Button, Select } from 'antd';
@@ -351,6 +351,54 @@ const RestaurantDetail = () => {
               </p>
             )}
           </div>
+
+          {/* AI Review Summary Card */}
+          {venue && venue.aiSummary && venue.aiSummary.summaryText && (
+            <div className="bg-card border border-border p-6 rounded-2xl shadow-sm space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-primary animate-pulse" size={18} />
+                <h4 
+                  className="text-lg font-medium text-foreground"
+                  style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
+                >
+                  AI Review Summary & Insights
+                </h4>
+              </div>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {venue.aiSummary.summaryText}
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/50">
+                {/* Positives */}
+                {venue.aiSummary.positives?.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Diner Favorites</span>
+                    <div className="flex flex-wrap gap-2">
+                      {venue.aiSummary.positives.map((pos, idx) => (
+                        <span key={idx} className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-1 px-3 rounded-lg text-xs font-medium border border-emerald-500/20">
+                          {pos}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Constructives */}
+                {venue.aiSummary.constructives?.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Good to Know</span>
+                    <div className="flex flex-wrap gap-2">
+                      {venue.aiSummary.constructives.map((con, idx) => (
+                        <span key={idx} className="bg-amber-500/10 text-amber-600 dark:text-amber-400 py-1 px-3 rounded-lg text-xs font-medium border border-amber-500/20">
+                          {con}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {reviews.length === 0 ? (
             <div className="text-center py-12 bg-surface rounded-2xl border border-border">
