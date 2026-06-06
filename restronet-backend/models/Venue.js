@@ -109,6 +109,19 @@ const venueSchema = new mongoose.Schema(
       default: null,
     },
 
+    // ─── AI Fields ──────────────────────────────────────────────────────────
+    aiSummary: {
+      summaryText: { type: String, default: null },
+      positives: [{ type: String }],
+      constructives: [{ type: String }],
+      lastUpdated: { type: Date, default: null },
+      reviewCountSnapshot: { type: Number, default: 0 },
+    },
+    embedding: {
+      type: [Number], // 768-dimensional vector from Gemini text-embedding-004
+      default: undefined,
+    },
+
     // ─── Ownership ─────────────────────────────────────────────────────────
     owner: {
       type: mongoose.Schema.Types.ObjectId,

@@ -4,6 +4,7 @@ const { Cuisine, Tag } = require('../models/Metadata');
 const Venue = require('../models/Venue');
 const RestaurantFeature = require('../models/RestaurantFeature');
 const logger = require('../config/logger');
+const aiService = require('./aiService');
 
 /**
  * Builds the comprehensive feature vector for a given restaurant.
@@ -88,11 +89,17 @@ const buildRestaurantFeatureVector = async (venueId) => {
       { upsert: true, new: true }
     );
 
-    // Link back to Venue
-    if (venue.featureVector?.toString() !== featureDoc._id.toString()) {
-      venue.featureVector = featureDoc._id;
-      await venue.save({ validateBeforeSave: false }); // Skip hook triggers
+    // Generate text embedding using Gemini
+    const embedding = await aiService.generateEmbedding(textCorpus).catch((err) => {
+      logger.warn(`Failed to generate embedding for venue ${venue.name}: ${err.message}`);
+      return null;
+    });
+
+    venue.featureVector = featureDoc._id;
+    if (embedding) {
+      venue.embedding = embedding;
     }
+    await venue.save({ validateBeforeSave: false }); // Skip hook triggers
 
     logger.info(`✅ Built feature vector for venue: ${venue.name}`);
     return featureDoc;
