@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Table, Button, Popconfirm, Tag, Space } from 'antd';
-import { UserX, UserCheck, Trash2 } from 'lucide-react';
+import { Table, Popconfirm } from 'antd';
+import { UserX, UserCheck, Trash2, Users, Search } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -9,6 +9,7 @@ const AdminUsers = () => {
   const { admin } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -46,53 +47,96 @@ const AdminUsers = () => {
     }
   };
 
+  const filtered = users.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
   const columns = [
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text) => <span className="font-bold text-warm-900">{text}</span>,
+      title: 'User',
+      key: 'user',
+      render: (_, record) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#1e2d47] rounded-full text-[#8b98b0] font-bold text-sm flex items-center justify-center flex-shrink-0 uppercase">
+            {record.name?.charAt(0) || '?'}
+          </div>
+          <div>
+            <div className="font-semibold text-slate-100 text-sm leading-tight">
+              {record.name}
+            </div>
+            <div className="text-[#8b98b0] text-xs mt-0.5">{record.email}</div>
+          </div>
+        </div>
+      ),
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      render: (text) => <span className="text-warm-600">{text}</span>,
+      title: 'Role',
+      dataIndex: 'role',
+      key: 'role',
+      render: (role) => (
+        <span className="bg-blue-900/40 text-blue-400 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+          {role || 'user'}
+        </span>
+      ),
     },
     {
-      title: 'Joined Date',
+      title: 'Joined',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date) => <span className="text-warm-600">{new Date(date).toLocaleDateString()}</span>,
+      render: (date) => (
+        <span className="text-[#8b98b0] text-sm">
+          {date
+            ? new Date(date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : '—'}
+        </span>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive) => (
-        <Tag color={isActive ? 'green' : 'red'} className="rounded-full px-3 py-0.5 font-semibold">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+            isActive
+              ? 'bg-emerald-900/40 text-emerald-400'
+              : 'bg-red-900/40 text-red-400'
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isActive ? 'bg-emerald-400' : 'bg-red-400'
+            }`}
+          />
           {isActive ? 'Active' : 'Blocked'}
-        </Tag>
+        </span>
       ),
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Popconfirm
-            title={record.isActive ? "Block User" : "Unblock User"}
+            title={record.isActive ? 'Block User' : 'Unblock User'}
             description={`Are you sure you want to ${record.isActive ? 'block' : 'unblock'} this user?`}
             onConfirm={() => handleToggleBlock(record._id, record.isActive)}
             okText="Yes"
             cancelText="No"
             okButtonProps={{ danger: record.isActive }}
           >
-            <Button
-              type="text"
-              icon={record.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
-              className={record.isActive ? "text-orange-600 hover:bg-orange-50" : "text-green-600 hover:bg-green-50"}
-            />
+            <button
+              className="bg-[#1e2d47] rounded-lg p-2 text-[#8b98b0] hover:text-[#fa6500] hover:bg-[#fa6500]/10 transition-all duration-150"
+              title={record.isActive ? 'Block user' : 'Unblock user'}
+            >
+              {record.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+            </button>
           </Popconfirm>
           <Popconfirm
             title="Delete User"
@@ -102,14 +146,14 @@ const AdminUsers = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 size={16} />}
-              className="hover:bg-red-50"
-            />
+            <button
+              className="bg-[#1e2d47] rounded-lg p-2 text-[#8b98b0] hover:text-red-400 hover:bg-red-900/30 transition-all duration-150"
+              title="Delete user"
+            >
+              <Trash2 size={15} />
+            </button>
           </Popconfirm>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -117,29 +161,95 @@ const AdminUsers = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1
-            style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}
-            className="text-3xl font-medium text-warm-900"
-          >
-            Users
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b98b0] mb-1">
+            Platform Management
+          </p>
+          <h1 className="text-2xl font-bold text-slate-100 leading-tight">
+            User Management
           </h1>
-          <p className="text-sm text-warm-500 mt-1">Manage user accounts and access.</p>
+          <p className="text-sm text-slate-400 mt-1">
+            Manage customer accounts and access controls.
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b98b0] pointer-events-none"
+          />
+          <input
+            type="text"
+            placeholder="Search users…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-[#131e35] border border-[#1e2d47] text-slate-100 placeholder-[#4a5a78] text-sm rounded-xl pl-9 pr-4 py-2.5 w-64 outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all duration-150"
+          />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-card">
-        <Table
-          columns={columns}
-          dataSource={users}
-          rowKey="_id"
-          loading={loading}
-          pagination={{ pageSize: 10, className: 'px-4' }}
-          className="admin-table"
-        />
+      {/* Stats strip */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          {
+            label: 'Total Users',
+            value: users.length,
+            color: 'text-slate-100',
+          },
+          {
+            label: 'Active',
+            value: users.filter((u) => u.isActive).length,
+            color: 'text-emerald-400',
+          },
+          {
+            label: 'Blocked',
+            value: users.filter((u) => !u.isActive).length,
+            color: 'text-red-400',
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-[#131e35] border border-[#1e2d47] rounded-xl px-4 py-3"
+          >
+            <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+            <div className="text-[#8b98b0] text-xs font-medium mt-0.5">
+              {stat.label}
+            </div>
+          </div>
+        ))}
       </div>
+
+      {/* Table / Empty / Loading */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="border-2 border-[#1e2d47] border-t-[#fa6500] rounded-full w-10 h-10 animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-[#131e35] rounded-2xl border border-dashed border-[#1e2d47] p-16 text-center">
+          <div className="w-14 h-14 bg-[#1e2d47] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Users size={24} className="text-[#8b98b0]" />
+          </div>
+          <h3 className="text-slate-100 font-semibold text-base mb-1">
+            {search ? 'No matching users' : 'No users yet'}
+          </h3>
+          <p className="text-[#8b98b0] text-sm">
+            {search
+              ? 'Try a different search term.'
+              : 'Users will appear here once they register.'}
+          </p>
+        </div>
+      ) : (
+        <div className="admin-table">
+          <Table
+            columns={columns}
+            dataSource={filtered}
+            rowKey="_id"
+            pagination={{ pageSize: 10, className: 'px-4 py-3' }}
+          />
+        </div>
+      )}
     </div>
   );
 };
