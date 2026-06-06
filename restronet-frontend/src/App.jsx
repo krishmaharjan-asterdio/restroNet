@@ -2,8 +2,10 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import RestaurantDetail from './pages/RestaurantDetail';
@@ -14,7 +16,6 @@ import Discover from './pages/Discover';
 import MyReservations from './pages/MyReservations';
 import NotFound from './pages/NotFound';
 
-// Admin Imports
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminRestaurants from './pages/AdminRestaurants';
@@ -24,79 +25,88 @@ import AdminOwners from './pages/AdminOwners';
 import AdminReservations from './pages/AdminReservations';
 import AdminLayout from './components/AdminLayout';
 
-// Public Layout
 const PublicLayout = ({ children }) => {
   const location = useLocation();
   const isHome = location.pathname === '/';
-  
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       <Navbar />
       <main className={`flex-grow flex flex-col ${isHome ? '' : 'pt-20'}`}>
         {children}
       </main>
+      <Footer />
     </div>
   );
 };
 
-// Admin Wrapper
-const AdminWrapper = ({ children }) => {
-  return <AdminLayout>{children}</AdminLayout>;
+const AdminWrapper = ({ children }) => <AdminLayout>{children}</AdminLayout>;
+
+const ToasterWrapper = () => {
+  const { isDark } = useTheme();
+  return (
+    <Toaster
+      position="top-right"
+      toastOptions={{
+        duration: 4000,
+        style: {
+          borderRadius: '12px',
+          background: isDark ? '#131e35' : '#1a1814',
+          color: isDark ? '#f0ece4' : '#fff',
+          border: isDark ? '1px solid #1e2d47' : '1px solid rgba(255,255,255,0.1)',
+          boxShadow: isDark
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.2)',
+          fontSize: '14px',
+          fontWeight: '500',
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+        },
+        success: { iconTheme: { primary: '#fa6500', secondary: '#fff' } },
+        error:   { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+      }}
+    />
+  );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Admin Login (No Layout) */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-
-          {/* Protected Admin Routes */}
-          <Route path="/admin/*" element={
-            <AdminWrapper>
-              <Routes>
-                <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="restaurants" element={<AdminRestaurants />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="owners" element={<AdminOwners />} />
-                <Route path="reservations" element={<AdminReservations />} />
-                <Route path="reviews" element={<AdminReviews />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AdminWrapper>
-          } />
-
-          {/* Public & User Routes */}
-          <Route path="/*" element={
-            <PublicLayout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/reservations" element={<MyReservations />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </PublicLayout>
-          } />
-        </Routes>
-      </Router>
-      <Toaster 
-        position="top-right" 
-        toastOptions={{ 
-          duration: 4000,
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        }} 
-      />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/*" element={
+              <AdminWrapper>
+                <Routes>
+                  <Route path="dashboard"    element={<AdminDashboard />} />
+                  <Route path="restaurants"  element={<AdminRestaurants />} />
+                  <Route path="users"        element={<AdminUsers />} />
+                  <Route path="owners"       element={<AdminOwners />} />
+                  <Route path="reservations" element={<AdminReservations />} />
+                  <Route path="reviews"      element={<AdminReviews />} />
+                  <Route path="*"            element={<NotFound />} />
+                </Routes>
+              </AdminWrapper>
+            } />
+            <Route path="/*" element={
+              <PublicLayout>
+                <Routes>
+                  <Route path="/"                   element={<Home />} />
+                  <Route path="/search"             element={<Search />} />
+                  <Route path="/discover"           element={<Discover />} />
+                  <Route path="/restaurant/:slug"   element={<RestaurantDetail />} />
+                  <Route path="/login"              element={<Login />} />
+                  <Route path="/register"           element={<Register />} />
+                  <Route path="/profile"            element={<Profile />} />
+                  <Route path="/reservations"       element={<MyReservations />} />
+                  <Route path="*"                   element={<NotFound />} />
+                </Routes>
+              </PublicLayout>
+            } />
+          </Routes>
+          <ToasterWrapper />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
