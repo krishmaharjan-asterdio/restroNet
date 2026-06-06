@@ -5,6 +5,7 @@ const Reservation = require('../models/Reservation');
 const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
 const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
+const aiService = require('./aiService');
 
 // ─── Mood → Tag keyword mapping ───────────────────────────────────────────────
 const MOOD_KEYWORDS = {
@@ -158,6 +159,12 @@ const getSmartRecommendations = async ({
 
   const hasLocation = lat !== null && lng !== null && !(lat === 0 && lng === 0);
 
+  // Generate query embedding if search term is provided
+  let queryEmbedding = null;
+  if (searchTerm && process.env.GEMINI_API_KEY) {
+    queryEmbedding = await aiService.generateEmbedding(searchTerm).catch(() => null);
+  }
+
   const weights = computeWeights({
     hasCuisine:    cuisineIds.length > 0,
     hasCategory:   categoryIds.length > 0,
@@ -167,6 +174,7 @@ const getSmartRecommendations = async ({
     hasPriceFilter: priceRanges.length > 0,
     isTopRated,
     hasImplicit:   !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length),
+    hasVector:     !!queryEmbedding,
   });
 
   // Resolve mood tag IDs via keyword match
@@ -203,6 +211,11 @@ const getSmartRecommendations = async ({
     const moodScore      = computeMoodScore(venue, moodTagIds);
     const popularityScore = computePopularityScore(venue, maxReviews);
     const featuredBoost  = venue.isFeatured ? 0.08 : 0;
+    const timeBoost      = computeTimeBoost(venue);
+
+    const vectorSimilarity = (queryEmbedding && venue.embedding && venue.embedding.length > 0)
+      ? computeCosineSimilarity(queryEmbedding, venue.embedding)
+      : 0.5;
 
     // Implicit feedback: combined cuisine + tag affinity from behavior
     const implicitScore = implicitProfile
@@ -236,25 +249,33 @@ const getSmartRecommendations = async ({
 
     const activeWeights = { ...weights };
     if (searchTerm) {
-      activeWeights.name = 0.4;
-      const remaining = 0.6;
-      const sumOthers = Object.keys(weights).reduce((acc, k) => acc + weights[k], 0);
-      Object.keys(weights).forEach(k => { activeWeights[k] = (weights[k] / sumOthers) * remaining; });
+      activeWeights.name = 0.3;
+      activeWeights.vector = queryEmbedding ? 0.3 : 0.0;
+      const remaining = 1.0 - (activeWeights.name + activeWeights.vector);
+      const sumOthers = Object.keys(weights)
+        .filter(k => k !== 'name' && k !== 'vector')
+        .reduce((acc, k) => acc + weights[k], 0);
+      Object.keys(weights).forEach(k => {
+        if (k !== 'name' && k !== 'vector') {
+          activeWeights[k] = (weights[k] / sumOthers) * remaining;
+        }
+      });
     }
 
     const rawScore =
       (activeWeights.name || 0)       * nameScore       +
-      activeWeights.cuisine            * cuisineScore    +
-      activeWeights.category           * categoryScore   +
-      activeWeights.tag                * tagScore        +
-      activeWeights.price              * priceScore      +
-      activeWeights.rating             * ratingScore     +
-      activeWeights.distance           * distanceScore   +
-      activeWeights.mood               * moodScore       +
+      (activeWeights.cuisine || 0)    * cuisineScore    +
+      (activeWeights.category || 0)   * categoryScore   +
+      (activeWeights.tag || 0)        * tagScore        +
+      (activeWeights.price || 0)      * priceScore      +
+      (activeWeights.rating || 0)     * ratingScore     +
+      (activeWeights.distance || 0)   * distanceScore   +
+      (activeWeights.mood || 0)       * moodScore       +
       (activeWeights.popularity || 0)  * popularityScore +
-      (activeWeights.implicit  || 0)   * implicitScore;
+      (activeWeights.implicit  || 0)   * implicitScore   +
+      (activeWeights.vector || 0)     * vectorSimilarity;
 
-    const finalScore = (rawScore + featuredBoost) * visitedPenalty;
+    const finalScore = (rawScore + featuredBoost + timeBoost) * visitedPenalty;
 
     return {
       venue,
@@ -274,6 +295,8 @@ const getSmartRecommendations = async ({
         mood:          Math.round(moodScore        * 100),
         popularity:    Math.round(popularityScore  * 100),
         implicit:      Math.round(implicitScore    * 100),
+        vector:        Math.round(vectorSimilarity * 100),
+        timeBoost:     Math.round(timeBoost        * 100),
         featured:      venue.isFeatured ? 8 : 0,
         matchedFields: textMatch.matchedFields,
         matchReason:   textMatch.matchReason,
@@ -368,7 +391,7 @@ const getSmartRecommendations = async ({
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
 
-function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit }) {
+function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit, hasVector }) {
   let w = {
     cuisine:    0.18,
     category:   0.12,
@@ -379,6 +402,7 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
     price:      0.08,
     popularity: 0.07,
     implicit:   0.05,
+    vector:     0.00,
   };
 
   if (isTopRated)    { w.rating += 0.35; w.cuisine -= 0.08; w.category -= 0.08; w.tag -= 0.05; w.distance -= 0.05; w.mood -= 0.05; w.price -= 0.04; }
@@ -389,6 +413,15 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
   if (hasLocation)   { w.distance += 0.10; w.rating -= 0.05; }
   if (hasPriceFilter){ w.price    += 0.05; w.rating -= 0.05; }
   if (hasImplicit)   { w.implicit += 0.08; w.rating -= 0.04; }
+
+  if (hasVector) {
+    w.vector = 0.25;
+    // Scale down other weights
+    const factor = 0.75;
+    Object.keys(w).forEach(k => {
+      if (k !== 'vector') w[k] *= factor;
+    });
+  }
 
   // Clamp negatives
   Object.keys(w).forEach(k => { w[k] = Math.max(0.02, w[k]); });
@@ -455,8 +488,62 @@ function computeMoodScore(venue, moodTagIds) {
  */
 function computePopularityScore(venue, maxReviews) {
   const reviews = venue.totalReviews || 0;
-  if (reviews === 0) return 0.1;
-  return Math.min(1, Math.log1p(reviews) / Math.log1p(maxReviews));
+  let score = 0.1;
+  if (reviews > 0) {
+    score = Math.min(1, Math.log1p(reviews) / Math.log1p(maxReviews));
+  }
+  
+  // Cold-start / New Launch Boost:
+  // If restaurant was created in the last 30 days, ensure a baseline popularity score of 0.35
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  if (venue.createdAt && new Date(venue.createdAt) > thirtyDaysAgo) {
+    score = Math.max(score, 0.35);
+  }
+  return score;
+}
+
+/**
+ * Computes cosine similarity between two numeric arrays of the same length.
+ */
+function computeCosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0.5;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0.5;
+  const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  // Normalize similarity from [-1, 1] to [0, 1] range
+  return (similarity + 1) / 2;
+}
+
+/**
+ * Dynamically boosts restaurants if they specialize in items fitting the current time of day.
+ */
+function computeTimeBoost(venue) {
+  const currentHour = new Date().getHours();
+  let currentMealContext = 'all-day';
+  
+  if (currentHour >= 6 && currentHour < 11) {
+    currentMealContext = 'breakfast';
+  } else if (currentHour >= 11 && currentHour < 15) {
+    currentMealContext = 'lunch';
+  } else if (currentHour >= 15 && currentHour < 18) {
+    currentMealContext = 'snacks';
+  } else if (currentHour >= 18 && currentHour < 23) {
+    currentMealContext = 'dinner';
+  }
+  
+  // If the venue has explicitly defined mealTypes and supports the current context
+  if (venue.mealTypes && venue.mealTypes.includes(currentMealContext)) {
+    return 0.05; // 5% positive boost
+  }
+  return 0;
 }
 
 /**

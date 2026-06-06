@@ -90,6 +90,52 @@ reviewSchema.statics.recalculateRating = async function (venueId) {
   }
 };
 
+// ─── Pre-save Hook: Automated Content Moderation via Gemini ───────────────────
+reviewSchema.pre('save', async function (next) {
+  // Only moderate if the comment was modified and is not empty
+  if (!this.isModified('comment') || !this.comment) {
+    return next();
+  }
+
+  // If Gemini API Key is missing, skip moderation (fail-open)
+  if (!process.env.GEMINI_API_KEY) {
+    return next();
+  }
+
+  try {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `
+You are an automated content moderation agent for RestroNet, a luxury restaurant recommendation portal in Kathmandu.
+Analyze this user review comment and determine if it violates community standards (extreme profanity, hate speech, spam/advertising links, or complete gibberish).
+Constructive critical feedback (e.g. "the service was slow", "the food was cold") is NOT a violation and should be approved.
+
+REVIEW TO ANALYZE: "${this.comment}"
+
+Respond with valid JSON ONLY:
+{
+  "isApproved": boolean,
+  "moderationNote": "Reason for rejection if isApproved is false, otherwise null"
+}
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const moderation = JSON.parse(jsonMatch[0]);
+      this.isApproved = moderation.isApproved;
+      this.moderationNote = moderation.moderationNote;
+    }
+  } catch (error) {
+    console.error('AI Review Moderation failed, bypass moderation:', error.message);
+    this.isApproved = true; // Fail-open
+  }
+  next();
+});
+
 // ─── Post-save Hook: Recalculate rating after review saved ────────────────────
 reviewSchema.post('save', async function () {
   await this.constructor.recalculateRating(this.venue);
