@@ -22,6 +22,7 @@ const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const userRoutes = require('./routes/userRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 
@@ -78,6 +79,7 @@ app.use('/api/admin/dashboard', adminDashboardRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use('*', (req, res) => {
