@@ -313,6 +313,7 @@ const Discover = () => {
   const [locationError, setLocationError]       = useState(null);
   const [maxDistance, setMaxDistance]           = useState(10);
   const [aiExplanation, setAiExplanation]       = useState(null);
+  const [trendingOnly, setTrendingOnly]         = useState(false);
 
   const debounceRef = useRef(null);
   const sortRef = useRef(null);
@@ -360,6 +361,7 @@ const Discover = () => {
           params.set('lng', userCoords.lng);
           params.set('maxDistance', maxDistance);
         }
+        if (trendingOnly) params.set('isTrending', 'true');
         params.set('limit', '24');
 
         const res = await api.get(`/recommendations/smart?${params.toString()}`);
@@ -382,7 +384,7 @@ const Discover = () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance, sortBy]);
+  }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance, sortBy, trendingOnly]);
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -432,13 +434,15 @@ const Discover = () => {
     setSelectedPrices([]);
     setSelectedMood(null);
     setMaxDistance(10);
+    setTrendingOnly(false);
   };
 
   const activeFilterCount =
     selectedCuisines.length +
     selectedPrices.length +
     (selectedMood ? 1 : 0) +
-    (locationEnabled ? 1 : 0);
+    (locationEnabled ? 1 : 0) +
+    (trendingOnly ? 1 : 0);
 
   const activeMood = MOODS.find(m => m.id === selectedMood);
   const activeSortLabel = SORT_OPTIONS.find(s => s.value === sortBy)?.label || 'Recommended';
@@ -690,6 +694,20 @@ const Discover = () => {
                 <MapPin size={12} />
                 {locationEnabled ? `Within ${maxDistance} km` : 'Nearby'}
               </button>
+
+              {/* Trending chip */}
+              <button
+                onClick={() => setTrendingOnly(prev => !prev)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold shrink-0 transition-all duration-200"
+                style={{
+                  background: trendingOnly ? '#fa6500' : 'hsl(var(--surface))',
+                  color: trendingOnly ? '#ffffff' : 'hsl(var(--muted-foreground))',
+                  border: `1px solid ${trendingOnly ? '#fa6500' : 'hsl(var(--border))'}`,
+                  boxShadow: trendingOnly ? '0 4px 14px rgba(250,101,0,0.18)' : 'none',
+                }}
+              >
+                🔥 Trending
+              </button>
             </div>
 
             {/* Sort dropdown */}
@@ -777,7 +795,7 @@ const Discover = () => {
           </AnimatePresence>
 
           {/* Active filter chips row */}
-          {(selectedMood || selectedCuisines.length > 0 || selectedPrices.length > 0 || locationEnabled) && (
+          {(selectedMood || selectedCuisines.length > 0 || selectedPrices.length > 0 || locationEnabled || trendingOnly) && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -814,6 +832,13 @@ const Discover = () => {
                   label={`📍 Within ${maxDistance} km`}
                   onRemove={disableLocation}
                   color="bg-surface text-foreground border-border"
+                />
+              )}
+              {trendingOnly && (
+                <FilterChip
+                  label="🔥 Trending"
+                  onRemove={() => setTrendingOnly(false)}
+                  color="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900/50"
                 />
               )}
               {activeFilterCount > 1 && (

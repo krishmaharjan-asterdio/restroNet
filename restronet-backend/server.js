@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const logger = require('./config/logger');
 const errorHandler = require('./middleware/errorHandler');
+const automationService = require('./services/automationService');
 
 // ─── Route Imports ────────────────────────────────────────────────────────────
 const authRoutes = require('./routes/authRoutes');
@@ -27,7 +28,9 @@ const chatRoutes = require('./routes/chatRoutes');
 const app = express();
 
 // ─── Connect Database ─────────────────────────────────────────────────────────
-connectDB();
+connectDB().then(() => {
+  automationService.registerJobs();
+});
 
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet({
@@ -35,12 +38,26 @@ app.use(helmet({
 }));
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-const limiter = rateLimit({
+const apiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later.' },
+  skip: (req) => req.path.startsWith('/auth/') || req.path.startsWith('/admin/auth/'),
 });
-// app.use('/api/', limiter);
+
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many authentication attempts, please try again later.' },
+});
+
+app.use('/api/auth/', authLimiter);
+app.use('/api/admin/auth/', authLimiter);
+app.use('/api/', apiLimiter);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -66,6 +83,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'RESTRONET API is running 🚀', timestamp: new Date().toISOString() });
 });
+
+// ─── Dev-only Job Trigger ─────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  const { reservationReminderJob, reviewRequestJob, trendingDetectionJob, dailyDigestJob } = automationService;
+  const devJobs = {
+    'reservation-reminders': reservationReminderJob,
+    'review-requests':       reviewRequestJob,
+    'trending-detection':    trendingDetectionJob,
+    'daily-digest':          dailyDigestJob,
+  };
+  app.post('/api/dev/run-job/:job', async (req, res, next) => {
+    const fn = devJobs[req.params.job];
+    if (!fn) return res.status(404).json({ success: false, message: `Unknown job: ${req.params.job}` });
+    try {
+      await fn();
+      res.json({ success: true, message: `Job '${req.params.job}' executed` });
+    } catch (err) {
+      next(err);
+    }
+  });
+}
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

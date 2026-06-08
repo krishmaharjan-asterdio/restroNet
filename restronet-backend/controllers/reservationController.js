@@ -1,5 +1,6 @@
 const Reservation = require('../models/Reservation');
 const Venue = require('../models/Venue');
+const { validateBookingTime } = require('../utils/openingHoursValidator');
 
 /**
  * @desc    Create a reservation
@@ -13,6 +14,12 @@ const createReservation = async (req, res, next) => {
     const venue = await Venue.findById(venueId);
     if (!venue) {
       return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+
+    // Opening hours validation
+    const hoursCheck = validateBookingTime(venue.openingHours, date, time);
+    if (!hoursCheck.allowed) {
+      return res.status(400).json({ success: false, message: hoursCheck.message });
     }
 
     const reservation = await Reservation.create({

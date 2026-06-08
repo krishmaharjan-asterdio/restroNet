@@ -1,7 +1,7 @@
 const express = require('express');
-const { getVenues, getVenueById, createVenue, updateVenue, deleteVenue } = require('../controllers/venueController');
+const { getVenues, getVenueById, createVenue, updateVenue, deleteVenue, getMenuSuggestions, getVenueSlots } = require('../controllers/venueController');
 const { importFromOSM, searchExternal } = require('../controllers/scraperController');
-const { protectAdmin, optionalAdminAuth } = require('../middleware/authMiddleware');
+const { protectAdmin, optionalAdminAuth, optionalAuth } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -11,6 +11,9 @@ router.route('/')
 
 router.get('/search-external', protectAdmin, searchExternal);
 router.post('/import-osm', protectAdmin, importFromOSM);
+
+router.get('/:id/menu-suggestions', optionalAuth, getMenuSuggestions);
+router.get('/:id/slots', getVenueSlots);
 
 router.route('/:idOrSlug')
   .get(getVenueById)

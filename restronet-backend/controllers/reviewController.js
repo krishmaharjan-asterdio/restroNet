@@ -83,26 +83,36 @@ const addReview = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Venue not found' });
     }
 
-    // Check if user already left a review
     const existingReview = await Review.findOne({
       venue: req.params.venueId,
       user: req.user._id,
     });
-
     if (existingReview) {
       return res.status(400).json({ success: false, message: 'You have already reviewed this venue' });
     }
 
-    const review = await Review.create({
+    const reviewData = {
       venue: req.params.venueId,
       user: req.user._id,
       rating: req.body.rating,
       title: req.body.title,
       comment: req.body.comment,
-    });
+    };
 
-    // Rating changes affect the normalized rating in CBF feature vector
-    // We rebuild the feature vector asynchronously
+    if (req.body.comment?.trim()) {
+      const modResult = await aiService.moderateReview(req.body.comment).catch(() => null);
+      if (
+        modResult &&
+        ['spam', 'toxic'].includes(modResult.classification) &&
+        modResult.confidence > 0.85
+      ) {
+        reviewData.isHidden = true;
+        reviewData.moderationNote = `Auto-flagged: ${modResult.classification} (${Math.round(modResult.confidence * 100)}% confidence). Reason: ${modResult.reason}`;
+      }
+    }
+
+    const review = await Review.create(reviewData);
+
     buildRestaurantFeatureVector(req.params.venueId).catch(console.error);
     updateVenueAISummary(req.params.venueId).catch(console.error);
 

@@ -132,6 +132,12 @@ const venueSchema = new mongoose.Schema(
     // ─── Status ─────────────────────────────────────────────────────────────
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    isTrending:    { type: Boolean, default: false },
+    trendingScore: { type: Number,  default: 0 },
+
+    maxCapacity:         { type: Number, default: null },
+    slotDurationMinutes: { type: Number, default: 60 },
+    staleFlag:           { type: Boolean, default: false },
 
     // ─── External Source (Scraper/Importer) ─────────────────────────────────
     osmId: { type: String, unique: true, sparse: true },

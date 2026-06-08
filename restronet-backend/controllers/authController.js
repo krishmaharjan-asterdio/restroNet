@@ -62,6 +62,9 @@ const login = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
     const token = generateToken(user._id);
 
     res.json({

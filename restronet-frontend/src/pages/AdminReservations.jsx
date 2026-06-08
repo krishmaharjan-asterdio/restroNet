@@ -217,7 +217,7 @@ const AdminReservations = () => {
               Manage table bookings and guest schedules across your platform.
             </p>
           </div>
-          <div className="text-sm text-slate-500 dark:text-[#8b98b0] bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-lg px-4 py-2">
+          <div className="text-sm text-slate-500 dark:text-[#8b98b0] bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-2">
             <span className="text-slate-700 dark:text-slate-300 font-semibold">{filteredReservations.length}</span>{' '}
             {activeFilter === 'all' ? 'total' : activeFilter} reservations
           </div>

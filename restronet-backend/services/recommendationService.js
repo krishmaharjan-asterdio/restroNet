@@ -165,6 +165,17 @@ const getSmartRecommendations = async ({
     queryEmbedding = await aiService.generateEmbedding(searchTerm).catch(() => null);
   }
 
+  // Build user preference vector for CBF scoring
+  let userPreferenceVector = null;
+  if (implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length > 0) {
+    const { Cuisine: CuisineModel, Tag: TagModel } = require('../models/Metadata');
+    const [allCuisinesVec, allTagsVec] = await Promise.all([
+      CuisineModel.find().sort({ _id: 1 }).select('_id').lean(),
+      TagModel.find().sort({ _id: 1 }).select('_id').lean(),
+    ]);
+    userPreferenceVector = buildUserPreferenceVector(implicitProfile, allCuisinesVec, allTagsVec);
+  }
+
   const weights = computeWeights({
     hasCuisine:    cuisineIds.length > 0,
     hasCategory:   categoryIds.length > 0,
@@ -175,6 +186,7 @@ const getSmartRecommendations = async ({
     isTopRated,
     hasImplicit:   !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length),
     hasVector:     !!queryEmbedding,
+    hasCbfVector:  !!userPreferenceVector,   // ADD THIS LINE
   });
 
   // Resolve mood tag IDs via keyword match
@@ -189,9 +201,18 @@ const getSmartRecommendations = async ({
   if (city) {
     filterQuery['address.city'] = { $regex: city, $options: 'i' };
   }
+  if (hasLocation) {
+    filterQuery.location = {
+      $near: {
+        $geometry: { type: 'Point', coordinates: [lng, lat] },
+        $maxDistance: maxDistanceKm * 1000, // metres
+      },
+    };
+  }
 
   const venues = await Venue.find(filterQuery)
     .populate('cuisines tags category')
+    .populate({ path: 'featureVector', select: 'combinedVector' })
     .lean();
 
   // Compute max totalReviews for normalisation (popularity signal)
@@ -221,6 +242,9 @@ const getSmartRecommendations = async ({
     const implicitScore = implicitProfile
       ? computeImplicitScore(venue, implicitProfile)
       : 0.5;
+
+    // CBF vector score: cosine similarity between user preference vector and venue feature vector
+    const cbfVectorScore = computeCBFVectorScore(venue, userPreferenceVector);
 
     // Skip venues the user has already visited (soft penalty, not exclusion)
     const visitedPenalty = (implicitProfile?.visitedIds?.has(venueId)) ? 0.85 : 1.0;
@@ -273,7 +297,8 @@ const getSmartRecommendations = async ({
       (activeWeights.mood || 0)       * moodScore       +
       (activeWeights.popularity || 0)  * popularityScore +
       (activeWeights.implicit  || 0)   * implicitScore   +
-      (activeWeights.vector || 0)     * vectorSimilarity;
+      (activeWeights.vector || 0)     * vectorSimilarity +
+      (activeWeights.cbfVector || 0)  * cbfVectorScore;
 
     const finalScore = (rawScore + featuredBoost + timeBoost) * visitedPenalty;
 
@@ -296,6 +321,7 @@ const getSmartRecommendations = async ({
         popularity:    Math.round(popularityScore  * 100),
         implicit:      Math.round(implicitScore    * 100),
         vector:        Math.round(vectorSimilarity * 100),
+        cbfVector:     Math.round(cbfVectorScore   * 100),
         timeBoost:     Math.round(timeBoost        * 100),
         featured:      venue.isFeatured ? 8 : 0,
         matchedFields: textMatch.matchedFields,
@@ -371,6 +397,7 @@ const getSmartRecommendations = async ({
     scoreBreakdown: item.scoreBreakdown,
     distanceKm: item.distanceKm,
     matchedMood: mood,
+    matchLabel: computeMatchLabel(item.scoreBreakdown, mood, item.distanceKm, !!userId),
   }));
 
   const suggestions = (searchTerm && results.length === 0)
@@ -391,7 +418,7 @@ const getSmartRecommendations = async ({
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
 
-function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit, hasVector }) {
+function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit, hasVector, hasCbfVector = false }) {
   let w = {
     cuisine:    0.18,
     category:   0.12,
@@ -403,6 +430,7 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
     popularity: 0.07,
     implicit:   0.05,
     vector:     0.00,
+    cbfVector:  0.00,
   };
 
   if (isTopRated)    { w.rating += 0.35; w.cuisine -= 0.08; w.category -= 0.08; w.tag -= 0.05; w.distance -= 0.05; w.mood -= 0.05; w.price -= 0.04; }
@@ -412,7 +440,7 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
   if (hasMood)       { w.mood     += 0.10; w.rating -= 0.05; }
   if (hasLocation)   { w.distance += 0.10; w.rating -= 0.05; }
   if (hasPriceFilter){ w.price    += 0.05; w.rating -= 0.05; }
-  if (hasImplicit)   { w.implicit += 0.08; w.rating -= 0.04; }
+  if (hasImplicit)   { w.implicit += 0.05; if (hasCbfVector) w.cbfVector = 0.07; w.rating -= 0.04; }
 
   if (hasVector) {
     w.vector = 0.25;
@@ -615,6 +643,62 @@ function applyDiversityReranking(sortedVenues, limit) {
   return selected;
 }
 
+// ─── CBF Vector helpers ───────────────────────────────────────────────────────
+
+/**
+ * Builds a numeric preference vector in the same space as venue.featureVector.combinedVector.
+ * Layout: [cuisineVec..., tagVec..., normalizedPrice, priceConfidence]
+ */
+function buildUserPreferenceVector(implicitProfile, allCuisines, allTags) {
+  const { cuisineAffinity = {}, tagAffinity = {}, priceAffinity = {} } = implicitProfile;
+  const cuisineVec = allCuisines.map(c => cuisineAffinity[c._id.toString()] || 0);
+  const tagVec     = allTags.map(t => tagAffinity[t._id.toString()] || 0);
+  const sortedPrices = Object.entries(priceAffinity).sort((a, b) => b[1] - a[1]);
+  const normalizedPrice = sortedPrices.length > 0 ? Number(sortedPrices[0][0]) / 4.0 : 0.5;
+  return [...cuisineVec, ...tagVec, normalizedPrice, 0.8];
+}
+
+/**
+ * Cosine similarity between a user's preference vector and a venue's stored feature vector.
+ */
+function computeCBFVectorScore(venue, userPreferenceVector) {
+  const combined = venue.featureVector?.combinedVector;
+  if (!userPreferenceVector || !combined?.length) return 0.5;
+  if (combined.length !== userPreferenceVector.length) {
+    // Vectors are stale — CBF pipeline needs a rebuild
+    return 0.5;
+  }
+  return computeCosineSimilarity(userPreferenceVector, combined);
+}
+
+/**
+ * Returns a short human-readable label explaining why a venue was recommended.
+ */
+function computeMatchLabel(scoreBreakdown, mood, distanceKm, isAuthenticated) {
+  if (scoreBreakdown.name >= 85)   return 'Exact match';
+  if (scoreBreakdown.vector >= 60) return 'AI match';
+  if (mood && scoreBreakdown.mood >= 60) return 'Mood match';
+  if (distanceKm !== null && distanceKm <= 2) return 'Near you';
+  if (scoreBreakdown.rating >= 80) return 'Top rated';
+  if (scoreBreakdown.cuisine >= 80) return 'Cuisine match';
+  if (scoreBreakdown.implicit >= 70 && isAuthenticated) return 'For you';
+  return null;
+}
+
+// ─── Daily Digest helper ──────────────────────────────────────────────────────
+const buildDigest = async (userId, limit = 3) => {
+  const profile = await buildImplicitProfile(userId).catch(() => null);
+  const hasProfile = profile && Object.keys(profile.cuisineAffinity).length > 0;
+
+  const { results } = await getSmartRecommendations({
+    userId: hasProfile ? userId : null,
+    isTopRated: !hasProfile,
+    limit,
+  });
+
+  return results;
+};
+
 // ─── Legacy CBF wrapper (backwards compat) ───────────────────────────────────
 const getCBFRecommendations = async (userId, limit = 10, lat = null, lng = null) => {
   const { results } = await getSmartRecommendations({ userId, limit, lat, lng });
@@ -645,5 +729,6 @@ module.exports = {
   getCBFRecommendations,
   buildImplicitProfile,
   buildFilterExplanation,
+  buildDigest,
   MOOD_KEYWORDS,
 };

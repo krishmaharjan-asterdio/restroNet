@@ -221,7 +221,7 @@ const AdminReviews = () => {
               Manage platform reviews and hide inappropriate content.
             </p>
           </div>
-          <div className="text-sm text-slate-500 dark:text-[#8b98b0] bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-lg px-4 py-2">
+          <div className="text-sm text-slate-500 dark:text-[#8b98b0] bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl px-4 py-2">
             <span className="text-slate-700 dark:text-slate-300 font-semibold">{filteredReviews.length}</span> reviews shown
           </div>
         </div>
@@ -254,7 +254,7 @@ const AdminReviews = () => {
             placeholder="Search by restaurant..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-lg pl-9 pr-4 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-[#8b98b0] focus:outline-none focus:border-[#fa6500]/50 transition-colors w-56"
+            className="bg-white dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-[#8b98b0] outline-none focus:border-[#fa6500] focus:ring-2 focus:ring-[#fa6500]/10 transition-all w-56"
           />
         </div>
       </div>

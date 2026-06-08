@@ -103,7 +103,7 @@ const Profile = () => {
             </p>
           </div>
 
-          <Form form={form} layout="vertical" onFinish={handleUpdateProfile} className="space-y-1">
+          <Form form={form} layout="vertical" onFinish={handleUpdateProfile} className="space-y-0">
             <Form.Item
               label="Full Name"
               name="name"
@@ -165,7 +165,7 @@ const Profile = () => {
             </p>
           </div>
 
-          <Form form={prefsForm} layout="vertical" onFinish={handleUpdatePreferences} className="space-y-1">
+          <Form form={prefsForm} layout="vertical" onFinish={handleUpdatePreferences} className="space-y-0">
             <Form.Item label="Favourite Cuisines" name="cuisines">
               <Select
                 mode="multiple"

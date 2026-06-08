@@ -13,6 +13,8 @@ import L from 'leaflet';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { MenuSuggestions } from '../components/MenuSuggestions';
+import { CapacityPicker } from '../components/CapacityPicker';
 import { getImageUrl } from '../utils/imageUrl';
 
 // Fix for default Leaflet marker icons
@@ -63,6 +65,49 @@ const MapUpdater = ({ venueCoords, userCoords }) => {
 const PRICE_LABELS = ['Economy', 'Moderate', 'Premium', 'Elite'];
 
 // ────────────────────────────────────────────────────────────────────────────
+
+const ReservationTimeField = ({ venue, form }) => {
+  const selectedDate = Form.useWatch('date', form);
+  const selectedTime = Form.useWatch('time', form);
+  return (
+    <>
+      <Form.Item label="Time" name="time" rules={[{ required: true, message: 'Select a time' }]}>
+        <Select size="large" className="rounded-xl" placeholder="Select a time slot">
+          {(() => {
+            const slots = [];
+            const dateVal = selectedDate ? new Date(selectedDate) : new Date();
+            const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+            const dayName = dayNames[dateVal.getDay()];
+            const hours = venue.openingHours?.[dayName];
+            let openTime = '10:00';
+            let closeTime = '22:00';
+            if (hours && !hours.isClosed) {
+              if (hours.open) openTime = hours.open;
+              if (hours.close) closeTime = hours.close;
+            } else if (hours?.isClosed) {
+              return [<Select.Option key="closed" disabled>Restaurant is closed on this day</Select.Option>];
+            }
+            let current = new Date(`2024-01-01T${openTime}:00`);
+            const end = new Date(`2024-01-01T${closeTime}:00`);
+            if (end <= current) end.setDate(end.getDate() + 1);
+            while (current <= end) {
+              const timeStr = current.toTimeString().substring(0, 5);
+              slots.push(<Select.Option key={timeStr} value={timeStr}>{timeStr}</Select.Option>);
+              current.setMinutes(current.getMinutes() + 30);
+            }
+            return slots;
+          })()}
+        </Select>
+      </Form.Item>
+      <CapacityPicker
+        venueId={venue._id}
+        selectedDate={selectedDate}
+        selectedTime={selectedTime}
+        onTimeSelect={(time) => form.setFieldValue('time', time)}
+      />
+    </>
+  );
+};
 
 const RestaurantDetail = () => {
   const { slug } = useParams();
@@ -357,7 +402,7 @@ const RestaurantDetail = () => {
             <div className="bg-card border border-border p-6 rounded-2xl shadow-sm space-y-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="text-primary animate-pulse" size={18} />
-                <h4 
+                <h4
                   className="text-lg font-medium text-foreground"
                   style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
                 >
@@ -365,31 +410,35 @@ const RestaurantDetail = () => {
                 </h4>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                {venue.aiSummary.summaryText}
+                {venue.aiSummary.summaryText === 'No detailed feedback has been left by diners yet.'
+                  ? 'Be the first to share your experience at this restaurant.'
+                  : venue.aiSummary.summaryText}
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/50">
                 {/* Positives */}
                 {venue.aiSummary.positives?.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Diner Favorites</span>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-1.5">
                       {venue.aiSummary.positives.map((pos, idx) => (
-                        <span key={idx} className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-1 px-3 rounded-lg text-xs font-medium border border-emerald-500/20">
+                        <span key={idx} className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-1.5 px-3 rounded-lg text-xs font-medium border border-emerald-500/20">
+                          <span className="text-emerald-500 font-bold flex-shrink-0">✓</span>
                           {pos}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                
+
                 {/* Constructives */}
                 {venue.aiSummary.constructives?.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Good to Know</span>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-1.5">
                       {venue.aiSummary.constructives.map((con, idx) => (
-                        <span key={idx} className="bg-amber-500/10 text-amber-600 dark:text-amber-400 py-1 px-3 rounded-lg text-xs font-medium border border-amber-500/20">
+                        <span key={idx} className="flex items-center gap-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 py-1.5 px-3 rounded-lg text-xs font-medium border border-amber-500/20">
+                          <span className="flex-shrink-0">→</span>
                           {con}
                         </span>
                       ))}
@@ -886,6 +935,15 @@ const RestaurantDetail = () => {
                   </button>
                 </motion.div>
 
+                {/* Menu Suggestions */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <MenuSuggestions venueId={venue._id} />
+                </motion.div>
+
                 {/* Contact Card */}
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
@@ -1016,36 +1074,7 @@ const RestaurantDetail = () => {
             <Form.Item label="Date" name="date" rules={[{ required: true, message: 'Select a date' }]}>
               <Input type="date" size="large" className="rounded-xl" />
             </Form.Item>
-            <Form.Item label="Time" name="time" rules={[{ required: true, message: 'Select a time' }]}>
-              <Select size="large" className="rounded-xl" placeholder="Select a time slot">
-                {(() => {
-                  const slots = [];
-                  const selectedDate = reservationForm.getFieldValue('date')
-                    ? new Date(reservationForm.getFieldValue('date'))
-                    : new Date();
-                  const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-                  const dayName = dayNames[selectedDate.getDay()];
-                  const hours = venue.openingHours?.[dayName];
-                  let openTime = '10:00';
-                  let closeTime = '22:00';
-                  if (hours && !hours.isClosed) {
-                    if (hours.open) openTime = hours.open;
-                    if (hours.close) closeTime = hours.close;
-                  } else if (hours?.isClosed) {
-                    return [<Select.Option key="closed" disabled>Restaurant is closed on this day</Select.Option>];
-                  }
-                  let current = new Date(`2024-01-01T${openTime}:00`);
-                  const end = new Date(`2024-01-01T${closeTime}:00`);
-                  if (end <= current) end.setDate(end.getDate() + 1);
-                  while (current <= end) {
-                    const timeStr = current.toTimeString().substring(0, 5);
-                    slots.push(<Select.Option key={timeStr} value={timeStr}>{timeStr}</Select.Option>);
-                    current.setMinutes(current.getMinutes() + 30);
-                  }
-                  return slots;
-                })()}
-              </Select>
-            </Form.Item>
+            <ReservationTimeField venue={venue} form={reservationForm} />
           </div>
           <Form.Item label="Number of Guests" name="guests" rules={[{ required: true, message: 'How many people?' }]} initialValue={2}>
             <Select size="large" className="rounded-xl">

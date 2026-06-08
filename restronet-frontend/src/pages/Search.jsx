@@ -344,24 +344,17 @@ const Search = () => {
 
             {/* ── EMPTY STATE ────────────────────────────────────────────────── */}
             {!loading && venues.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-                <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-5 border border-border">
-                  <SearchX size={34} className="text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                  <SearchIcon size={28} className="text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
+                <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.5rem', fontWeight: 600 }}
+                    className="text-foreground mb-2">
                   No restaurants found
                 </h3>
-                {query ? (
-                  <p className="text-muted-foreground text-sm mb-6 max-w-xs">
-                    We couldn't find anything for{' '}
-                    <span className="font-semibold text-foreground">"{query}"</span>.
-                    Try a different search term.
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground text-sm mb-6 max-w-xs">
-                    Try changing or clearing your filters to see more results.
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                  Try adjusting your filters or searching with different keywords.
+                </p>
 
                 {suggestions.length > 0 ? (
                   <>
@@ -420,7 +413,7 @@ const Search = () => {
             viewMode === 'list'  ? 'hidden' : '',
           ].join(' ')}
         >
-          <div className="h-full w-full rounded-none lg:rounded-2xl overflow-hidden">
+          <div className="h-full w-full rounded-none lg:rounded-2xl overflow-hidden border border-border">
             <MapContainer
               center={[27.7172, 85.3240]}
               zoom={13}

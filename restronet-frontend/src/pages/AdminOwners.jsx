@@ -260,6 +260,7 @@ const AdminOwners = () => {
           form.resetFields();
         }}
         footer={null}
+        closable={false}
         centered
         className="modern-admin-modal"
         styles={{ body: { padding: 0 } }}
@@ -297,7 +298,6 @@ const AdminOwners = () => {
             form={form}
             layout="vertical"
             onFinish={handleCreateOwner}
-            className="mt-1"
           >
             <Form.Item
               name="name"

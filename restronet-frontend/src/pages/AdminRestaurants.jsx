@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Popconfirm, Upload, Space, Tabs, Divider } from 'antd';
-import { Plus, Edit, Trash2, Upload as UploadIcon, Star, Search as SearchIcon, Info, Camera, MapPin, Store, Utensils, Sparkles } from 'lucide-react';
+import { Table, Button, Modal, Form, Input, Select, Popconfirm, Upload, Space, Tabs, Divider, Switch, Checkbox } from 'antd';
+import { Plus, Edit, Trash2, Upload as UploadIcon, Star, Search as SearchIcon, Info, Camera, MapPin, Store, Utensils, Sparkles, Clock, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -81,6 +81,25 @@ const AdminRestaurants = () => {
   const [loadingMenu, setLoadingMenu] = useState(false);
   const [editingMenuItemIdx, setEditingMenuItemIdx] = useState(null);
   const [menuItemForm] = Form.useForm();
+
+  const [isImportModalVisible, setIsImportModalVisible] = useState(false);
+  const [importCity, setImportCity] = useState('');
+  const [importing, setImporting] = useState(false);
+  const handleBulkImport = async () => {
+    if (!importCity.trim()) return toast.error('Please enter a city name');
+    setImporting(true);
+    try {
+      const res = await api.post('/venues/import-osm', { city: importCity.trim() });
+      toast.success(`Imported ${res.data.importedCount} restaurants, skipped ${res.data.skippedCount} duplicates.`);
+      setIsImportModalVisible(false);
+      setImportCity('');
+      fetchRestaurants();
+    } catch (err) {
+      toast.error('Import failed. Try again.');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleManageMenu = async (venueRecord) => {
     setMenuActiveVenue(venueRecord);
@@ -224,9 +243,21 @@ const AdminRestaurants = () => {
     setGalleryFiles([]);
     setMenuFiles([]);
 
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
     if (record) {
       setExistingGallery(record.gallery || []);
       setExistingMenu(record.menu || []);
+      
+      const hoursData = {};
+      days.forEach(day => {
+        hoursData[day] = {
+          open: record.openingHours?.[day]?.open || '09:00',
+          close: record.openingHours?.[day]?.close || '22:00',
+          isClosed: record.openingHours?.[day]?.isClosed ?? false
+        };
+      });
+
       form.setFieldsValue({
         name: record.name,
         description: record.description,
@@ -242,11 +273,24 @@ const AdminRestaurants = () => {
         tags: record.tags?.map(t => t._id || t),
         priceRange: record.priceRange,
         owner: record.owner?._id || record.owner,
+        openingHours: hoursData
       });
     } else {
       setExistingGallery([]);
       setExistingMenu([]);
       form.resetFields();
+
+      const defaultHours = {};
+      days.forEach(day => {
+        defaultHours[day] = {
+          open: '09:00',
+          close: '22:00',
+          isClosed: false
+        };
+      });
+      form.setFieldsValue({
+        openingHours: defaultHours
+      });
     }
     setIsModalVisible(true);
   };
@@ -284,6 +328,7 @@ const AdminRestaurants = () => {
         owner: values.owner,
         gallery: existingGallery,
         menu: existingMenu,
+        openingHours: values.openingHours,
       };
 
       // 1. Upload Logo
@@ -418,6 +463,23 @@ const AdminRestaurants = () => {
       ),
     },
     {
+      title: 'Digital Menu',
+      key: 'digitalMenu',
+      render: (_, record) => {
+        const isOwner = record.owner?._id === admin?._id || record.owner === admin?._id;
+        if (!isOwner) return <span className="text-slate-400 dark:text-[#8b98b0] italic text-xs">Not Allowed</span>;
+        return (
+          <button
+            onClick={() => handleManageMenu(record)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#fa6500] border border-[#fa6500]/30 bg-[#fa6500]/5 hover:bg-[#fa6500]/10 hover:border-[#fa6500] transition-all duration-150"
+          >
+            <Utensils size={13} />
+            Manage Menu
+          </button>
+        );
+      }
+    },
+    {
       title: 'Status',
       key: 'status',
       render: (_, record) => (
@@ -430,7 +492,6 @@ const AdminRestaurants = () => {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => {
-        const isOwner = admin?.role === 'superadmin' || record.owner?._id === admin?._id || record.owner === admin?._id;
         return (
           <Space size={6}>
             <button
@@ -440,15 +501,6 @@ const AdminRestaurants = () => {
             >
               <Edit size={15} />
             </button>
-            {isOwner && (
-              <button
-                onClick={() => handleManageMenu(record)}
-                className="bg-slate-100 dark:bg-[#1e2d47] rounded-lg p-2 hover:bg-[#fa6500]/10 hover:text-[#fa6500] text-slate-500 dark:text-[#8b98b0] transition-all duration-150"
-                title="Manage Digital Menu"
-              >
-                <Utensils size={15} />
-              </button>
-            )}
             <Popconfirm
               title="Delete this restaurant?"
               description="Are you sure you want to delete this restaurant and all its data?"
@@ -504,15 +556,25 @@ const AdminRestaurants = () => {
             />
           </div>
 
-          {/* Add Restaurant Button */}
+
+          {/* Add Restaurant + Bulk Import Buttons */}
           {admin?.role === 'superadmin' && (
-            <button
-              onClick={() => showModal()}
-              className="inline-flex items-center gap-2 bg-[#fa6500] hover:bg-[#e05800] text-white font-semibold px-4 py-2 rounded-xl text-sm transition-all duration-200 shadow-[0_4px_14px_rgba(250,101,0,0.3)] hover:shadow-[0_6px_20px_rgba(250,101,0,0.4)] active:scale-[0.97]"
-            >
-              <Plus size={16} />
-              Add Restaurant
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsImportModalVisible(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-[#fa6500]/40 text-[#fa6500] hover:bg-[#fa6500]/10 transition-all duration-200 active:scale-[0.97]"
+              >
+                <Download size={15} />
+                Bulk Import
+              </button>
+              <button
+                onClick={() => showModal()}
+                className="inline-flex items-center gap-2 bg-[#fa6500] hover:bg-[#e05800] text-white font-semibold px-4 py-2 rounded-xl text-sm transition-all duration-200 shadow-[0_4px_14px_rgba(250,101,0,0.3)] hover:shadow-[0_6px_20px_rgba(250,101,0,0.4)] active:scale-[0.97]"
+              >
+                <Plus size={16} />
+                Add Restaurant
+              </button>
+            </div>
           )}
         </div>
       </motion.div>
@@ -590,6 +652,7 @@ const AdminRestaurants = () => {
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
+        closable={false}
         width={900}
         centered
         className="modern-admin-modal"
@@ -936,6 +999,81 @@ const AdminRestaurants = () => {
                   </div>
                 </div>
               </Tabs.TabPane>
+
+              {/* Tab 4: Opening Hours */}
+              <Tabs.TabPane tab="Opening Hours" key="4" icon={<Clock size={15} />} forceRender>
+                <div className="pt-4 space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                  <p className="text-slate-500 dark:text-[#8b98b0] text-xs">
+                    Configure the weekly operating hours for your restaurant. Days toggled as "Closed" will not accept reservations.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                      <div 
+                        key={day} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-[#131e35] border border-slate-100 dark:border-[#1e2d47] transition-all hover:shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 min-w-[120px]">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 capitalize text-sm">
+                            {day}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6 flex-grow justify-start sm:justify-end">
+                          {/* Closed Switch */}
+                          <Form.Item
+                            name={['openingHours', day, 'isClosed']}
+                            valuePropName="checked"
+                            noStyle
+                          >
+                            <Switch 
+                              checkedChildren="Closed" 
+                              unCheckedChildren="Open"
+                              className="bg-slate-300 dark:bg-slate-700"
+                            />
+                          </Form.Item>
+
+                          <Form.Item noStyle shouldUpdate>
+                            {() => {
+                              const isClosed = form.getFieldValue(['openingHours', day, 'isClosed']);
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-400 dark:text-[#8b98b0]">Open</span>
+                                  <Form.Item
+                                    name={['openingHours', day, 'open']}
+                                    noStyle
+                                  >
+                                    <Input 
+                                      type="time" 
+                                      disabled={isClosed} 
+                                      size="small"
+                                      className="rounded-lg w-28 text-center text-xs h-8 border-slate-200 dark:border-[#1e2d47] dark:bg-[#0f1629]" 
+                                    />
+                                  </Form.Item>
+
+                                  <span className="text-xs text-slate-400 dark:text-[#8b98b0]">to</span>
+
+                                  <Form.Item
+                                    name={['openingHours', day, 'close']}
+                                    noStyle
+                                  >
+                                    <Input 
+                                      type="time" 
+                                      disabled={isClosed} 
+                                      size="small"
+                                      className="rounded-lg w-28 text-center text-xs h-8 border-slate-200 dark:border-[#1e2d47] dark:bg-[#0f1629]" 
+                                    />
+                                  </Form.Item>
+                                </div>
+                              );
+                            }}
+                          </Form.Item>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Tabs.TabPane>
             </Tabs>
 
             {/* Modal Footer */}
@@ -960,6 +1098,66 @@ const AdminRestaurants = () => {
         </div>
       </Modal>
 
+      {/* ── Bulk Import Modal ───────────────────────────────────────────────── */}
+      <Modal
+        title={null}
+        open={isImportModalVisible}
+        onCancel={() => { setIsImportModalVisible(false); setImportCity(''); }}
+        footer={null}
+        closable={false}
+        width={460}
+        centered
+        className="modern-admin-modal"
+        styles={{ body: { padding: 0 } }}
+      >
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-[#1e2d47]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#fa6500]/10 flex items-center justify-center">
+              <Download size={16} className="text-[#fa6500]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800 dark:text-white">Bulk Import from OpenStreetMap</h2>
+              <p className="text-xs text-slate-500 dark:text-[#8b98b0] mt-0.5">Imports all tagged restaurants for a city. Duplicates are skipped automatically.</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
+          <Input
+            placeholder="e.g. Kathmandu, Pokhara, Lalitpur"
+            value={importCity}
+            onChange={e => setImportCity(e.target.value)}
+            onPressEnter={handleBulkImport}
+            size="large"
+            className="rounded-xl"
+          />
+          <div className="flex gap-3 justify-end pt-1">
+            <button
+              onClick={() => { setIsImportModalVisible(false); setImportCity(''); }}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 dark:text-[#8b98b0] hover:bg-slate-100 dark:hover:bg-[#1e2d47] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkImport}
+              disabled={importing}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[#fa6500] text-white hover:bg-[#e05800] disabled:opacity-50 transition-all"
+            >
+              {importing ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Download size={14} />
+                  Import
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* ── Menu Management Modal ────────────────────────────────────────────── */}
       <Modal
         title={null}
@@ -969,6 +1167,7 @@ const AdminRestaurants = () => {
           setMenuData(null);
         }}
         footer={null}
+        closable={false}
         width={1000}
         centered
         className="modern-admin-modal"

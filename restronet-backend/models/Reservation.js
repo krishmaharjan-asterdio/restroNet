@@ -39,7 +39,10 @@ const reservationSchema = new mongoose.Schema(
     contactPhone: {
       type: String,
       required: true,
-    }
+    },
+    reminderSent24h:    { type: Boolean, default: false },
+    reminderSent2h:     { type: Boolean, default: false },
+    reviewRequestSent:  { type: Boolean, default: false },
   },
   {
     timestamps: true,
