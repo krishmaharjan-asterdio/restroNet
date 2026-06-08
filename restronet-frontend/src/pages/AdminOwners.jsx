@@ -260,6 +260,7 @@ const AdminOwners = () => {
           form.resetFields();
         }}
         footer={null}
+        closable={false}
         centered
         className="modern-admin-modal"
         styles={{ body: { padding: 0 } }}
