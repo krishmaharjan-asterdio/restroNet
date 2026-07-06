@@ -39,6 +39,7 @@ const adminSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    emailNotifications: { type: Boolean, default: true },
   },
   {
     timestamps: true,

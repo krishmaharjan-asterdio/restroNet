@@ -2,6 +2,9 @@ const Venue = require('../models/Venue');
 const Menu = require('../models/Menu');
 const Review = require('../models/Review');
 const { buildRestaurantFeatureVector } = require('../services/cbf-pipeline');
+const aiService = require('../services/aiService');
+const { getAvailableSlots } = require('../services/capacityService');
+const logger = require('../config/logger');
 
 /**
  * @desc    Get all venues with filtering, sorting, and pagination
@@ -178,8 +181,13 @@ const updateVenue = async (req, res, next) => {
     Object.assign(venue, req.body);
     await venue.save();
 
-    // Rebuild CBF feature vector on update
-    buildRestaurantFeatureVector(venue._id).catch(console.error);
+    // Rebuild CBF feature vector only when CBF-relevant fields were changed
+    const CBF_FIELDS = ['cuisines', 'tags', 'description', 'priceRange', 'name'];
+    const hasCbfChange = CBF_FIELDS.some(field => field in req.body);
+    if (hasCbfChange) {
+      buildRestaurantFeatureVector(venue._id).catch(console.error);
+      logger.info(`CBF rebuild queued for venue: ${venue.name}`);
+    }
 
     res.json({ success: true, venue });
   } catch (error) {
@@ -217,10 +225,56 @@ const deleteVenue = async (req, res, next) => {
   }
 };
 
+const getMenuSuggestions = async (req, res, next) => {
+  try {
+    const menus = await Menu.find({ venue: req.params.id, isActive: true })
+      .select('items')
+      .lean();
+
+    const menuItems = menus.flatMap(m =>
+      m.items.filter(item => item.isAvailable !== false)
+        .map(({ name, description, price, category, isVegetarian, isVegan, isGlutenFree }) =>
+          ({ name, description, price, category, isVegetarian, isVegan, isGlutenFree })
+        )
+    );
+
+    if (!menuItems.length) {
+      return res.json({ success: true, suggestions: [] });
+    }
+
+    const userPreferences = req.user?.preferences ?? null;
+    const suggestions = await aiService.getMenuSuggestions(menuItems, userPreferences) ?? [];
+    res.json({ success: true, suggestions });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getVenueSlots = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'date query param required (YYYY-MM-DD)' });
+    }
+    const venue = await Venue.findById(req.params.id)
+      .select('openingHours maxCapacity slotDurationMinutes isActive')
+      .lean();
+    if (!venue || !venue.isActive) {
+      return res.status(404).json({ success: false, message: 'Venue not found' });
+    }
+    const slots = await getAvailableSlots(venue, date);
+    res.json({ success: true, slots });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getVenues,
   getVenueById,
   createVenue,
   updateVenue,
   deleteVenue,
+  getMenuSuggestions,
+  getVenueSlots,
 };

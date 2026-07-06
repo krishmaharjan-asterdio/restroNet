@@ -4,6 +4,8 @@ import { Star, MapPin, Heart, Navigation, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { getImageUrl } from '../utils/imageUrl';
+import { RecommendationBadge } from './RecommendationBadge';
+import { TrendingBadge } from './TrendingBadge';
 
 const PRICE_MAP = { 1: '$', 2: '$$', 3: '$$$', 4: '$$$$' };
 const MOOD_LABEL = {
@@ -190,7 +192,20 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
                   ✦ {matchPct >= 90 ? 'Great match' : matchPct >= 80 ? 'Good match' : 'Match'}
                 </span>
               )}
+              {venue.matchLabel && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/50">
+                  ✦ {venue.matchLabel}
+                </span>
+              )}
             </div>
+
+            {/* Trending + recommendation badges */}
+            {(venue.isTrending || venue.scoreBreakdown) && (
+              <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                <TrendingBadge isTrending={venue.isTrending} />
+                <RecommendationBadge scoreBreakdown={venue.scoreBreakdown} />
+              </div>
+            )}
 
             {/* Footer: price + category | view CTA */}
             <div className="flex items-center justify-between pt-3 border-t border-neutral-200/70 dark:border-white/10">

@@ -298,7 +298,6 @@ const AdminOwners = () => {
             form={form}
             layout="vertical"
             onFinish={handleCreateOwner}
-            className="mt-1"
           >
             <Form.Item
               name="name"
