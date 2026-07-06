@@ -6,6 +6,8 @@ import { AuthContext } from '../context/AuthContext';
 import { getImageUrl } from '../utils/imageUrl';
 import { RecommendationBadge } from './RecommendationBadge';
 import { TrendingBadge } from './TrendingBadge';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 const PRICE_MAP = { 1: '$', 2: '$$', 3: '$$$', 4: '$$$$' };
 const MOOD_LABEL = {
@@ -41,7 +43,28 @@ const ScoreRing = ({ pct, size = 36, stroke = 3 }) => {
 
 const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
   const { user } = useContext(AuthContext);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(!!venue.isFavorited);
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleFavorite = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error('Log in to save restaurants');
+      return;
+    }
+    if (toggling) return;
+    setToggling(true);
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+    try {
+      await api.post(`/favorites/${venue._id}`);
+    } catch (err) {
+      setIsSaved(!nextSaved);
+      toast.error('Failed to update favorite');
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const imageUrl =
     venue.gallery?.length > 0
@@ -118,7 +141,7 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
 
             {/* Heart toggle */}
             <motion.button
-              onClick={e => { e.preventDefault(); setIsSaved(s => !s); }}
+              onClick={handleToggleFavorite}
               whileTap={{ scale: 0.84 }}
               className="w-9 h-9 bg-white/[0.12] backdrop-blur-md border border-white/25 rounded-full flex items-center justify-center hover:bg-white/25 transition-all duration-200 shadow-sm"
               aria-label={isSaved ? 'Unsave restaurant' : 'Save restaurant'}

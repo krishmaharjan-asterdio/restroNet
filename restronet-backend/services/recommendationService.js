@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Venue = require('../models/Venue');
 const Review = require('../models/Review');
 const Reservation = require('../models/Reservation');
+const Favorite = require('../models/Favorite');
 const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
 const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
@@ -21,14 +22,15 @@ const MOOD_KEYWORDS = {
 
 // ─── Implicit profile builder ─────────────────────────────────────────────────
 /**
- * Builds an implicit preference profile for a user from their reviews & reservations.
- * Returns { cuisineIds, tagIds, priceRanges, venueIds (already-visited) }.
+ * Builds an implicit preference profile for a user from their reviews, reservations,
+ * and favorites. Returns { cuisineIds, tagIds, priceRanges, venueIds (already-visited) }.
  *
  * Reviews rated 4–5 stars signal strong positive preference.
  * Reservations signal intent (venue visited at least once).
+ * Favorites signal deliberate interest without requiring a visit or review.
  */
 const buildImplicitProfile = async (userId) => {
-  const [positiveReviews, reservations] = await Promise.all([
+  const [positiveReviews, reservations, favorites] = await Promise.all([
     Review.find({ user: userId, 'rating.overall': { $gte: 4 }, isHidden: false })
       .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
       .sort({ createdAt: -1 })
@@ -38,6 +40,11 @@ const buildImplicitProfile = async (userId) => {
       .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
       .sort({ createdAt: -1 })
       .limit(20)
+      .lean(),
+    Favorite.find({ user: userId })
+      .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
+      .sort({ createdAt: -1 })
+      .limit(30)
       .lean(),
   ]);
 
@@ -67,6 +74,7 @@ const buildImplicitProfile = async (userId) => {
   });
 
   reservations.forEach(r => processVenue(r.venue, 0.4));
+  favorites.forEach(f => processVenue(f.venue, 0.6));
 
   // Normalise frequencies to [0, 1] (top item = 1)
   const normalise = (freq) => {

@@ -36,9 +36,9 @@ const AdminLogin = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await loginAdmin(formData.email, formData.password);
+      const { admin } = await loginAdmin(formData.email, formData.password);
       toast.success('Admin authenticated successfully');
-      navigate('/admin/dashboard');
+      navigate(admin?.role === 'owner' ? '/owner/dashboard' : '/admin/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Authentication failed');
     } finally {

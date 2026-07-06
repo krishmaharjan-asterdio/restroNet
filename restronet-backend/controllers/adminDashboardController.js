@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Venue = require('../models/Venue');
 const Review = require('../models/Review');
 const Menu = require('../models/Menu');
+const Reservation = require('../models/Reservation');
 
 /**
  * @desc    Get dashboard summary stats for superadmin
@@ -37,6 +38,24 @@ const getDashboardStats = async (req, res, next) => {
       .limit(5)
       .select('name averageRating totalReviews logo');
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayReservationQuery = { date: { $gte: todayStart, $lte: todayEnd } };
+    if (isOwner) {
+      const ownedVenues = await Venue.find({ owner: ownerId }).select('_id');
+      todayReservationQuery.venue = { $in: ownedVenues.map(v => v._id) };
+    }
+
+    const todayReservationsCount = await Reservation.countDocuments(todayReservationQuery);
+    const todayReservations = await Reservation.find(todayReservationQuery)
+      .sort({ time: 1 })
+      .limit(10)
+      .populate('user', 'name')
+      .populate('venue', 'name');
+
     res.json({
       success: true,
       stats: {
@@ -44,10 +63,12 @@ const getDashboardStats = async (req, res, next) => {
         totalVenues,
         totalReviews,
         totalMenus,
+        todayReservationsCount,
       },
       recentVenues,
       recentReviews,
-      trendingVenues
+      trendingVenues,
+      todayReservations,
     });
   } catch (error) {
     next(error);

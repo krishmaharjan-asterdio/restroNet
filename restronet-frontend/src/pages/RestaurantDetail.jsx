@@ -157,10 +157,31 @@ const RestaurantDetail = () => {
       ]);
       setMenus(menuRes.data.menus);
       setReviews(reviewRes.data.docs);
+
+      if (user) {
+        try {
+          const favRes = await api.get('/favorites');
+          setIsSaved(favRes.data.favorites.some(v => v._id === venueData._id));
+        } catch (err) {
+          // Non-critical; leave isSaved as-is
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) { toast.error('Please login to save restaurants'); return; }
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+    try {
+      await api.post(`/favorites/${venue._id}`);
+    } catch (err) {
+      setIsSaved(!nextSaved);
+      toast.error('Failed to update favorite');
     }
   };
 
@@ -696,7 +717,7 @@ const RestaurantDetail = () => {
               <Share2 size={15} /> Share
             </button>
             <button
-              onClick={() => setIsSaved(!isSaved)}
+              onClick={handleToggleFavorite}
               className={`flex items-center gap-1.5 backdrop-blur-md border border-white/25 font-semibold px-4 py-2.5 rounded-xl transition-all text-sm shadow-lg ${
                 isSaved
                   ? 'bg-primary text-white border-primary/50'

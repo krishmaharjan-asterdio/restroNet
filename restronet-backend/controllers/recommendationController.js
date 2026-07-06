@@ -116,7 +116,10 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       if (parsedFilters.sortBy)     aiSortBy   = parsedFilters.sortBy;
     }
 
-    const cuisineIds = [...new Set([...userCuisineIds, ...aiCuisineIds])];
+    // AI-parsed cuisine intent from a free-text prompt is treated the same as an
+    // explicit dropdown filter (hard exclude), since the user asked for it by name.
+    userCuisineIds = [...new Set([...userCuisineIds, ...aiCuisineIds])];
+    const cuisineIds = userCuisineIds;
 
     // Explicit sortBy from frontend takes precedence over AI-parsed sort
     // (user deliberately chose it via the sort dropdown)
