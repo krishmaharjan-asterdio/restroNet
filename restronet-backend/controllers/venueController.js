@@ -34,11 +34,15 @@ const getVenues = async (req, res, next) => {
     if (priceRange) query.priceRange = priceRange;
     if (mealType) query.mealTypes = mealType;
 
+    let sort = { createdAt: -1 };
+    if (sortBy === 'rating') sort = { averageRating: -1 };
+    if (sortBy === 'trending') sort = { trendingScore: -1, averageRating: -1 };
+
     const options = {
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
       populate: 'cuisines tags category owner',
-      sort: sortBy === 'rating' ? { averageRating: -1 } : { createdAt: -1 },
+      sort,
       lean: true,
     };
 

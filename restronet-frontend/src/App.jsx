@@ -13,6 +13,8 @@ import RestaurantDetail from './pages/RestaurantDetail';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Discover from './pages/Discover';
 import MyReservations from './pages/MyReservations';
 import NotFound from './pages/NotFound';
@@ -25,6 +27,8 @@ import AdminReviews from './pages/AdminReviews';
 import AdminOwners from './pages/AdminOwners';
 import AdminReservations from './pages/AdminReservations';
 import AdminLayout from './components/AdminLayout';
+import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerLayout from './components/OwnerLayout';
 
 const PublicLayout = ({ children }) => {
   const location = useLocation();
@@ -89,6 +93,17 @@ function App() {
                 </Routes>
               </AdminWrapper>
             } />
+            <Route path="/owner/*" element={
+              <OwnerLayout>
+                <Routes>
+                  <Route path="dashboard"    element={<OwnerDashboard />} />
+                  <Route path="restaurant"   element={<AdminRestaurants />} />
+                  <Route path="reservations" element={<AdminReservations />} />
+                  <Route path="reviews"      element={<AdminReviews />} />
+                  <Route path="*"            element={<NotFound />} />
+                </Routes>
+              </OwnerLayout>
+            } />
             <Route path="/*" element={
               <PublicLayout>
                 <Routes>
@@ -98,6 +113,8 @@ function App() {
                   <Route path="/restaurant/:slug"   element={<RestaurantDetail />} />
                   <Route path="/login"              element={<Login />} />
                   <Route path="/register"           element={<Register />} />
+                  <Route path="/forgot-password"    element={<ForgotPassword />} />
+                  <Route path="/reset-password"     element={<ResetPassword />} />
                   <Route path="/profile"            element={<Profile />} />
                   <Route path="/reservations"       element={<MyReservations />} />
                   <Route path="*"                   element={<NotFound />} />

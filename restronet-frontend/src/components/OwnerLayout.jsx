@@ -5,23 +5,25 @@ import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
   Store,
-  Users,
-  UserCheck,
   MessageSquare,
   LogOut,
   Utensils,
   Menu,
   X,
-  ChevronRight,
-  Search,
-  Bell,
   Calendar,
   Sun,
   Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const AdminLayout = ({ children }) => {
+const menuItems = [
+  { name: 'Dashboard', path: '/owner/dashboard', icon: <LayoutDashboard size={17} /> },
+  { name: 'My Restaurant', path: '/owner/restaurant', icon: <Store size={17} /> },
+  { name: 'Reservations', path: '/owner/reservations', icon: <Calendar size={17} /> },
+  { name: 'Reviews', path: '/owner/reviews', icon: <MessageSquare size={17} /> },
+];
+
+const OwnerLayout = ({ children }) => {
   const { admin, loading, logoutAdmin } = useContext(AuthContext);
   const { toggleTheme, isDark } = useTheme();
   const location = useLocation();
@@ -33,7 +35,7 @@ const AdminLayout = ({ children }) => {
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 dark:border-[#1e2d47] border-t-[#fa6500]" />
           <span className="text-slate-500 dark:text-[#8b98b0] text-sm font-medium tracking-wide">
-            Loading admin panel…
+            Loading your dashboard…
           </span>
         </div>
       </div>
@@ -44,36 +46,18 @@ const AdminLayout = ({ children }) => {
     return <Navigate to="/admin/login" />;
   }
 
-  if (admin.role === 'owner') {
-    return <Navigate to="/owner/dashboard" />;
+  if (admin.role === 'superadmin') {
+    return <Navigate to="/admin/dashboard" />;
   }
 
-  const menuItems = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={17} /> },
-    {
-      name: admin?.role === 'superadmin' ? 'Restaurants' : 'My Restaurants',
-      path: '/admin/restaurants',
-      icon: <Store size={17} />,
-    },
-    ...(admin?.role === 'superadmin'
-      ? [
-          { name: 'Owners', path: '/admin/owners', icon: <UserCheck size={17} /> },
-          { name: 'Users', path: '/admin/users', icon: <Users size={17} /> },
-        ]
-      : []),
-    { name: 'Reviews', path: '/admin/reviews', icon: <MessageSquare size={17} /> },
-    { name: 'Reservations', path: '/admin/reservations', icon: <Calendar size={17} /> },
-  ];
-
   const currentPage =
-    menuItems.find((item) => location.pathname.startsWith(item.path))?.name ?? 'Admin';
+    menuItems.find((item) => location.pathname.startsWith(item.path))?.name ?? 'Dashboard';
 
-  const SidebarContent = ({ onNavClick }) => (
+  const NavContent = ({ onNavClick }) => (
     <div className="flex flex-col h-full">
-      {/* Logo area */}
       <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-[#1e2d47] shrink-0">
         <Link
-          to="/admin/dashboard"
+          to="/owner/dashboard"
           className="flex items-center gap-3 group"
           onClick={onNavClick}
         >
@@ -82,17 +66,12 @@ const AdminLayout = ({ children }) => {
           </div>
           <div className="leading-none select-none">
             <span className="text-slate-800 dark:text-white font-extrabold tracking-wider text-[15px]">RESTRO</span>
-            <span className="text-[#fa6500] font-extrabold tracking-wider text-[15px]">ADMIN</span>
+            <span className="text-[#fa6500] font-extrabold tracking-wider text-[15px]">OWNER</span>
           </div>
         </Link>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 py-5 px-3 space-y-0.5 overflow-y-auto scrollbar-hide">
-        <p className="text-slate-400 dark:text-[#4a5a78] text-[10px] font-bold uppercase tracking-[0.18em] px-3 mb-3">
-          Navigation
-        </p>
-
         {menuItems.map((item, idx) => {
           const isActive = location.pathname.startsWith(item.path);
           return (
@@ -105,43 +84,37 @@ const AdminLayout = ({ children }) => {
               <Link
                 to={item.path}
                 onClick={onNavClick}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 relative group ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                   isActive
                     ? 'bg-[#fa6500]/10 text-[#fa6500] border-l-2 border-[#fa6500] pl-[10px]'
                     : 'text-slate-500 dark:text-[#8b98b0] hover:bg-slate-100 dark:hover:bg-[#131e35] hover:text-slate-900 dark:hover:text-slate-100 pl-3'
                 }`}
               >
-                <span className={`shrink-0 transition-colors ${isActive ? 'text-[#fa6500]' : 'text-slate-400 dark:text-[#4a5a78] group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}>
+                <span className={isActive ? 'text-[#fa6500]' : 'text-slate-400 dark:text-[#4a5a78]'}>
                   {item.icon}
                 </span>
                 <span className="flex-1 truncate">{item.name}</span>
-                {isActive && (
-                  <ChevronRight size={13} className="text-[#fa6500]/60 shrink-0" />
-                )}
               </Link>
             </motion.div>
           );
         })}
       </nav>
 
-      {/* Bottom admin info + logout */}
       <div className="p-3 border-t border-slate-200 dark:border-[#1e2d47] shrink-0">
-        {/* Admin info card */}
         <div className="flex items-center gap-3 bg-slate-100 dark:bg-[#131e35] rounded-xl px-3 py-2.5 mb-1 border border-slate-200/50 dark:border-transparent">
           <div className="w-8 h-8 rounded-lg bg-[#fa6500] text-white flex items-center justify-center font-bold text-sm shrink-0 select-none">
-            {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
+            {admin?.name?.charAt(0)?.toUpperCase() || 'O'}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm truncate leading-tight">
-              {admin?.name || 'Admin'}
+              {admin?.name || 'Owner'}
             </p>
-            <p className="text-slate-400 dark:text-[#4a5a78] text-xs capitalize truncate leading-tight mt-0.5">
-              {admin?.role || 'administrator'}
+            <p className="text-slate-400 dark:text-[#4a5a78] text-xs truncate leading-tight mt-0.5">
+              Restaurant Owner
             </p>
           </div>
         </div>
 
-        {/* Logout */}
         <button
           onClick={() => {
             logoutAdmin();
@@ -158,28 +131,23 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-[#0f1629] overflow-hidden font-sans transition-colors duration-300">
-      {/* Desktop sidebar */}
       <aside className="w-64 bg-white dark:bg-[#080d1a] hidden md:flex flex-col z-20 shrink-0 shadow-admin border-r border-slate-200 dark:border-[#1e2d47]">
-        <SidebarContent onNavClick={undefined} />
+        <NavContent onNavClick={undefined} />
       </aside>
 
-      {/* Main area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-        {/* Topbar */}
         <header className="h-16 bg-white dark:bg-[#0f1629] border-b border-slate-200 dark:border-[#1e2d47] flex items-center justify-between px-5 z-10 shrink-0 transition-colors duration-300">
-
-          {/* Mobile: logo + hamburger */}
           <div className="md:hidden flex items-center gap-2 flex-1">
-            <Link to="/admin/dashboard" className="flex items-center gap-2.5">
+            <Link to="/owner/dashboard" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-[#fa6500] flex items-center justify-center">
                 <Utensils size={15} className="text-white" />
               </div>
               <span className="text-slate-800 dark:text-white font-extrabold tracking-wider text-sm">
-                RESTRO<span className="text-[#fa6500]">ADMIN</span>
+                RESTRO<span className="text-[#fa6500]">OWNER</span>
               </span>
             </Link>
             <button
-              className="ml-auto w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              className="ml-auto w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0]"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open navigation"
             >
@@ -187,32 +155,11 @@ const AdminLayout = ({ children }) => {
             </button>
           </div>
 
-          {/* Desktop: breadcrumb */}
           <div className="hidden md:flex items-center gap-2 text-sm">
-            <span className="text-slate-400 dark:text-[#4a5a78] font-medium">Admin</span>
-            <ChevronRight size={13} className="text-slate-300 dark:text-[#2d3d57]" />
             <span className="text-slate-800 dark:text-slate-100 font-semibold">{currentPage}</span>
           </div>
 
-          {/* Right: icons + admin info */}
           <div className="hidden md:flex items-center gap-2">
-            {/* Search icon */}
-            <button
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
-              aria-label="Search"
-            >
-              <Search size={15} />
-            </button>
-
-            {/* Bell icon */}
-            <button
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={15} />
-            </button>
-
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
@@ -221,33 +168,26 @@ const AdminLayout = ({ children }) => {
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
-            {/* Divider */}
             <div className="w-px h-5 bg-slate-200 dark:bg-[#1e2d47] mx-1" />
 
-            {/* Admin name + role */}
             <div className="text-right leading-none mr-1">
-              <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm">{admin?.name || 'Admin'}</p>
-              <p className="text-slate-500 dark:text-[#8b98b0] text-xs capitalize mt-0.5">{admin?.role || 'administrator'}</p>
+              <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm">{admin?.name || 'Owner'}</p>
             </div>
 
-            {/* Avatar */}
             <div className="w-9 h-9 rounded-xl bg-[#fa6500] text-white flex items-center justify-center font-bold text-sm shadow-primary select-none">
-              {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
+              {admin?.name?.charAt(0)?.toUpperCase() || 'O'}
             </div>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-[#0f1629] transition-colors duration-300">
           {children}
         </main>
       </div>
 
-      {/* Mobile drawer */}
       <AnimatePresence>
         {mobileNavOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
@@ -257,8 +197,6 @@ const AdminLayout = ({ children }) => {
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
               onClick={() => setMobileNavOpen(false)}
             />
-
-            {/* Drawer */}
             <motion.div
               key="drawer"
               initial={{ x: '-100%', opacity: 0 }}
@@ -267,15 +205,14 @@ const AdminLayout = ({ children }) => {
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
               className="fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#080d1a] z-50 flex flex-col shadow-2xl md:hidden border-r border-slate-200 dark:border-[#1e2d47]"
             >
-              {/* Close button */}
               <button
                 onClick={() => setMobileNavOpen(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors z-10"
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] z-10"
                 aria-label="Close navigation"
               >
                 <X size={16} />
               </button>
-              <SidebarContent onNavClick={() => setMobileNavOpen(false)} />
+              <NavContent onNavClick={() => setMobileNavOpen(false)} />
             </motion.div>
           </>
         )}
@@ -284,4 +221,4 @@ const AdminLayout = ({ children }) => {
   );
 };
 
-export default AdminLayout;
+export default OwnerLayout;

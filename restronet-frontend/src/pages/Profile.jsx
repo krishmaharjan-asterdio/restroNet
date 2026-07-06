@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { User, Heart, Camera, Shield } from 'lucide-react';
 import { Select, Form, Input, Button, Tabs } from 'antd';
 import toast from 'react-hot-toast';
+import RestaurantCard from '../components/RestaurantCard';
 
 const { Option } = Select;
 
@@ -13,6 +14,8 @@ const Profile = () => {
   const [submitting, setSubmitting] = useState(false);
   const [metadata, setMetadata] = useState({ cuisines: [], tags: [] });
   const [activeTab, setActiveTab] = useState('1');
+  const [favorites, setFavorites] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
 
   const [form] = Form.useForm();
   const [prefsForm] = Form.useForm();
@@ -28,8 +31,21 @@ const Profile = () => {
         tags: user.preferences?.tags?.map(t => t._id || t) || [],
       });
       fetchMetadata();
+      fetchFavorites();
     }
   }, [user]);
+
+  const fetchFavorites = async () => {
+    setFavoritesLoading(true);
+    try {
+      const res = await api.get('/favorites');
+      setFavorites(res.data.favorites.map(v => ({ ...v, isFavorited: true })));
+    } catch (err) {
+      // Non-critical
+    } finally {
+      setFavoritesLoading(false);
+    }
+  };
 
   const fetchMetadata = async () => {
     try {
@@ -205,6 +221,36 @@ const Profile = () => {
               </Button>
             </div>
           </Form>
+        </div>
+      ),
+    },
+    {
+      key: '3',
+      label: (
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <Heart size={15} />
+          Favorites
+        </span>
+      ),
+      children: (
+        <div>
+          {favoritesLoading ? (
+            <div className="card p-10 text-center text-sm text-muted-foreground">
+              Loading your favorites…
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="card p-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                You haven't saved any restaurants yet. Tap the heart icon on a restaurant to save it here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favorites.map(venue => (
+                <RestaurantCard key={venue._id} venue={venue} />
+              ))}
+            </div>
+          )}
         </div>
       ),
     },

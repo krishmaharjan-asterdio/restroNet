@@ -1,15 +1,12 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const logger = require('../config/logger');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT, 10) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-});
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
-const FROM = process.env.SMTP_FROM || 'RestroNet <noreply@restronet.com>';
-const BASE_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const FROM = process.env.EMAIL_FROM || 'RestroNet <noreply@restronet.com>';
+const BASE_URL = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
 const esc = (s) =>
   String(s ?? '')
@@ -19,10 +16,15 @@ const esc = (s) =>
     .replace(/"/g, '&quot;');
 
 const send = async (mailOptions) => {
+  if (!process.env.SENDGRID_API_KEY) {
+    logger.warn(`SENDGRID_API_KEY not set — skipping email to ${mailOptions.to}`);
+    return;
+  }
   try {
-    await transporter.sendMail(mailOptions);
+    await sgMail.send(mailOptions);
   } catch (err) {
-    logger.error(`Email send failed to ${mailOptions.to}: ${err.message}`);
+    const detail = err.response?.body?.errors?.map(e => e.message).join('; ') || err.message;
+    logger.error(`Email send failed to ${mailOptions.to}: ${detail}`);
   }
 };
 
@@ -55,6 +57,31 @@ const sendReservationReminder = async (user, reservation, venue, hoursUntil) => 
         ${reservation.specialRequests ? `<p><strong>Special requests:</strong> ${esc(reservation.specialRequests)}</p>` : ''}
         <p><a href="${BASE_URL}/my-reservations" style="color:#fa6500">View or manage your reservation</a></p>
         <p style="color:#999;font-size:12px">Bon appétit — RestroNet</p>
+      </div>
+    `,
+  });
+};
+
+const sendPasswordReset = async (user, rawToken) => {
+  const resetUrl = `${BASE_URL}/reset-password?token=${rawToken}`;
+  const expiresMinutes = parseInt(process.env.PASSWORD_RESET_EXPIRES_MINUTES, 10) || 30;
+
+  await send({
+    from: FROM,
+    to: user.email,
+    subject: 'Reset your RestroNet password',
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <h2 style="color:#fa6500">RestroNet</h2>
+        <p>Hi ${esc(user.name)},</p>
+        <p>We received a request to reset your password. This link expires in ${expiresMinutes} minutes.</p>
+        <p>
+          <a href="${resetUrl}"
+             style="background:#fa6500;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;margin-top:8px">
+            Reset Password
+          </a>
+        </p>
+        <p style="color:#999;font-size:12px">If you didn't request this, you can safely ignore this email.</p>
       </div>
     `,
   });
@@ -195,4 +222,5 @@ module.exports = {
   sendDailyDigest,
   sendOwnerWeeklyReport,
   sendAdminStaleAlert,
+  sendPasswordReset,
 };

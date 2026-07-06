@@ -148,6 +148,10 @@ reviewSchema.post('findOneAndDelete', async function (doc) {
   }
 });
 
+reviewSchema.post('deleteOne', { document: true, query: false }, async function () {
+  await this.constructor.recalculateRating(this.venue);
+});
+
 // ─── Pagination Plugin ────────────────────────────────────────────────────────
 reviewSchema.plugin(mongoosePaginate);
 

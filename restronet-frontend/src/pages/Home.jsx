@@ -228,7 +228,7 @@ const Home = () => {
       try {
         const latLng = coords ? `&lat=${coords.lat}&lng=${coords.lng}` : '';
         const [trendRes, recRes] = await Promise.all([
-          api.get(`/venues?sortBy=rating&limit=8${latLng}`),
+          api.get(`/venues?sortBy=trending&limit=8${latLng}`),
           user
             ? api.get(`/recommendations?limit=8${latLng}`)
             : Promise.resolve({ data: { recommendations: [] } }),

@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
+const { sendPasswordReset } = require('../services/emailService');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -140,4 +142,66 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, updateProfile };
+/**
+ * @desc    Request a password reset email
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Always respond with success to avoid leaking which emails are registered.
+    if (!user) {
+      return res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresMinutes = parseInt(process.env.PASSWORD_RESET_EXPIRES_MINUTES, 10) || 30;
+    user.resetPasswordExpires = new Date(Date.now() + expiresMinutes * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    await sendPasswordReset(user, rawToken);
+
+    res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reset password using a valid reset token
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    }).select('+password');
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Password has been reset. You can now log in.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, updateProfile, forgotPassword, resetPassword };

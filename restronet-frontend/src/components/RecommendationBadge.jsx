@@ -3,11 +3,11 @@ export const RecommendationBadge = ({ scoreBreakdown }) => {
 
   const reasons = [];
 
-  if (scoreBreakdown.cuisineMatch > 0)    reasons.push('Matches your cuisine');
-  if (scoreBreakdown.tagMatch > 0)        reasons.push('Matches your vibe');
-  if (scoreBreakdown.locationScore > 0.5) reasons.push('Near you');
-  if (scoreBreakdown.ratingScore > 0.7)   reasons.push('Highly rated');
-  if (scoreBreakdown.priceMatch > 0)      reasons.push('Your price range');
+  if (scoreBreakdown.cuisine > 0)   reasons.push('Matches your cuisine');
+  if (scoreBreakdown.tag > 0)       reasons.push('Matches your vibe');
+  if (scoreBreakdown.distance > 50) reasons.push('Near you');
+  if (scoreBreakdown.rating > 70)   reasons.push('Highly rated');
+  if (scoreBreakdown.price > 0)     reasons.push('Your price range');
 
   if (reasons.length === 0) return null;
 
