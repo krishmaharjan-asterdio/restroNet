@@ -9,13 +9,16 @@ const GALLERY_DIR = path.join(__dirname, '..', 'uploads', 'gallery');
 const LOGOS_DIR = path.join(__dirname, '..', 'uploads', 'logos');
 const TARGET_GALLERY_COUNT = 5;
 
-function slugify(name) {
-  return name
+function slugify(name, fallback) {
+  const slug = name
     .toLowerCase()
     .replace(/&/g, '')
     .replace(/'/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+  // Non-Latin names (e.g. Devanagari) slugify to an empty string — use the
+  // venue id instead so filenames stay unique.
+  return slug.length >= 3 ? slug : `venue-${fallback}`;
 }
 
 function findLogoFile(slug) {
@@ -99,8 +102,13 @@ const run = async () => {
     const venues = await Venue.find({});
     console.log(`Found ${venues.length} venues`);
 
-    for (const venue of venues) {
-      const slug = slugify(venue.name);
+    const pending = venues.filter(
+      (v) => !(v.logo && v.gallery?.length >= TARGET_GALLERY_COUNT)
+    );
+    console.log(`${pending.length} venues need images`);
+
+    const processVenue = async (venue) => {
+      const slug = slugify(venue.name, venue._id.toString());
       const beforeGallery = venue.gallery ? venue.gallery.length : 0;
       const beforeLogo = venue.logo;
 
@@ -114,6 +122,18 @@ const run = async () => {
       console.log(
         `${venue.name}: logo ${beforeLogo ? 'kept' : 'set'}, gallery ${beforeGallery} -> ${gallery.length}`
       );
+    };
+
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+      const batch = pending.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map(processVenue));
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          console.error(`FAILED ${batch[idx].name}: ${r.reason?.message}`);
+        }
+      });
+      console.log(`Progress: ${Math.min(i + BATCH_SIZE, pending.length)}/${pending.length}`);
     }
 
     console.log('Done.');
