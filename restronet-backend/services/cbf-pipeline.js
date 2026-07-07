@@ -89,7 +89,7 @@ const buildRestaurantFeatureVector = async (venueId) => {
       { upsert: true, new: true }
     );
 
-    // Generate text embedding using Gemini
+    // Generate text embedding using local model
     const embedding = await aiService.generateEmbedding(textCorpus).catch((err) => {
       logger.warn(`Failed to generate embedding for venue ${venue.name}: ${err.message}`);
       return null;

@@ -118,7 +118,7 @@ const venueSchema = new mongoose.Schema(
       reviewCountSnapshot: { type: Number, default: 0 },
     },
     embedding: {
-      type: [Number], // 768-dimensional vector from Gemini text-embedding-004
+      type: [Number], // 384-dimensional vector from local Xenova/all-MiniLM-L6-v2
       default: undefined,
     },
 
@@ -169,5 +169,14 @@ venueSchema.pre('save', function (next) {
 
 // ─── Pagination Plugin ────────────────────────────────────────────────────────
 venueSchema.plugin(mongoosePaginate);
+
+// ─── Recommendation cache invalidation ───────────────────────────────────────
+// The recommendation engine caches the venue list; any write must clear it so
+// new/updated venues appear immediately.
+const venueCache = require('../services/venueCache');
+venueSchema.post(
+  ['save', 'insertMany', 'findOneAndUpdate', 'findOneAndDelete', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'],
+  () => venueCache.clear()
+);
 
 module.exports = mongoose.model('Venue', venueSchema);

@@ -1,0 +1,402 @@
+{
+  "projectTitle": "RestroNet: An AI-Powered Restaurant Discovery and Recommendation System",
+  "projectDescription": "RestroNet is a full-stack, web-based restaurant discovery and reservation platform purpose-built for Kathmandu's dining ecosystem. It enables food enthusiasts to browse, search, and book curated restaurants using intelligent AI-driven recommendations, natural language search, and a conversational concierge chatbot. Restaurant owners can manage their menus, reservations, and operational data, while a superadmin panel provides complete platform oversight.",
+
+  "problemStatement": "Diners in Kathmandu lack a centralized, intelligent platform to discover quality restaurants tailored to their individual tastes, mood, location, and budget. Existing local solutions are generic directory listings with no personalization, no real-time availability, and no mechanism for restaurant owners to digitally manage their operations. This creates friction on both sides: diners cannot efficiently find the right dining experience, and restaurant owners have no unified digital channel for visibility, reservations, and customer engagement. RestroNet solves this by combining a smart multi-factor recommendation engine, geospatial search, AI-generated insights, and a full reservation pipeline into a single platform.",
+
+  "objectives": [
+    "Build a curated restaurant discovery platform focused on the Kathmandu dining scene with rich search and filter capabilities",
+    "Implement an AI-powered multi-factor recommendation engine that personalizes results using explicit preferences, implicit behavioral signals (reviews and reservations), location, mood, and time-of-day context",
+    "Develop a Content-Based Filtering (CBF) pipeline using TF-IDF vectors and Gemini text embeddings for semantic restaurant matching",
+    "Integrate natural language search via Gemini AI intent parsing and NLP-based rule parsing with Jaro-Winkler fuzzy matching",
+    "Provide a complete table reservation system with real-time capacity slot management and opening-hours validation",
+    "Build an AI Maitre D' conversational chatbot powered by Gemini 2.5 Flash that answers dining queries using live restaurant data",
+    "Implement digital menu management for restaurant owners including AI Vision OCR extraction from menu images",
+    "Automate diner engagement through scheduled email notifications: 24h and 2h reservation reminders, post-visit review requests, and personalized daily digest emails",
+    "Develop an AI-powered review aggregation pipeline that generates structured summaries and positives/constructives per restaurant",
+    "Build automated AI content moderation on review submission to filter spam and toxic content",
+    "Implement a trending detection algorithm to surface restaurants gaining momentum in review velocity",
+    "Create a comprehensive admin dashboard with real-time statistics, and full CRUD management of restaurants, owners, users, reservations, and reviews"
+  ],
+
+  "techStack": {
+    "frontend": {
+      "framework": "React 18",
+      "buildTool": "Vite 5",
+      "styling": ["Tailwind CSS 3", "Custom CSS Design System (index.css)"],
+      "componentLibrary": "Ant Design v6 (antd)",
+      "animation": "Framer Motion 12",
+      "icons": ["Lucide React", "Ant Design Icons", "Radix UI Icons"],
+      "maps": ["Leaflet 1.9", "React Leaflet 4"],
+      "carousel": "Swiper 12",
+      "routing": "React Router DOM v6",
+      "charts": "Recharts 2",
+      "httpClient": "Axios",
+      "notifications": "React Hot Toast",
+      "utilities": ["clsx", "tailwind-merge"],
+      "fonts": ["Cormorant Garamond (display/editorial)", "DM Sans (body/UI)"]
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express.js 4",
+      "authentication": "JWT (jsonwebtoken)",
+      "passwordHashing": "bcryptjs (salt rounds: 12)",
+      "security": ["Helmet.js", "express-rate-limit"],
+      "validation": "express-validator",
+      "fileUploads": "Multer",
+      "logging": ["Winston (application)", "Morgan (HTTP)"],
+      "email": "Nodemailer",
+      "scheduler": "node-cron",
+      "nlp": "natural (NLP library — TF-IDF, Jaro-Winkler, tokenization)",
+      "ai": "Google Generative AI SDK (@google/generative-ai) — Gemini 2.5 Flash + text-embedding-004",
+      "utilities": ["dotenv", "Axios"]
+    },
+    "database": {
+      "primary": "MongoDB",
+      "odm": "Mongoose 8",
+      "plugins": "mongoose-paginate-v2",
+      "indexes": ["2dsphere (geospatial)", "text (full-text search)", "compound indexes on venue+user+date"]
+    }
+  },
+
+  "modules": [
+    {
+      "name": "User Authentication & Profile Management",
+      "description": "JWT-based registration and login for two separate user pools: consumers (User model) and admins/owners (Admin model). Users store dietary preferences, meal type preferences, price range, and max distance for recommendation personalization. bcryptjs hashes passwords with 12 salt rounds. Profile update including avatar upload.",
+      "files": ["controllers/authController.js", "controllers/adminAuthController.js", "models/User.js", "models/Admin.js", "middleware/authMiddleware.js"]
+    },
+    {
+      "name": "Restaurant Discovery & Search",
+      "description": "Multi-tier search combining exact name matching, starts-with, contains, all-token, partial-token, Jaro-Winkler fuzzy match, cuisine match, category match, tag match, and description matching. Confidence-tier gating returns only the highest-confidence tier present. Produces spelling suggestions via Jaro-Winkler when zero results are found. Filterable by cuisine, category, tag, price range, mood, location radius, rating, and sort order.",
+      "files": ["services/searchService.js", "services/recommendationService.js", "controllers/venueController.js", "pages/Search.jsx", "pages/Discover.jsx"]
+    },
+    {
+      "name": "AI-Powered Recommendation Engine",
+      "description": "Multi-factor weighted scoring engine that scores all active venues against 11 signals: name text match, cuisine match, category match, tag match, price proximity, star rating, geospatial distance, mood tag overlap, review/reservation implicit behavioral profile, Gemini embedding cosine similarity, and log-normalized popularity. Weights are dynamically adjusted based on which signals are active. Applies diversity re-ranking to prevent cuisine monopoly in top results. Includes a time-of-day boost for meal-context-appropriate venues.",
+      "files": ["services/recommendationService.js", "controllers/recommendationController.js", "routes/recommendationRoutes.js"]
+    },
+    {
+      "name": "Content-Based Filtering (CBF) Pipeline",
+      "description": "Pre-computes feature vectors for every restaurant: one-hot cuisine vector, one-hot tag vector, normalized price range (0–1), normalized rating (0–1), TF-IDF sparse vector from cuisine names + tag names + description, and a dense combined vector. Also generates 768-dimensional Gemini text-embedding-004 embeddings per venue. Stored in a dedicated RestaurantFeature collection. Can be batch-rebuilt by admin trigger.",
+      "files": ["services/cbf-pipeline.js", "models/RestaurantFeature.js", "utils/cosineSimilarity.js"]
+    },
+    {
+      "name": "Natural Language Intent Parsing",
+      "description": "Two-layer NL parsing system. Primary: Gemini 2.5 Flash parses free-text queries into structured filters (cuisineIds, tagIds, categoryIds, priceRanges, mood, sortBy, isNearMe, isTopRated). Fallback: rule-based NLP parser using the natural library (Jaro-Winkler, tokenization) for offline/graceful-degradation mode. Mood-to-tag keyword mapping covers 8 moods: romantic, family-friendly, cafe, luxury, nightlife, casual, work-friendly, aesthetic.",
+      "files": ["services/aiService.js", "services/nlpParser.js", "services/recommendationService.js"]
+    },
+    {
+      "name": "Table Reservation & Capacity Management",
+      "description": "Users create reservations with date, time slot, guest count, contact phone, and special requests. Capacity service computes available time slots for a given date by reading a venue's opening hours and slot duration, then subtracting already-booked confirmed/pending reservations from maxCapacity. Admin can update reservation status (pending → confirmed → completed / cancelled). Supports guest count of 1–20.",
+      "files": ["services/capacityService.js", "controllers/reservationController.js", "models/Reservation.js", "components/CapacityPicker.jsx", "pages/MyReservations.jsx"]
+    },
+    {
+      "name": "Automated Email Notification System",
+      "description": "Four cron-scheduled automation jobs: (1) Reservation reminders at 24h and 2h before dining time — runs every hour. (2) Post-visit review request emails sent within 24h of a completed reservation (only if user has not already reviewed). (3) Trending venue detection runs daily at 02:00. (4) Personalized daily digest email at 08:00 to active users (logged in within 14 days, notifications enabled) with top 3 personalized venue picks.",
+      "files": ["services/automationService.js", "services/emailService.js", "models/Reservation.js"]
+    },
+    {
+      "name": "AI Maitre D' Conversational Concierge",
+      "description": "Floating chat widget on all public pages. Powered by Gemini 2.5 Flash with a system instruction that injects the live RestroNet restaurant directory (name, cuisines, tags, price, rating, location) into context. Maintains multi-turn conversation history. Responds in an elegant, brand-appropriate hospitality tone. Accessible without login.",
+      "files": ["controllers/chatController.js", "components/ConciergeChat.jsx", "routes/chatRoutes.js"]
+    },
+    {
+      "name": "Digital Menu Management & AI OCR Extraction",
+      "description": "Admins/owners can create, edit, and delete menus per venue. Each menu has items with name, description, price (NPR), category, dietary flags (vegetarian, vegan, gluten-free), allergens, calories, and availability toggle. AI OCR endpoint uploads a menu image and calls Gemini Vision (multimodal) to extract structured dish data. AI also suggests 3 recommended dishes based on the menu and logged-in user preferences.",
+      "files": ["controllers/menuController.js", "models/Menu.js", "services/aiService.js", "components/MenuSuggestions.jsx"]
+    },
+    {
+      "name": "AI Review Summarization",
+      "description": "When a venue's reviews exceed a snapshot threshold, Gemini 2.5 Flash generates a structured AI summary: a 2–3 sentence overall dining experience summary, up to 4 positives, and up to 2 constructive feedback points. Summary is cached in the Venue document (aiSummary field) with a reviewCountSnapshot to detect staleness. Displayed on the RestaurantDetail page.",
+      "files": ["services/aiService.js", "models/Venue.js", "controllers/recommendationController.js", "pages/RestaurantDetail.jsx"]
+    },
+    {
+      "name": "Automated AI Review Moderation",
+      "description": "On every review save, a Mongoose pre-save hook calls Gemini 2.5 Flash to classify the comment as clean, spam, or toxic. Constructive negative feedback is preserved; genuine violations trigger isApproved=false with a moderationNote. Fails open (approves) if the API is unavailable. Admins can also manually toggle review visibility from the admin panel.",
+      "files": ["models/Review.js", "controllers/reviewController.js"]
+    },
+    {
+      "name": "Trending Venue Detection",
+      "description": "Daily cron job computes a velocity score per venue: (recentWeekReviewCount - prevWeekReviewCount) / max(prevWeekReviewCount, 1). A venue is flagged isTrending=true if velocity > 0.5 AND recentCount >= 3. TrendingScore and isTrending flag are stored on the Venue document and surfaced as TrendingBadge components in the UI.",
+      "files": ["services/trendingService.js", "services/automationService.js", "components/TrendingBadge.jsx"]
+    },
+    {
+      "name": "Admin Dashboard & Platform Management",
+      "description": "Superadmin panel with a statistics dashboard (total venues, users, reservations, reviews), and full CRUD management for: Restaurants (with opening hours, capacity, gallery, menu), Owners (Admin role=owner accounts), Users (block/unblock, delete), Reservations (status updates), Reviews (visibility toggle). Includes OSM data import for seeding venue data from OpenStreetMap. Admin has a separate JWT auth flow.",
+      "files": ["controllers/adminDashboardController.js", "controllers/userController.js", "controllers/venueController.js", "controllers/scraperController.js", "pages/AdminDashboard.jsx", "pages/AdminRestaurants.jsx", "pages/AdminOwners.jsx", "pages/AdminUsers.jsx", "pages/AdminReservations.jsx", "pages/AdminReviews.jsx"]
+    },
+    {
+      "name": "Geospatial Location Features",
+      "description": "Venues store GeoJSON Point coordinates (longitude, latitude) with a 2dsphere MongoDB index. User profiles store last known coordinates. Haversine formula calculates exact distance in km between user and each venue. Distance score uses exponential decay (score = e^(-d / 0.4*maxDist)). Used in search filters, map view on the Search page (Leaflet), and recommendation scoring.",
+      "files": ["utils/haversine.js", "models/Venue.js", "models/User.js", "pages/Search.jsx"]
+    },
+    {
+      "name": "Dark/Light Theme System",
+      "description": "ThemeContext provides isDark state toggled globally. All color values use CSS custom properties (--background, --foreground, --primary, --border, --muted-foreground, etc.) defined in index.css with .dark class overrides. Supports the full dual-palette design system including dark-mode glassmorphic panel override (.rcard-panel) and admin panel dark utility surface.",
+      "files": ["context/ThemeContext.jsx", "src/index.css"]
+    }
+  ],
+
+  "algorithms": [
+    {
+      "name": "Multi-Factor Weighted Recommendation Scoring",
+      "description": "Scores every active venue against 11 weighted signals: name text match, cuisine overlap, category match, tag overlap, price proximity, star rating (0-1 normalized), geospatial distance, mood-tag overlap, implicit behavioral profile, Gemini embedding cosine similarity, and log-normalized popularity. Base weights are dynamically adjusted when specific signals are active (e.g., location adds 10% to distance weight). A featuredBoost (+8%) and timeBoost (+5%) are added post-weighting. A visitedPenalty (0.85x) softly demotes already-visited venues. Final scores are normalized to [0, 1].",
+      "file": "services/recommendationService.js"
+    },
+    {
+      "name": "Content-Based Filtering (CBF) with TF-IDF and One-Hot Encoding",
+      "description": "Builds a feature vector per restaurant: one-hot cuisine vector (length = total cuisines), one-hot tag vector (length = total tags), normalized price (0.25–1.0), normalized rating (0–1), and a TF-IDF sparse map over combined text (cuisine names + tag names + description + venue name). These are concatenated into a dense combinedVector for cosine similarity computation.",
+      "file": "services/cbf-pipeline.js"
+    },
+    {
+      "name": "Cosine Similarity",
+      "description": "Computes dot product divided by the product of L2 norms of two numeric vectors. Used for: (a) comparing user preference vectors against venue feature vectors in CBF, and (b) comparing Gemini query embeddings against stored 768-dimensional venue embeddings for semantic search. Output normalized from [-1, 1] to [0, 1].",
+      "file": "utils/cosineSimilarity.js, services/recommendationService.js"
+    },
+    {
+      "name": "Jaro-Winkler String Distance",
+      "description": "String similarity metric from the natural NLP library. Used in: (1) fuzzy venue name matching in the search cascade (threshold: 0.88 for match, 0.70 for suggestions), (2) NLP parser to match user query tokens against cuisine, tag, category, and mood keywords in the database with a threshold of 0.90.",
+      "file": "services/searchService.js, services/nlpParser.js"
+    },
+    {
+      "name": "Haversine Distance Formula",
+      "description": "Calculates great-circle distance in kilometers between two (longitude, latitude) coordinate pairs using the spherical law of cosines. Used to compute user-to-venue distances for distance-aware recommendation scoring and location-based filtering with a configurable maxDistanceKm radius (default: 20 km).",
+      "file": "utils/haversine.js"
+    },
+    {
+      "name": "Implicit Behavioral Profile Builder",
+      "description": "Derives user cuisine, tag, and price affinity scores from historical behavior without explicit input. Positive reviews (4–5 stars) carry weights of 1.0 (5★) and 0.7 (4★). Completed/confirmed reservations carry 0.4 weight. Frequencies are normalized so the top item = 1.0. Profiles are built on-demand per recommendation request from the last 30 reviews and 20 reservations.",
+      "file": "services/recommendationService.js"
+    },
+    {
+      "name": "Diversity Re-ranking",
+      "description": "After score-sorted ranking, iterates the candidate list and caps any single primary cuisine from occupying more than 40% of the top-N results (ceil(N * 0.40) slots). Overflow items are deferred and used to fill remaining slots after the primary pass. Prevents a single dominant cuisine from monopolizing the recommendation feed.",
+      "file": "services/recommendationService.js"
+    },
+    {
+      "name": "Review Velocity Trending Score",
+      "description": "Computes momentum for each venue by comparing review counts in the most recent 7-day window vs the prior 7-day window: velocityScore = (recentCount - prevCount) / max(prevCount, 1). A venue is marked trending if velocityScore > 0.5 AND recentCount >= 3. Runs as a daily cron job at 02:00.",
+      "file": "services/trendingService.js"
+    },
+    {
+      "name": "Time-of-Day Meal Context Boost",
+      "description": "At scoring time, checks the current server hour and maps it to a meal context (breakfast: 06–11, lunch: 11–15, snacks: 15–18, dinner: 18–23). If the venue's mealTypes array includes the current context, the venue receives a +5% boost on its final score.",
+      "file": "services/recommendationService.js"
+    },
+    {
+      "name": "Tiered Text Match Cascade with Confidence Gating",
+      "description": "10-tier descending cascade for text search: (1) exact name match → 1.0, (2) name starts-with → 0.95, (3) name contains → 0.90, (4) all tokens in name → 0.85, (5) partial tokens → ratio*0.65, (6) fuzzy Jaro-Winkler name → sim*0.5, (7) cuisine match → 0.50, (8) category match → 0.40, (9) tag match → 0.30, (10) description match → 0.25/0.15. Confidence gating then returns only the highest-confidence tier present, preventing weak matches from appearing alongside strong ones.",
+      "file": "services/searchService.js"
+    },
+    {
+      "name": "Log-Normalized Popularity Scoring with Cold-Start Boost",
+      "description": "Popularity score = log(1 + reviewCount) / log(1 + maxReviews), normalizing review count on a logarithmic scale so popular venues score higher without dominating. Venues created within the last 30 days receive a guaranteed baseline score of 0.35 regardless of review count, preventing cold-start penalization of newly added restaurants.",
+      "file": "services/recommendationService.js"
+    },
+    {
+      "name": "Exponential Decay Distance Scoring",
+      "description": "Converts raw distance in km to a [0, 1] score using exponential decay: score = e^(-distance / (maxDistance * 0.4)). Score = 1.0 at 0 km and approximately 0.37 at half the max distance. This rewards nearby venues strongly while allowing distant venues to still appear if other signals are strong.",
+      "file": "services/recommendationService.js"
+    }
+  ],
+
+  "apiEndpoints": {
+    "auth": [
+      "POST   /api/auth/register          — Register a new user",
+      "POST   /api/auth/login             — Login and receive JWT",
+      "GET    /api/auth/profile           — Get logged-in user profile (protected)",
+      "PUT    /api/auth/profile           — Update user profile and preferences (protected)"
+    ],
+    "adminAuth": [
+      "POST   /api/admin/auth/login       — Admin/owner login"
+    ],
+    "venues": [
+      "GET    /api/venues                 — List/search all venues (public, with optional admin context)",
+      "POST   /api/venues                 — Create a venue (admin only)",
+      "GET    /api/venues/:idOrSlug       — Get single venue by ID or slug (public)",
+      "PUT    /api/venues/:idOrSlug       — Update venue (admin only)",
+      "DELETE /api/venues/:idOrSlug       — Delete venue (admin only)",
+      "GET    /api/venues/:id/menu-suggestions — AI menu dish suggestions (optional auth)",
+      "GET    /api/venues/:id/slots       — Get available booking slots for a date (public)",
+      "GET    /api/venues/search-external — Search OpenStreetMap for venues (admin only)",
+      "POST   /api/venues/import-osm      — Import venue from OSM data (admin only)"
+    ],
+    "reviews": [
+      "GET    /api/reviews/venue/:venueId — Get paginated reviews for a venue (public)",
+      "POST   /api/reviews/venue/:venueId — Submit a review (user protected)",
+      "DELETE /api/reviews/:id            — Delete own review (user protected)",
+      "GET    /api/reviews/admin          — Get all reviews for admin (admin only)",
+      "PUT    /api/reviews/admin/:id/toggle — Toggle review visibility (admin only)"
+    ],
+    "reservations": [
+      "POST   /api/reservations           — Create a reservation (user protected)",
+      "GET    /api/reservations/my        — Get current user's reservations (user protected)",
+      "GET    /api/reservations/admin     — Get all reservations (admin only)",
+      "PUT    /api/reservations/admin/:id — Update reservation status (admin only)"
+    ],
+    "menus": [
+      "GET    /api/menus/venue/:venueId   — Get menus for a venue (public)",
+      "POST   /api/menus/venue/:venueId   — Create menu for venue (admin only)",
+      "POST   /api/menus/venue/:venueId/extract-ocr — AI OCR extract menu from image (admin only)",
+      "PUT    /api/menus/:menuId          — Update menu (admin only)",
+      "DELETE /api/menus/:menuId          — Delete menu (admin only)"
+    ],
+    "recommendations": [
+      "GET    /api/recommendations/smart  — Smart multi-factor recommendations (optional auth)",
+      "GET    /api/recommendations        — Legacy CBF recommendations (user protected)",
+      "POST   /api/recommendations/admin/rebuild-vectors   — Rebuild all CBF feature vectors (admin)",
+      "POST   /api/recommendations/admin/rebuild-summaries — Rebuild all AI review summaries (admin)"
+    ],
+    "chat": [
+      "POST   /api/chat                   — Send message to AI Maitre D' concierge (public)"
+    ],
+    "adminDashboard": [
+      "GET    /api/admin/dashboard/stats  — Platform statistics (admin only)"
+    ],
+    "users": [
+      "GET    /api/users                  — List all users (admin only)",
+      "PUT    /api/users/:id/block        — Block/unblock a user (admin only)",
+      "DELETE /api/users/:id              — Delete a user (admin only)"
+    ],
+    "metadata": [
+      "GET    /api/metadata/cuisines      — List all cuisine types",
+      "GET    /api/metadata/tags          — List all tags",
+      "GET    /api/metadata/categories    — List all venue categories"
+    ],
+    "upload": [
+      "POST   /api/upload                 — Upload image files (Multer, admin)"
+    ]
+  },
+
+  "databaseModels": [
+    {
+      "model": "User",
+      "description": "Consumer accounts. Stores name, email, hashed password, avatar, phone, preferences (cuisines, tags, priceRange, mealTypes, maxDistanceKm), last known GeoJSON location, emailNotifications flag, lastLoginAt. Includes a hasPreferences virtual and comparePassword instance method.",
+      "indexes": ["2dsphere on location"]
+    },
+    {
+      "model": "Admin",
+      "description": "Platform admin and restaurant owner accounts. Role enum: superadmin | owner. Stores name, email, hashed password, isActive, lastLogin. Owners are linked to their Venue via the Venue.owner field.",
+      "indexes": ["unique on email"]
+    },
+    {
+      "model": "Venue",
+      "description": "Core entity. Stores name, slug (auto-generated), description, address (street/city/state/country/postalCode), GeoJSON location coordinates, cuisines/tags/category refs, priceRange (1-4), day-by-day openingHours, mealTypes, contact info, logo, gallery images, menu images, denormalized averageRating and totalReviews, featureVector ref, aiSummary (summaryText, positives, constructives, reviewCountSnapshot, lastUpdated), 768-dim Gemini embedding, owner ref, isActive, isFeatured, isTrending, trendingScore, maxCapacity, slotDurationMinutes, and OSM source fields.",
+      "indexes": ["2dsphere on location", "text on name+description", "cuisines", "tags", "priceRange", "averageRating desc"]
+    },
+    {
+      "model": "Review",
+      "description": "One review per user per venue enforced by compound unique index. Granular rating breakdown: overall (required), food, service, ambience, value (all 1-5). Includes title, comment, photo URLs, isApproved (AI moderated on pre-save), isHidden (admin toggle), moderationNote, and helpfulVotes array. Static recalculateRating aggregates average and count back to Venue on post-save and post-delete hooks.",
+      "indexes": ["compound unique: venue+user", "venue+createdAt desc"]
+    },
+    {
+      "model": "Reservation",
+      "description": "Links a User to a Venue with date, time slot string (HH:MM), guest count, status (pending|confirmed|cancelled|completed), specialRequests, contactPhone. Tracks reminder and review request sent flags: reminderSent24h, reminderSent2h, reviewRequestSent.",
+      "indexes": ["venue+date", "user+date"]
+    },
+    {
+      "model": "Menu",
+      "description": "A venue can have multiple named menus (e.g. Lunch Menu, Dinner Menu). Each menu embeds an array of MenuItems with: name, description, price (NPR), category, image, isVegetarian, isVegan, isGlutenFree, isAvailable, isFeatured, allergens, calories.",
+      "indexes": ["venue"]
+    },
+    {
+      "model": "RestaurantFeature",
+      "description": "CBF vector store. One document per venue. Stores: cuisineVector (one-hot array), tagVector (one-hot array), normalizedPriceRange, normalizedRating, tfidfVector (Map<term, tfidf>), combinedVector (concatenated dense vector), lastComputedAt, version.",
+      "indexes": ["lastComputedAt desc", "unique on venue"]
+    },
+    {
+      "model": "Cuisine",
+      "description": "Metadata entity. Name, slug (auto-generated), description, icon, isActive."
+    },
+    {
+      "model": "Tag",
+      "description": "Metadata entity for restaurant attributes (e.g. 'Rooftop', 'Live Music', 'Pet Friendly'). Name, slug, description, category enum (ambience|service|food|facility|occasion|other), icon, isActive."
+    },
+    {
+      "model": "Category",
+      "description": "Metadata entity for venue categories (e.g. 'Fine Dining', 'Cafe', 'Fast Food', 'Bakery'). Name, slug, description, icon, isActive."
+    }
+  ],
+
+  "frontendPages": [
+    "Home — Hero, featured restaurants carousel, category grid (Fine Dining, Cafe, Fast Food, Pub), AI-powered picks, marquee strip, stats",
+    "Search — Split-pane: scrollable venue list (left) + Leaflet interactive map (right), pill chip filters for cuisine/price/mood, distance slider",
+    "Discover — AI natural language search with Gemini intent parsing, mood-based discovery cards, filter-based recommendations",
+    "RestaurantDetail — Full venue page: gallery swiper, AI review summary, menu display with AI dish suggestions, multi-dimensional rating breakdown, reviews list, capacity-aware reservation booking widget",
+    "Login — Split-screen layout, JWT auth",
+    "Register — User signup with preference selection",
+    "Profile — Edit name, avatar, phone, dietary preferences, max distance",
+    "MyReservations — List of all user reservations with status badges and cancellation",
+    "AdminDashboard — Stats cards (venues, users, reservations, reviews), Recharts graphs",
+    "AdminRestaurants — Restaurant CRUD with opening hours management, gallery upload, AI OCR menu import",
+    "AdminOwners — Owner account management (create/block/delete)",
+    "AdminUsers — User list with block/unblock and delete",
+    "AdminReservations — All reservations with status management",
+    "AdminReviews — All reviews with visibility toggle"
+  ],
+
+  "methodology": {
+    "type": "Iterative Incremental Development (Agile-inspired)",
+    "rationale": "The project was built in clearly defined feature phases evidenced by the docs/superpowers/plans/ directory: Phase 1 (Automation Backbone — reservation reminders, trending, digest), Phase 2 (Personalization Depth — CBF pipeline, embeddings, implicit profiling), Phase 3 (Owner and Admin Intelligence — menu OCR, review summaries, capacity management). Each phase delivered working, tested increments. Test files (Jest) exist for unit-testing core algorithms (capacityService, trendingService, openingHoursValidator) separately from integration concerns."
+  },
+
+  "scope": {
+    "included": [
+      "Web-based platform (desktop and mobile responsive) for the Kathmandu restaurant ecosystem",
+      "Three distinct user roles: Diner (consumer), Restaurant Owner, Superadmin",
+      "Complete restaurant profile management including opening hours, location, gallery, digital menus",
+      "AI-powered restaurant recommendations personalized to each logged-in diner",
+      "Natural language restaurant search powered by Gemini AI and NLP fallback",
+      "Table reservation with real-time slot availability based on capacity and opening hours",
+      "Structured digital menu management with AI Vision OCR from scanned/photographed menus",
+      "AI Maitre D' chatbot available on all pages for conversational dining guidance",
+      "Automated email engagement: pre-reservation reminders, post-visit review requests, daily personalized digest",
+      "AI-generated review summaries and automated content moderation on review submission",
+      "Trending venue detection based on review velocity",
+      "Geospatial distance-aware search and recommendation using device location",
+      "Full admin panel for platform governance (restaurant, user, review, reservation management)",
+      "Dark and light UI theme with full design system consistency"
+    ],
+    "excluded": [
+      "Native mobile applications (iOS / Android)",
+      "Real-time payment processing or online payment gateway",
+      "Multi-city support beyond Kathmandu",
+      "User-to-user social features (following, wishlists, messaging)",
+      "Multi-language support (platform is English-only)"
+    ]
+  },
+
+  "limitations": [
+    "No real-time updates — reservation status changes and new reviews require a page reload; WebSockets (e.g. Socket.io) are not implemented",
+    "No payment gateway integration — reservations are booking-only with no deposit or online payment",
+    "Single-city scope — the platform is built specifically for Kathmandu with no multi-city architecture",
+    "Gemini API dependency — AI features (recommendations, chat, OCR, review summaries) fail gracefully but degrade if the API key is missing or rate-limited",
+    "Email delivery via Nodemailer without a transactional email service (no SendGrid/Mailgun) — deliverability depends on the SMTP provider configured in .env",
+    "No image CDN — uploaded images (gallery, menus, avatars) are stored on the local filesystem in /uploads, making horizontal scaling without shared storage difficult",
+    "Rate limiting is disabled in the current server configuration (limiter middleware is commented out in server.js)",
+    "No collaborative filtering — recommendations are content-based only; user-to-user similarity (what similar diners liked) is not implemented",
+    "Concierge chat history is managed in frontend React state only — history is lost on page refresh",
+    "OSM venue import is a manual admin action; there is no automated periodic sync with OpenStreetMap data",
+    "CBF feature vector rebuild must be manually triggered by an admin after adding new cuisine or tag metadata",
+    "No email verification on user registration — accounts are activated immediately without confirming the email address",
+    "Review photos can be attached but there is no image moderation on photo uploads"
+  ],
+
+  "futureRecommendations": [
+    "Develop a Progressive Web App (PWA) or native mobile application (React Native) to reach mobile-first users in Kathmandu",
+    "Integrate a local payment gateway (eSewa or Khalti) to support reservation deposits and pre-payment, reducing no-shows",
+    "Implement WebSocket (Socket.io) for real-time reservation status notifications and live availability updates",
+    "Add Collaborative Filtering (CF) to complement the existing CBF engine — a hybrid recommender using user-to-user similarity would improve cold-start performance",
+    "Expand to a multi-city architecture to cover other Nepali cities (Pokhara, Bhaktapur) and eventually other South Asian markets",
+    "Introduce a restaurant loyalty and rewards system (points per reservation, redeemable discounts) to increase retention",
+    "Move uploaded media to a CDN-backed object storage (AWS S3 / Cloudflare R2) to support horizontal scaling and faster global delivery",
+    "Integrate a transactional email service (SendGrid, Mailgun, or Amazon SES) in place of raw Nodemailer SMTP for reliable deliverability and delivery analytics",
+    "Implement email address verification on registration to reduce fake accounts",
+    "Add Nepali language support (i18n) to make the platform accessible to non-English-speaking restaurant owners and diners",
+    "Build an analytics dashboard for restaurant owners showing reservation trends, peak hours, popular menu items, and review sentiment over time",
+    "Implement automated periodic OSM data sync to keep restaurant data fresh without manual admin intervention",
+    "Add photo moderation for review photos using Gemini Vision to detect inappropriate content",
+    "Implement push notifications via Web Push API to replace/complement email reminders",
+    "Add a table layout / floor plan manager for restaurant owners to assign specific tables to reservations"
+  ]
+}
