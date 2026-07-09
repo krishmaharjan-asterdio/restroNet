@@ -58,6 +58,35 @@ const generateCoords = (radiusKm) => {
   return [x0 + x, y0 + y];
 };
 
+// Category/tag name → mood id, used to derive Venue.mood for seed data.
+const CATEGORY_MOOD_MAP = {
+  'Fine Dining': 'luxury',
+  'Cafe': 'cafe',
+  'Restro-Bar': 'nightlife',
+  'Fast Food': 'casual',
+  'Bakery': 'cafe',
+  'Bistro': 'casual',
+};
+const TAG_MOOD_MAP = {
+  'Romantic': 'romantic',
+  'Family Friendly': 'family-friendly',
+  'Wifi': 'work-friendly',
+  'Quiet': 'work-friendly',
+  'Rooftop': 'aesthetic',
+  'Live Music': 'nightlife',
+  'Late Night': 'nightlife',
+  'Outdoor Seating': 'aesthetic',
+};
+
+function inferSeedMood(categoryName, tagNames, priceValue) {
+  const moods = new Set();
+  if (CATEGORY_MOOD_MAP[categoryName]) moods.add(CATEGORY_MOOD_MAP[categoryName]);
+  tagNames.forEach(t => { if (TAG_MOOD_MAP[t]) moods.add(TAG_MOOD_MAP[t]); });
+  if (priceValue >= 4) moods.add('luxury');
+  if (moods.size === 0) moods.add('casual');
+  return [...moods];
+}
+
 const prefixes = ['The', 'Golden', 'Spicy', 'Urban', 'Royal', 'Little', 'Mama', 'Papa', 'Red', 'Blue', 'Green', 'Wild', 'Misty', 'Crystal', 'Hidden', 'Vintage', 'Modern', 'Rustic', 'Elegant'];
 const nouns = ['Kitchen', 'Garden', 'House', 'Table', 'Plate', 'Fork', 'Spoon', 'Himalaya', 'Everest', 'Valley', 'Corner', 'Spot', 'Bistro', 'Hub', 'Diner', 'Eatery', 'Lounge', 'Vault'];
 
@@ -133,7 +162,8 @@ const seed = async () => {
         totalReviews: Math.floor(Math.random() * 1000) + 100,
         cuisines: v.cuis.map(name => cuisines.find(c => c.name === name)._id),
         category: categories.find(c => c.name === v.cat)._id,
-        tags: v.tags.map(name => tags.find(t => t.name === name)._id)
+        tags: v.tags.map(name => tags.find(t => t.name === name)._id),
+        mood: inferSeedMood(v.cat, v.tags, v.price),
       });
     });
 
@@ -159,19 +189,24 @@ const seed = async () => {
         if (!venueTags.includes(t)) venueTags.push(t);
       }
 
+      const venuePriceRange = Math.floor(Math.random() * 4) + 1;
+      const venueCategory = categories[Math.floor(Math.random() * categories.length)];
+      const venueTagNames = venueTags.map(id => tags.find(t => t._id.equals(id)).name);
+
       venues.push({
         name: fullName,
         slug: fullName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         description: `Experience the finest flavors of ${fullName} in a vibrant atmosphere.`,
         address: { street: `Street ${i+1}`, city: 'Kathmandu', country: 'Nepal' },
         location: { type: 'Point', coordinates: generateCoords(radius) },
-        priceRange: Math.floor(Math.random() * 4) + 1,
+        priceRange: venuePriceRange,
         isActive: true,
         averageRating: (Math.random() * 2 + 3).toFixed(1),
         totalReviews: Math.floor(Math.random() * 500) + 10,
         cuisines: venueCuisines,
-        category: categories[Math.floor(Math.random() * categories.length)]._id,
-        tags: venueTags
+        category: venueCategory._id,
+        tags: venueTags,
+        mood: inferSeedMood(venueCategory.name, venueTagNames, venuePriceRange),
       });
     }
 

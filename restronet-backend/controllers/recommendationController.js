@@ -37,7 +37,7 @@ const INTENT_KEYWORDS = [
   'cheap', 'budget', 'affordable', 'inexpensive', 'expensive', 'luxury', 'premium', 'upscale',
   'best', 'top', 'popular', 'famous', 'highest', 'rated',
   'romantic', 'family', 'casual', 'aesthetic', 'nightlife', 'work',
-  'food', 'cuisine', 'dish', 'meal',
+  'food', 'cuisine', 'dish', 'meal', 'eat', 'restaurant', 'restaurants', 'place', 'places',
   'italian', 'nepali', 'indian', 'chinese', 'mexican', 'thai', 'japanese',
 ];
 
@@ -114,6 +114,14 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       if (parsedFilters.isTopRated) isTopRated = true;
       if (parsedFilters.location)   city       = parsedFilters.location;
       if (parsedFilters.sortBy)     aiSortBy   = parsedFilters.sortBy;
+
+      // The extracted location becomes a structured address filter, so remove
+      // it from the free-text search term — otherwise venues whose name or
+      // tags don't literally contain the place name get text-gated out even
+      // though they sit in the requested area.
+      if (parsedFilters.location) {
+        prompt = prompt.replace(new RegExp(parsedFilters.location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ').trim();
+      }
     }
 
     // AI-parsed cuisine intent from a free-text prompt is treated the same as an
@@ -160,6 +168,15 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
         cuisineIds:    userCuisineIds,
         sortBy:        resolvedSortBy,
       });
+    }
+
+    // Tell the user when a filter was dropped to avoid a dead-end zero-result
+    // response (e.g. no exact Nightlife + $ match within range).
+    if (searchMeta.relaxedFilters?.length) {
+      const labels = { mood: 'mood/vibe', price: 'price range', cuisine: 'cuisine' };
+      const dropped = searchMeta.relaxedFilters.map(f => labels[f] || f).join(' and ');
+      const note = `No exact match for your ${dropped} filter — showing the closest results instead.`;
+      aiExplanation = aiExplanation ? `${aiExplanation} ${note}` : note;
     }
 
     res.json({

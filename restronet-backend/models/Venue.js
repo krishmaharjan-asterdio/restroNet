@@ -55,6 +55,12 @@ const venueSchema = new mongoose.Schema(
     tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
 
+    // ─── Mood & Vibe (direct filter field, source of truth for mood matching) ─
+    mood: [{
+      type: String,
+      enum: ['romantic', 'family-friendly', 'cafe', 'luxury', 'nightlife', 'casual', 'work-friendly', 'aesthetic'],
+    }],
+
     // ─── Price & Hours ──────────────────────────────────────────────────────
     priceRange: {
       type: Number,
@@ -153,6 +159,7 @@ venueSchema.index({ location: '2dsphere' });
 venueSchema.index({ name: 'text', description: 'text' }); // full-text search
 venueSchema.index({ cuisines: 1 });
 venueSchema.index({ tags: 1 });
+venueSchema.index({ mood: 1 });
 venueSchema.index({ priceRange: 1 });
 venueSchema.index({ averageRating: -1 });
 
