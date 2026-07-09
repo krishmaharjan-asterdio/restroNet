@@ -72,4 +72,24 @@ describe('Recommendations', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  test('city filter matches neighbourhoods stored in address.street', async () => {
+    const { getSmartRecommendations } = require('../../services/recommendationService');
+    const { category } = await createMetadata();
+
+    const thamelVenue = await createVenue({
+      category,
+      overrides: { address: { street: 'Thamel', city: 'Kathmandu', country: 'Nepal' } },
+    });
+    const patanVenue = await createVenue({
+      category,
+      overrides: { address: { street: 'Jawalakhel', city: 'Lalitpur', country: 'Nepal' } },
+    });
+
+    const { results } = await getSmartRecommendations({ city: 'Thamel', limit: 10 });
+    const names = results.map(r => r.name);
+
+    expect(names).toContain(thamelVenue.name);
+    expect(names).not.toContain(patanVenue.name);
+  });
 });

@@ -20,8 +20,18 @@ const STOP_WORDS = new Set([
   // Restaurant-domain generic nouns — never signal a specific venue
   'restaurant', 'restaurants', 'cafe', 'cafes', 'eatery', 'eateries',
   'diner', 'diners', 'canteen', 'bistro', 'hotel', 'bar', 'pub', 'kitchen',
-  'house', 'corner', 'place', 'spot', 'lounge', 'grill',
+  'house', 'corner', 'place', 'places', 'spot', 'spots', 'lounge', 'grill',
+  'eat', 'eats', 'food', 'foods', 'dining', 'dine', 'meal', 'meals',
 ]);
+
+/**
+ * Whole-word token match. Substring `includes` lets short tokens hit inside
+ * unrelated words ("eat" ∈ "Seating") and pollute cuisine/category/tag tiers.
+ * Tokens are already sanitized to [a-z0-9] so they are regex-safe.
+ */
+function tokenMatchesText(token, text) {
+  return new RegExp(`\\b${token}\\b`).test(text);
+}
 
 /**
  * Normalizes and splits a query string into tokens.
@@ -116,7 +126,7 @@ function computeTextMatchScore(venue, normalized, tokens) {
   if (
     cuisineText &&
     (cuisineText.includes(normalized) ||
-      tokens.some(t => t.length > 2 && cuisineText.includes(t)))
+      tokens.some(t => t.length > 2 && tokenMatchesText(t, cuisineText)))
   ) {
     return { score: 0.50, matchedFields: ['cuisine'], matchReason: 'cuisine_match' };
   }
@@ -126,7 +136,7 @@ function computeTextMatchScore(venue, normalized, tokens) {
   if (
     catName &&
     (catName.includes(normalized) ||
-      tokens.some(t => t.length > 2 && catName.includes(t)))
+      tokens.some(t => t.length > 2 && tokenMatchesText(t, catName)))
   ) {
     return { score: 0.40, matchedFields: ['category'], matchReason: 'category_match' };
   }
@@ -137,7 +147,7 @@ function computeTextMatchScore(venue, normalized, tokens) {
   if (
     tagText &&
     (tagText.includes(normalized) ||
-      tokens.some(t => t.length > 2 && tagText.includes(t)))
+      tokens.some(t => t.length > 2 && tokenMatchesText(t, tagText)))
   ) {
     return { score: 0.30, matchedFields: ['tag'], matchReason: 'tag_match' };
   }
@@ -149,7 +159,7 @@ function computeTextMatchScore(venue, normalized, tokens) {
   if (desc.includes(normalized)) {
     return { score: 0.25, matchedFields: ['description'], matchReason: 'description_exact' };
   }
-  if (tokens.some(t => t.length > 3 && desc.includes(t))) {
+  if (tokens.some(t => t.length > 3 && tokenMatchesText(t, desc))) {
     return { score: 0.15, matchedFields: ['description'], matchReason: 'description_token' };
   }
 

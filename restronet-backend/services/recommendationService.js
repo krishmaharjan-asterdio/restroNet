@@ -213,7 +213,11 @@ const getSmartRecommendations = async ({
 
   const filterQuery = { isActive: true };
   if (city) {
-    filterQuery['address.city'] = { $regex: city, $options: 'i' };
+    // AI intent parsing returns either a city ("Kathmandu") or a neighbourhood
+    // ("Thamel", "Lazimpat") — neighbourhoods are stored in address.street,
+    // so match against both fields.
+    const cityRegex = { $regex: city, $options: 'i' };
+    filterQuery.$or = [{ 'address.city': cityRegex }, { 'address.street': cityRegex }];
   }
   if (hasLocation) {
     filterQuery.location = {
@@ -364,7 +368,10 @@ const getSmartRecommendations = async ({
     ? scoredVenues.filter(s => s.distanceKm === null || s.distanceKm <= maxDistanceKm)
     : scoredVenues;
 
-  if (searchTerm) {
+  // Only gate on text relevance when the query has meaningful tokens left
+  // after stop-word removal — an all-generic query ("places to eat") carries
+  // no venue-specific signal, so gating on it would cut arbitrary venues.
+  if (searchTerm && searchTokens.length > 0) {
     const hasFilterContext = cuisineIds.length > 0 || priceRanges.length > 0 || !!mood;
     const textMatched    = filtered.filter(s => s.textMatchScore > 0);
     const strongMatched  = selectByConfidenceTier(textMatched);
