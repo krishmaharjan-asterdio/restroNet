@@ -7,6 +7,7 @@ const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
 const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
 const aiService = require('./aiService');
+const venueCache = require('./venueCache');
 
 // ─── Mood → Tag keyword mapping ───────────────────────────────────────────────
 const MOOD_KEYWORDS = {
@@ -53,9 +54,9 @@ const buildImplicitProfile = async (userId) => {
   const priceFreq    = {};
   const visitedIds   = new Set();
 
-  const processVenue = (venue, weight = 1) => {
+  const processVenue = (venue, weight = 1, countAsVisited = true) => {
     if (!venue) return;
-    visitedIds.add(venue._id.toString());
+    if (countAsVisited) visitedIds.add(venue._id.toString());
     (venue.cuisines || []).forEach(c => {
       cuisineFreq[c._id.toString()] = (cuisineFreq[c._id.toString()] || 0) + weight;
     });
@@ -74,7 +75,9 @@ const buildImplicitProfile = async (userId) => {
   });
 
   reservations.forEach(r => processVenue(r.venue, 0.4));
-  favorites.forEach(f => processVenue(f.venue, 0.6));
+  // Favorites signal interest, not a visit — they must not trigger the
+  // visited-venue score penalty, or hearting a restaurant would bury it.
+  favorites.forEach(f => processVenue(f.venue, 0.6, false));
 
   // Normalise frequencies to [0, 1] (top item = 1)
   const normalise = (freq) => {
@@ -130,12 +133,12 @@ const getSmartRecommendations = async ({
 
     if (user) {
       if (!cuisineIds.length) {
-        // Prefer implicit signal; fall back to explicit preferences
-        if (implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length > 0) {
-          cuisineIds = Object.keys(implicitProfile.cuisineAffinity);
-        } else if (user.preferences.cuisines?.length) {
-          cuisineIds = user.preferences.cuisines.map(c => c.toString());
-        }
+        // Blend implicit behavioral signal with explicit stored preferences —
+        // a user's chosen cuisines must keep mattering even after they review
+        // venues of other cuisines.
+        const implicitCuisines = implicitProfile ? Object.keys(implicitProfile.cuisineAffinity) : [];
+        const explicitCuisines = user.preferences.cuisines?.map(c => c.toString()) || [];
+        cuisineIds = [...new Set([...implicitCuisines, ...explicitCuisines])];
       }
 
       if (user.preferences.tags?.length) {
@@ -144,16 +147,19 @@ const getSmartRecommendations = async ({
       }
 
       if (!priceRanges.length) {
-        if (implicitProfile && Object.keys(implicitProfile.priceAffinity).length > 0) {
-          // Use the most preferred 1–2 price tiers
-          const sorted = Object.entries(implicitProfile.priceAffinity)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 2)
-            .map(([k]) => Number(k));
-          priceRanges = sorted;
-        } else if (user.preferences.priceRange) {
-          priceRanges = [user.preferences.priceRange];
-        }
+        // Blend: explicit chosen tier always included, plus the top implicit
+        // tiers, capped at 2 total. Build the full candidate list first so
+        // the cap doesn't accidentally swallow an implicit tier when it
+        // happens to equal the explicit one.
+        const implicitTiers = implicitProfile
+          ? Object.entries(implicitProfile.priceAffinity)
+              .sort((a, b) => b[1] - a[1])
+              .map(([k]) => Number(k))
+          : [];
+        const candidates = user.preferences.priceRange
+          ? [user.preferences.priceRange, ...implicitTiers]
+          : implicitTiers;
+        priceRanges = [...new Set(candidates)].slice(0, 2);
       }
 
       if (lat === null && user.location?.coordinates?.[1])
@@ -194,7 +200,7 @@ const getSmartRecommendations = async ({
     isTopRated,
     hasImplicit:   !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length),
     hasVector:     !!queryEmbedding,
-    hasCbfVector:  !!userPreferenceVector,   // ADD THIS LINE
+    hasCbfVector:  !!userPreferenceVector,
   });
 
   // Resolve mood tag IDs via keyword match
@@ -218,10 +224,17 @@ const getSmartRecommendations = async ({
     };
   }
 
-  const venues = await Venue.find(filterQuery)
-    .populate('cuisines tags category')
-    .populate({ path: 'featureVector', select: 'combinedVector' })
-    .lean();
+  // Geo ($near) queries vary per user location, so only cache the non-geo
+  // variants (keyed by city). Cache is invalidated on every Venue write.
+  const cacheKey = hasLocation ? null : `venues:${city ? city.trim().toLowerCase() : 'all'}`;
+  let venues = cacheKey ? venueCache.get(cacheKey) : null;
+  if (!venues) {
+    venues = await Venue.find(filterQuery)
+      .populate('cuisines tags category')
+      .populate({ path: 'featureVector', select: 'combinedVector' })
+      .lean();
+    if (cacheKey) venueCache.set(cacheKey, venues);
+  }
 
   // Compute max totalReviews for normalisation (popularity signal)
   const maxReviews = Math.max(...venues.map(v => v.totalReviews || 0), 1);
@@ -245,6 +258,14 @@ const getSmartRecommendations = async ({
     const vectorSimilarity = (queryEmbedding && venue.embedding && venue.embedding.length > 0)
       ? computeCosineSimilarity(queryEmbedding, venue.embedding)
       : 0.5;
+
+    // Raw (non-normalized) cosine, used only for the semantic-fallback gate
+    // below — computeCosineSimilarity remaps [-1,1] to [0,1] for scoring,
+    // which compresses the spread between "relevant" and "garbage" query
+    // similarity too much to threshold on reliably.
+    const rawVectorSimilarity = (queryEmbedding && venue.embedding && venue.embedding.length > 0)
+      ? rawCosineSimilarity(queryEmbedding, venue.embedding)
+      : 0;
 
     // Implicit feedback: combined cuisine + tag affinity from behavior
     const implicitScore = implicitProfile
@@ -316,6 +337,7 @@ const getSmartRecommendations = async ({
       textMatchScore: textMatch.score,
       matchedFields:  textMatch.matchedFields,
       matchReason:    textMatch.matchReason,
+      rawVectorSimilarity,
       distanceKm,
       scoreBreakdown: {
         name:          Math.round(nameScore        * 100),
@@ -349,6 +371,33 @@ const getSmartRecommendations = async ({
 
     if (strongMatched.length > 0) {
       filtered = strongMatched;
+    } else if (queryEmbedding) {
+      // No literal keyword/tag hit — fall back to semantic similarity so
+      // natural-language queries ("family environment") aren't dropped to
+      // zero results just because no venue text contains those words.
+      // Requires an absolute floor AND a relative margin: with only a few
+      // dozen venues, cosine scores for a nonsense query still cluster
+      // within a tight band of each other, so a margin-only check would
+      // wrongly "match" every venue. Uses RAW cosine (not the [0,1]-remapped
+      // scoreBreakdown.vector) because that remap compresses the gap
+      // between relevant and garbage queries too much to threshold on.
+      // Empirically (MiniLM, this venue set): genuine semantic matches top
+      // out above ~0.30 raw cosine; garbage queries top out below ~0.25.
+      const SEMANTIC_FLOOR  = 0.30; // absolute min top raw-cosine to trust the fallback at all
+      const SEMANTIC_MARGIN = 0.10; // raw-cosine points below the top score, once trusted
+      const vectorScores = filtered.map(s => s.rawVectorSimilarity);
+      const maxVector = Math.max(0, ...vectorScores);
+      const semanticMatched = maxVector >= SEMANTIC_FLOOR
+        ? filtered.filter(s => s.rawVectorSimilarity >= maxVector - SEMANTIC_MARGIN)
+        : [];
+
+      if (semanticMatched.length > 0) {
+        filtered = semanticMatched;
+      } else if (hasFilterContext) {
+        filtered = filtered.filter(s => s.finalScore > SEARCH_THRESHOLDS.FILTER_CONTEXT_SCORE);
+      } else {
+        filtered = [];
+      }
     } else if (hasFilterContext) {
       filtered = filtered.filter(s => s.finalScore > SEARCH_THRESHOLDS.FILTER_CONTEXT_SCORE);
     } else {
@@ -447,7 +496,10 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
   if (hasTag)        { w.tag      += 0.08; w.rating -= 0.04; }
   if (hasMood)       { w.mood     += 0.10; w.rating -= 0.05; }
   if (hasLocation)   { w.distance += 0.10; w.rating -= 0.05; }
-  if (hasPriceFilter){ w.price    += 0.05; w.rating -= 0.05; }
+  // Price gets a strong boost when the user expressed a price preference —
+  // at the base 0.08 weight a budget user's top results were dominated by
+  // premium venues whenever cuisine matched.
+  if (hasPriceFilter){ w.price    += 0.12; w.rating -= 0.06; w.popularity -= 0.03; }
   if (hasImplicit)   { w.implicit += 0.05; if (hasCbfVector) w.cbfVector = 0.07; w.rating -= 0.04; }
 
   if (hasVector) {
@@ -537,6 +589,25 @@ function computePopularityScore(venue, maxReviews) {
     score = Math.max(score, 0.35);
   }
   return score;
+}
+
+/**
+ * Raw cosine similarity in [-1, 1], no normalization. Used where the actual
+ * spread between relevant and irrelevant matters (semantic-fallback gating),
+ * as opposed to computeCosineSimilarity's [0, 1] remap used for scoring.
+ */
+function rawCosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 /**

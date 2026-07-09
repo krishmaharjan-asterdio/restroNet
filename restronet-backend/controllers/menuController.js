@@ -1,6 +1,7 @@
 const Menu = require('../models/Menu');
 const Venue = require('../models/Venue');
 const aiService = require('../services/aiService');
+const { parseMenuImageLocal } = require('../services/localMenuOcr');
 const fs = require('fs');
 
 /**
@@ -119,9 +120,17 @@ const extractMenuFromImage = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Menu image is required' });
     }
 
-    // Call Gemini to parse
-    const extractedData = await aiService.parseMenuImage(file.path, file.mimetype);
-    
+    // Local OCR first (free, no quota) — falls back to Gemini Vision only
+    // if the local pass finds nothing (e.g. a menu style Tesseract can't read).
+    let extractedData = await parseMenuImageLocal(file.path).catch((err) => {
+      console.error('Local menu OCR error:', err.message);
+      return null;
+    });
+
+    if (!extractedData || extractedData.items.length === 0) {
+      extractedData = await aiService.parseMenuImage(file.path, file.mimetype);
+    }
+
     // Clean up uploaded file from local server storage asynchronously
     fs.unlink(file.path, (err) => {
       if (err) console.error('Failed to delete temp menu upload:', err);

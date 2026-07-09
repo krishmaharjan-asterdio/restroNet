@@ -2,6 +2,18 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Cuisine, Category, Tag } = require('../models/Metadata');
 const fs = require('fs');
 
+// Lazy-loaded singleton pipeline — transformers.js downloads/caches the
+// model (~90MB) on first use and keeps it in memory across calls.
+let embedderPromise = null;
+function getEmbedder() {
+  if (!embedderPromise) {
+    embedderPromise = import('@xenova/transformers').then(({ pipeline }) =>
+      pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+    );
+  }
+  return embedderPromise;
+}
+
 /**
  * AI-powered intent parser for the RESTRONET discovery engine.
  * Uses Gemini to understand natural language queries and map them to database filters.
@@ -13,6 +25,8 @@ class AIService {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
       this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     }
+    // LRU cache for embeddings (Map preserves insertion order).
+    this._embeddingCache = new Map();
   }
 
   async _withRetry(fn, maxRetries = 2) {
@@ -155,22 +169,33 @@ Return ONLY valid JSON — no markdown wrapper:
   }
 
   /**
-   * Generates a 768-dimensional text embedding vector using Gemini.
+   * Generates a 384-dimensional text embedding vector locally
+   * (Xenova/all-MiniLM-L6-v2, runs in-process via transformers.js — no
+   * API key, no quota). Results are memoized in an LRU cache since the
+   * same search terms and venue text get embedded repeatedly.
    * @param {string} text - The input text to embed
    */
   async generateEmbedding(text) {
-    if (!this.genAI) {
-      console.warn('AI Service: GEMINI_API_KEY not found. Skipping embedding generation.');
-      return null;
+    if (!text || !text.trim()) return null;
+
+    const cacheKey = text.trim().toLowerCase();
+    if (this._embeddingCache.has(cacheKey)) {
+      // Delete + re-set moves the key to the end of the Map (most recent).
+      const cached = this._embeddingCache.get(cacheKey);
+      this._embeddingCache.delete(cacheKey);
+      this._embeddingCache.set(cacheKey, cached);
+      return cached;
     }
 
     try {
-      const embeddingModel = this.genAI.getGenerativeModel({ model: "text-embedding-004" });
-      const result = await this._withRetry(() => embeddingModel.embedContent(text));
-      if (result.embedding?.values) {
-        return result.embedding.values;
+      const embedder = await getEmbedder();
+      const output = await embedder(text, { pooling: 'mean', normalize: true });
+      const values = Array.from(output.data);
+      this._embeddingCache.set(cacheKey, values);
+      if (this._embeddingCache.size > 500) {
+        this._embeddingCache.delete(this._embeddingCache.keys().next().value);
       }
-      return null;
+      return values;
     } catch (error) {
       console.error('AI Embedding Generation Error:', error);
       return null;
