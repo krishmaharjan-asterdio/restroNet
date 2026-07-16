@@ -22,6 +22,7 @@ const userRoutes = require('./routes/userRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
+const interactionRoutes = require('./routes/interactionRoutes');
 
 const app = express();
 
@@ -112,6 +113,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/interactions', interactionRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use('*', (req, res) => {

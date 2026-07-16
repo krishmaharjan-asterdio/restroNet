@@ -3,6 +3,7 @@ const Venue = require('../models/Venue');
 const Review = require('../models/Review');
 const Reservation = require('../models/Reservation');
 const Favorite = require('../models/Favorite');
+const Interaction = require('../models/Interaction');
 const { Tag } = require('../models/Metadata');
 const { calculateHaversineDistance } = require('../utils/haversine');
 const { tokenizeQuery, computeTextMatchScore, generateSuggestions, selectByConfidenceTier, SEARCH_THRESHOLDS } = require('./searchService');
@@ -30,12 +31,29 @@ const MOOD_KEYWORDS = {
  * Reservations signal intent (venue visited at least once).
  * Favorites signal deliberate interest without requiring a visit or review.
  */
+// Half-life-style recency decay: a signal from today keeps full weight,
+// one from ~6 months ago keeps ~37%. Prevents a year-old food phase from
+// weighing the same as last week's choices.
+const RECENCY_DECAY_DAYS = 180;
+const recencyFactor = (date) => {
+  if (!date) return 1;
+  const ageDays = (Date.now() - new Date(date).getTime()) / 86400000;
+  if (ageDays <= 0) return 1;
+  return Math.exp(-ageDays / RECENCY_DECAY_DAYS);
+};
+
+// Interaction type → affinity weight. Clicks/views are weak positive signal;
+// dismissals are the system's only real-time negative signal.
+const INTERACTION_WEIGHTS = { click: 0.2, view: 0.1, dismiss: -0.3 };
+
 const buildImplicitProfile = async (userId) => {
-  const [positiveReviews, reservations, favorites] = await Promise.all([
-    Review.find({ user: userId, 'rating.overall': { $gte: 4 }, isHidden: false })
+  const [reviews, reservations, favorites, interactions] = await Promise.all([
+    // All visible reviews, not just positive ones — low ratings carry negative
+    // preference signal and drive a stronger visited penalty.
+    Review.find({ user: userId, isHidden: false })
       .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
       .sort({ createdAt: -1 })
-      .limit(30)
+      .limit(40)
       .lean(),
     Reservation.find({ user: userId, status: { $in: ['confirmed', 'completed'] } })
       .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
@@ -47,16 +65,32 @@ const buildImplicitProfile = async (userId) => {
       .sort({ createdAt: -1 })
       .limit(30)
       .lean(),
+    Interaction.find({ user: userId })
+      .populate({ path: 'venue', populate: { path: 'cuisines tags' } })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean(),
   ]);
 
   const cuisineFreq  = {};
   const tagFreq      = {};
   const priceFreq    = {};
   const visitedIds   = new Set();
+  // venueId → { maxRating: number|null, reserved: boolean } — used to grade
+  // the visited penalty (a loved venue should resurface; a disliked one shouldn't).
+  const visitedInfo  = new Map();
 
-  const processVenue = (venue, weight = 1, countAsVisited = true) => {
+  const markVisited = (venue, { rating = null, reserved = false } = {}) => {
+    const id = venue._id.toString();
+    visitedIds.add(id);
+    const info = visitedInfo.get(id) || { maxRating: null, reserved: false };
+    if (rating !== null) info.maxRating = Math.max(info.maxRating ?? 0, rating);
+    if (reserved) info.reserved = true;
+    visitedInfo.set(id, info);
+  };
+
+  const processVenue = (venue, weight = 1) => {
     if (!venue) return;
-    if (countAsVisited) visitedIds.add(venue._id.toString());
     (venue.cuisines || []).forEach(c => {
       cuisineFreq[c._id.toString()] = (cuisineFreq[c._id.toString()] || 0) + weight;
     });
@@ -68,20 +102,40 @@ const buildImplicitProfile = async (userId) => {
     }
   };
 
-  positiveReviews.forEach(r => {
-    // Weight by rating: 5 stars → 1.0, 4 stars → 0.7
-    const w = r.rating.overall === 5 ? 1.0 : 0.7;
-    processVenue(r.venue, w);
+  reviews.forEach(r => {
+    if (!r.venue) return;
+    const rating = r.rating.overall;
+    markVisited(r.venue, { rating });
+    // Rating → affinity weight: 5★ 1.0, 4★ 0.7, 3★ neutral (no signal),
+    // 1–2★ negative — pushes that venue's cuisines/tags/price DOWN.
+    let w = 0;
+    if (rating === 5) w = 1.0;
+    else if (rating === 4) w = 0.7;
+    else if (rating <= 2) w = -0.5;
+    if (w !== 0) processVenue(r.venue, w * recencyFactor(r.createdAt));
   });
 
-  reservations.forEach(r => processVenue(r.venue, 0.4));
+  reservations.forEach(r => {
+    if (!r.venue) return;
+    markVisited(r.venue, { reserved: true });
+    processVenue(r.venue, 0.4 * recencyFactor(r.createdAt));
+  });
   // Favorites signal interest, not a visit — they must not trigger the
   // visited-venue score penalty, or hearting a restaurant would bury it.
-  favorites.forEach(f => processVenue(f.venue, 0.6, false));
+  favorites.forEach(f => processVenue(f.venue, 0.6 * recencyFactor(f.createdAt)));
 
-  // Normalise frequencies to [0, 1] (top item = 1)
+  // Behavioral interactions: weak but fast-moving signal, never counts as a
+  // visit. Dismissals push a venue's traits down in real time — the only
+  // negative feedback that doesn't require the user to write a bad review.
+  interactions.forEach(i => {
+    const w = INTERACTION_WEIGHTS[i.type];
+    if (w) processVenue(i.venue, w * recencyFactor(i.createdAt));
+  });
+
+  // Normalise frequencies to [-1, 1] (top item = 1); negative affinities
+  // (from low-rated reviews) are preserved as negative values.
   const normalise = (freq) => {
-    const max = Math.max(...Object.values(freq), 1);
+    const max = Math.max(...Object.values(freq).map(Math.abs), 1);
     return Object.fromEntries(Object.entries(freq).map(([k, v]) => [k, v / max]));
   };
 
@@ -90,7 +144,24 @@ const buildImplicitProfile = async (userId) => {
     tagAffinity:     normalise(tagFreq),
     priceAffinity:   normalise(priceFreq),
     visitedIds,
+    visitedInfo,
   };
+};
+
+/**
+ * Graded visited penalty — replaces the old flat 0.85.
+ * Loved venues (5★) barely dip so they can resurface; disliked ones (≤2★)
+ * sink hard; reservation-only visits sit in between.
+ */
+const computeVisitedPenalty = (info) => {
+  if (!info) return 1.0;
+  if (info.maxRating !== null) {
+    if (info.maxRating >= 5) return 0.95;
+    if (info.maxRating >= 4) return 0.9;
+    if (info.maxRating >= 3) return 0.75;
+    return 0.6;
+  }
+  return info.reserved ? 0.85 : 1.0;
 };
 
 /**
@@ -136,7 +207,11 @@ const getSmartRecommendations = async ({
         // Blend implicit behavioral signal with explicit stored preferences —
         // a user's chosen cuisines must keep mattering even after they review
         // venues of other cuisines.
-        const implicitCuisines = implicitProfile ? Object.keys(implicitProfile.cuisineAffinity) : [];
+        // Only positive-affinity cuisines feed the filter — a cuisine the user
+        // consistently rated 1–2★ must not be treated as a preference.
+        const implicitCuisines = implicitProfile
+          ? Object.entries(implicitProfile.cuisineAffinity).filter(([, v]) => v > 0).map(([k]) => k)
+          : [];
         const explicitCuisines = user.preferences.cuisines?.map(c => c.toString()) || [];
         cuisineIds = [...new Set([...implicitCuisines, ...explicitCuisines])];
       }
@@ -148,18 +223,21 @@ const getSmartRecommendations = async ({
 
       if (!priceRanges.length) {
         // Blend: explicit chosen tier always included, plus the top implicit
-        // tiers, capped at 2 total. Build the full candidate list first so
-        // the cap doesn't accidentally swallow an implicit tier when it
-        // happens to equal the explicit one.
+        // tiers, capped at 3 total (2 was silently dropping a tier for users
+        // who genuinely eat across three price levels — the hard price filter
+        // then excluded those venues entirely). Build the full candidate list
+        // first so the cap doesn't accidentally swallow an implicit tier when
+        // it happens to equal the explicit one.
         const implicitTiers = implicitProfile
           ? Object.entries(implicitProfile.priceAffinity)
+              .filter(([, v]) => v > 0)
               .sort((a, b) => b[1] - a[1])
               .map(([k]) => Number(k))
           : [];
         const candidates = user.preferences.priceRange
           ? [user.preferences.priceRange, ...implicitTiers]
           : implicitTiers;
-        priceRanges = [...new Set(candidates)].slice(0, 2);
+        priceRanges = [...new Set(candidates)].slice(0, 3);
       }
 
       if (lat === null && user.location?.coordinates?.[1])
@@ -173,9 +251,11 @@ const getSmartRecommendations = async ({
 
   const hasLocation = lat !== null && lng !== null && !(lat === 0 && lng === 0);
 
-  // Generate query embedding if search term is provided
+  // Generate query embedding if search term is provided. Embeddings run on
+  // the local MiniLM model (no API key involved) — venue embeddings are
+  // already local, so the query side must never be gated on GEMINI_API_KEY.
   let queryEmbedding = null;
-  if (searchTerm && process.env.GEMINI_API_KEY) {
+  if (searchTerm) {
     queryEmbedding = await aiService.generateEmbedding(searchTerm).catch(() => null);
   }
 
@@ -190,6 +270,21 @@ const getSmartRecommendations = async ({
     userPreferenceVector = buildUserPreferenceVector(implicitProfile, allCuisinesVec, allTagsVec);
   }
 
+  const hasImplicit = !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length);
+
+  // Cold start: no behavioral history, no stored preferences, no explicit
+  // filters — nothing personal to rank on. Lean on proven signals (rating +
+  // popularity + proximity) instead of pretending to personalize, and flag
+  // the response so the UI can say "Popular near you" rather than "For you".
+  const isColdStart =
+    !hasImplicit &&
+    !searchTerm &&
+    !mood &&
+    cuisineIds.length === 0 &&
+    categoryIds.length === 0 &&
+    tagIds.length === 0 &&
+    priceRanges.length === 0;
+
   const weights = computeWeights({
     hasCuisine:    cuisineIds.length > 0,
     hasCategory:   categoryIds.length > 0,
@@ -198,9 +293,10 @@ const getSmartRecommendations = async ({
     hasLocation,
     hasPriceFilter: priceRanges.length > 0,
     isTopRated,
-    hasImplicit:   !!(implicitProfile && Object.keys(implicitProfile.cuisineAffinity).length),
+    hasImplicit,
     hasVector:     !!queryEmbedding,
     hasCbfVector:  !!userPreferenceVector,
+    isColdStart,
   });
 
   // Resolve mood tag IDs via keyword match — used only as a fallback signal
@@ -235,10 +331,14 @@ const getSmartRecommendations = async ({
   const cacheKey = hasLocation ? null : `venues:${city ? city.trim().toLowerCase() : 'all'}`;
   let venues = cacheKey ? venueCache.get(cacheKey) : null;
   if (!venues) {
-    venues = await Venue.find(filterQuery)
+    let query = Venue.find(filterQuery)
       .populate('cuisines tags category')
-      .populate({ path: 'featureVector', select: 'combinedVector' })
-      .lean();
+      .populate({ path: 'featureVector', select: 'combinedVector' });
+    // Candidate cap on geo queries: $near returns nearest-first, so limiting
+    // keeps the closest venues and bounds the in-memory scoring pass as the
+    // catalog grows.
+    if (hasLocation) query = query.limit(1000);
+    venues = await query.lean();
     if (cacheKey) venueCache.set(cacheKey, venues);
   }
 
@@ -261,9 +361,13 @@ const getSmartRecommendations = async ({
     const featuredBoost  = venue.isFeatured ? 0.08 : 0;
     const timeBoost      = computeTimeBoost(venue);
 
+    // null = signal unavailable for THIS venue (no stored embedding) while
+    // other venues have it — must not default to 0.5, or data-less venues
+    // outrank ones with a real-but-mediocre similarity. Handled below by
+    // renormalizing this venue's weights over its available signals.
     const vectorSimilarity = (queryEmbedding && venue.embedding && venue.embedding.length > 0)
       ? computeCosineSimilarity(queryEmbedding, venue.embedding)
-      : 0.5;
+      : null;
 
     // Raw (non-normalized) cosine, used only for the semantic-fallback gate
     // below — computeCosineSimilarity remaps [-1,1] to [0,1] for scoring,
@@ -278,11 +382,12 @@ const getSmartRecommendations = async ({
       ? computeImplicitScore(venue, implicitProfile)
       : 0.5;
 
-    // CBF vector score: cosine similarity between user preference vector and venue feature vector
+    // CBF vector score: cosine similarity between user preference vector and
+    // venue feature vector. null = this venue has no usable feature vector.
     const cbfVectorScore = computeCBFVectorScore(venue, userPreferenceVector);
 
-    // Skip venues the user has already visited (soft penalty, not exclusion)
-    const visitedPenalty = (implicitProfile?.visitedIds?.has(venueId)) ? 0.85 : 1.0;
+    // Graded visited penalty: loved venues barely dip, disliked ones sink hard
+    const visitedPenalty = computeVisitedPenalty(implicitProfile?.visitedInfo?.get(venueId));
 
     // Tiered text match
     const textMatch = searchTerm
@@ -321,19 +426,35 @@ const getSmartRecommendations = async ({
       });
     }
 
-    const rawScore =
-      (activeWeights.name || 0)       * nameScore       +
-      (activeWeights.cuisine || 0)    * cuisineScore    +
-      (activeWeights.category || 0)   * categoryScore   +
-      (activeWeights.tag || 0)        * tagScore        +
-      (activeWeights.price || 0)      * priceScore      +
-      (activeWeights.rating || 0)     * ratingScore     +
-      (activeWeights.distance || 0)   * distanceScore   +
-      (activeWeights.mood || 0)       * moodScore       +
-      (activeWeights.popularity || 0)  * popularityScore +
-      (activeWeights.implicit  || 0)   * implicitScore   +
-      (activeWeights.vector || 0)     * vectorSimilarity +
-      (activeWeights.cbfVector || 0)  * cbfVectorScore;
+    // Per-venue factor table. score === null marks a signal this venue can't
+    // provide (no stored embedding / feature vector / mood data); its weight
+    // is redistributed across the venue's available signals instead of the
+    // old behavior of silently scoring 0.5 "average" — which let data-less
+    // venues outrank ones with real-but-mediocre signals.
+    const factorScores = {
+      name:       searchTerm ? nameScore : 0,
+      cuisine:    cuisineScore,
+      category:   categoryScore,
+      tag:        tagScore,
+      price:      priceScore,
+      rating:     ratingScore,
+      distance:   distanceScore,
+      mood:       moodScore,
+      popularity: popularityScore,
+      implicit:   implicitScore,
+      vector:     vectorSimilarity,
+      cbfVector:  cbfVectorScore,
+    };
+
+    let weightedSum = 0;
+    let knownWeight = 0;
+    Object.entries(factorScores).forEach(([key, score]) => {
+      const w = activeWeights[key] || 0;
+      if (w === 0 || score === null) return;
+      weightedSum += w * score;
+      knownWeight += w;
+    });
+    const rawScore = knownWeight > 0 ? weightedSum / knownWeight : 0;
 
     const finalScore = (rawScore + featuredBoost + timeBoost) * visitedPenalty;
 
@@ -353,11 +474,11 @@ const getSmartRecommendations = async ({
         price:         Math.round(priceScore       * 100),
         rating:        Math.round(ratingScore      * 100),
         distance:      Math.round(distanceScore    * 100),
-        mood:          Math.round(moodScore        * 100),
+        mood:          Math.round((moodScore        ?? 0) * 100),
         popularity:    Math.round(popularityScore  * 100),
         implicit:      Math.round(implicitScore    * 100),
-        vector:        Math.round(vectorSimilarity * 100),
-        cbfVector:     Math.round(cbfVectorScore   * 100),
+        vector:        Math.round((vectorSimilarity ?? 0) * 100),
+        cbfVector:     Math.round((cbfVectorScore   ?? 0) * 100),
         timeBoost:     Math.round(timeBoost        * 100),
         featured:      venue.isFeatured ? 8 : 0,
         matchedFields: textMatch.matchedFields,
@@ -437,8 +558,12 @@ const getSmartRecommendations = async ({
   const moodFilter = list => mood
     ? list.filter(s => {
         const venue = s.venue;
-        if (venue.mood && venue.mood.length > 0) return venue.mood.includes(mood);
-        if (!moodTagIds.length) return true; // unknown mood id — don't exclude everything
+        // Direct mood match wins; otherwise fall back to tag keywords even
+        // when venue.mood IS set — mood labels come from a heuristic backfill,
+        // and one wrong inference must not make a venue invisible for a mood
+        // its tags clearly support.
+        if (venue.mood && venue.mood.length > 0 && venue.mood.includes(mood)) return true;
+        if (!moodTagIds.length) return !(venue.mood && venue.mood.length > 0); // unknown mood id — don't exclude everything
         const venueTagIds = venue.tags.map(t => t._id.toString());
         return moodTagIds.some(id => venueTagIds.includes(id));
       })
@@ -510,7 +635,7 @@ const getSmartRecommendations = async ({
     scoreBreakdown: item.scoreBreakdown,
     distanceKm: item.distanceKm,
     matchedMood: mood,
-    matchLabel: computeMatchLabel(item.scoreBreakdown, mood, item.distanceKm, !!userId),
+    matchLabel: computeMatchLabel(item.scoreBreakdown, mood, item.distanceKm, !!userId, isColdStart),
   }));
 
   const suggestions = (searchTerm && results.length === 0)
@@ -526,13 +651,14 @@ const getSmartRecommendations = async ({
       matched:        filtered.length,
       filteredOut:    venues.length - filtered.length,
       relaxedFilters, // filters dropped to avoid a dead-end zero-result response
+      coldStart:      isColdStart, // true = ranked by popularity/rating, not personalization
     },
   };
 };
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
 
-function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit, hasVector, hasCbfVector = false }) {
+function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation, hasPriceFilter, isTopRated, hasImplicit, hasVector, hasCbfVector = false, isColdStart = false }) {
   let w = {
     cuisine:    0.18,
     category:   0.12,
@@ -548,6 +674,9 @@ function computeWeights({ hasCuisine, hasCategory, hasTag, hasMood, hasLocation,
   };
 
   if (isTopRated)    { w.rating += 0.35; w.cuisine -= 0.08; w.category -= 0.08; w.tag -= 0.05; w.distance -= 0.05; w.mood -= 0.05; w.price -= 0.04; }
+  // Cold start: no personal signal exists, so rank on proven quality and
+  // popularity (plus proximity when available) instead of diluted defaults.
+  if (isColdStart)   { w.rating += 0.12; w.popularity += 0.12; w.distance += 0.05; w.cuisine -= 0.08; w.tag -= 0.04; w.mood -= 0.05; }
   if (hasCuisine)    { w.cuisine  += 0.10; w.rating -= 0.05; }
   if (hasCategory)   { w.category += 0.08; w.rating -= 0.04; }
   if (hasTag)        { w.tag      += 0.08; w.rating -= 0.04; }
@@ -625,10 +754,22 @@ function computeMoodScore(venue, mood, moodTagIds) {
   // over the fuzzy Tag-keyword fallback, which only exists for venues
   // that predate that field.
   if (venue.mood && venue.mood.length > 0) {
-    return venue.mood.includes(mood) ? 1.0 : 0;
+    if (venue.mood.includes(mood)) return 1.0;
+    // Non-match scores 0.15, not 0 — mood labels come from a heuristic
+    // backfill, so one wrong inference shouldn't zero the venue out. Tag
+    // keywords can still rescue a partial match.
+    const tagFallback = computeMoodTagScore(venue, moodTagIds);
+    return Math.max(0.15, tagFallback * 0.6);
   }
-  if (!moodTagIds.length) return 0.5;
-  const venueTagIds = venue.tags.map(t => t._id.toString());
+  const tagScore = computeMoodTagScore(venue, moodTagIds);
+  // null = no mood data at all for this venue AND no tag keywords resolved —
+  // signal genuinely unknown, weight gets redistributed rather than faked.
+  return tagScore === null ? null : tagScore;
+}
+
+function computeMoodTagScore(venue, moodTagIds) {
+  if (!moodTagIds.length) return null;
+  const venueTagIds = (venue.tags || []).map(t => t._id.toString());
   const matches = moodTagIds.filter(id => venueTagIds.includes(id)).length;
   return Math.min(1, matches / Math.max(1, Math.min(moodTagIds.length, 4)));
 }
@@ -727,27 +868,30 @@ function computeImplicitScore(venue, implicitProfile) {
   let score = 0;
   let components = 0;
 
+  // Affinities can be negative (venues the user rated 1–2★ push their
+  // cuisines/tags down). Components are clamped to [-1, 1] and the final
+  // average floors at 0 so a disliked profile never produces a boost.
   const venuesCuisineIds = venue.cuisines.map(c => c._id.toString());
   const cuisineMatch = venuesCuisineIds.reduce((sum, id) => sum + (cuisineAffinity[id] || 0), 0);
   if (Object.keys(cuisineAffinity).length > 0) {
-    score += Math.min(1, cuisineMatch);
+    score += Math.max(-1, Math.min(1, cuisineMatch));
     components++;
   }
 
   const venuesTagIds = venue.tags.map(t => t._id.toString());
   const tagMatch = venuesTagIds.reduce((sum, id) => sum + (tagAffinity[id] || 0), 0);
   if (Object.keys(tagAffinity).length > 0) {
-    score += Math.min(1, tagMatch * 0.5);
+    score += Math.max(-1, Math.min(1, tagMatch * 0.5));
     components++;
   }
 
   const priceMatch = priceAffinity[venue.priceRange] || 0;
   if (Object.keys(priceAffinity).length > 0) {
-    score += priceMatch;
+    score += Math.max(-1, Math.min(1, priceMatch));
     components++;
   }
 
-  return components > 0 ? score / components : 0.5;
+  return components > 0 ? Math.max(0, Math.min(1, score / components)) : 0.5;
 }
 
 /**
@@ -766,12 +910,17 @@ function applyDiversityReranking(sortedVenues, limit) {
   for (const item of sortedVenues) {
     if (selected.length >= limit) break;
 
-    const primaryCuisine = item.venue.cuisines?.[0]?._id?.toString() || 'none';
-    const count = cuisineCounts[primaryCuisine] || 0;
+    // Count the venue against ALL its cuisines, not just cuisines[0] — keyed
+    // on the first cuisine alone, [Italian, Pizza] and [Pizza, Italian]
+    // landed in different buckets and the cap was trivially defeated by
+    // cuisine ordering.
+    const venueCuisines = (item.venue.cuisines || []).map(c => c._id.toString());
+    const keys = venueCuisines.length > 0 ? venueCuisines : ['none'];
+    const atCap = keys.some(k => (cuisineCounts[k] || 0) >= maxPerCuisine);
 
-    if (count < maxPerCuisine) {
+    if (!atCap) {
       selected.push(item);
-      cuisineCounts[primaryCuisine] = count + 1;
+      keys.forEach(k => { cuisineCounts[k] = (cuisineCounts[k] || 0) + 1; });
     } else {
       deferred.push(item);
     }
@@ -804,12 +953,26 @@ function buildUserPreferenceVector(implicitProfile, allCuisines, allTags) {
 /**
  * Cosine similarity between a user's preference vector and a venue's stored feature vector.
  */
+// Warn once per venue per process about stale CBF vectors — a dimension
+// mismatch means a Cuisine/Tag was added/removed after vectors were built,
+// silently neutralizing the whole CBF signal until an admin rebuild runs.
+const staleCbfWarned = new Set();
+
 function computeCBFVectorScore(venue, userPreferenceVector) {
+  if (!userPreferenceVector) return 0.5; // no user profile — uniform, harmless
   const combined = venue.featureVector?.combinedVector;
-  if (!userPreferenceVector || !combined?.length) return 0.5;
+  if (!combined?.length) return null; // this venue has no vector — signal unknown
   if (combined.length !== userPreferenceVector.length) {
-    // Vectors are stale — CBF pipeline needs a rebuild
-    return 0.5;
+    const venueId = venue._id.toString();
+    if (!staleCbfWarned.has(venueId)) {
+      staleCbfWarned.add(venueId);
+      console.warn(
+        `[CBF] Stale feature vector for venue ${venueId} ` +
+        `(stored dim ${combined.length}, expected ${userPreferenceVector.length}). ` +
+        `Trigger the admin vector rebuild endpoint to fix.`
+      );
+    }
+    return null;
   }
   return computeCosineSimilarity(userPreferenceVector, combined);
 }
@@ -817,14 +980,17 @@ function computeCBFVectorScore(venue, userPreferenceVector) {
 /**
  * Returns a short human-readable label explaining why a venue was recommended.
  */
-function computeMatchLabel(scoreBreakdown, mood, distanceKm, isAuthenticated) {
+function computeMatchLabel(scoreBreakdown, mood, distanceKm, isAuthenticated, isColdStart = false) {
   if (scoreBreakdown.name >= 85)   return 'Exact match';
   if (scoreBreakdown.vector >= 60) return 'AI match';
   if (mood && scoreBreakdown.mood >= 60) return 'Mood match';
   if (distanceKm !== null && distanceKm <= 2) return 'Near you';
+  // Cold start: honest labels — nothing here is personalized, so say
+  // "Popular" instead of implying a match with a profile that doesn't exist.
+  if (isColdStart && scoreBreakdown.popularity >= 60) return 'Popular';
   if (scoreBreakdown.rating >= 80) return 'Top rated';
   if (scoreBreakdown.cuisine >= 80) return 'Cuisine match';
-  if (scoreBreakdown.implicit >= 70 && isAuthenticated) return 'For you';
+  if (scoreBreakdown.implicit >= 70 && isAuthenticated && !isColdStart) return 'For you';
   return null;
 }
 
@@ -874,4 +1040,18 @@ module.exports = {
   buildFilterExplanation,
   buildDigest,
   MOOD_KEYWORDS,
+  // Pure scoring helpers, exported for unit tests
+  _internal: {
+    computeWeights,
+    applyDiversityReranking,
+    computeVisitedPenalty,
+    computeMoodScore,
+    computeImplicitScore,
+    computePriceScore,
+    computeCosineSimilarity,
+    rawCosineSimilarity,
+    buildUserPreferenceVector,
+    recencyFactor,
+    computeMatchLabel,
+  },
 };
