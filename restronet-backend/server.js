@@ -16,10 +16,16 @@ const server = app.listen(PORT, () => {
   logger.info(`🚀 RESTRONET Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
 });
 
-// ─── Graceful Shutdown ────────────────────────────────────────────────────────
+// ─── Crash Safety ─────────────────────────────────────────────────────────────
+// Log and keep serving instead of exiting — a stray rejected promise (e.g. a
+// background job or a route missing a catch) should not take the whole app
+// down mid-demo. Restart manually/via a process manager if errors pile up.
 process.on('unhandledRejection', (err) => {
-  logger.error(`Unhandled Rejection: ${err.message}`);
-  server.close(() => process.exit(1));
+  logger.error(`Unhandled Rejection: ${err.message}\n${err.stack || ''}`);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error(`Uncaught Exception: ${err.message}\n${err.stack || ''}`);
 });
 
 process.on('SIGTERM', () => {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
+import PreferenceOnboarding, { hasCompletedOnboarding } from '../components/PreferenceOnboarding';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -116,7 +117,7 @@ const EmptyState = ({ hasFilters, onClear }) => (
 );
 
 const FilterSidebarContent = ({
-  cuisines,
+  cuisines, cuisinesLoaded,
   selectedCuisines, toggleCuisine,
   selectedPrices, togglePrice,
   selectedMood, toggleMood,
@@ -173,7 +174,9 @@ const FilterSidebarContent = ({
             );
           })}
           {cuisines.length === 0 && (
-            <p className="text-sm italic" style={{ color: 'hsl(var(--muted-foreground))' }}>Loading cuisines…</p>
+            <p className="text-sm italic" style={{ color: 'hsl(var(--muted-foreground))' }}>
+              {cuisinesLoaded ? 'Cuisines unavailable right now.' : 'Loading cuisines…'}
+            </p>
           )}
         </div>
       </div>
@@ -298,6 +301,7 @@ const FilterSidebarContent = ({
 
 const Discover = () => {
   const [cuisines, setCuisines]           = useState([]);
+  const [cuisinesLoaded, setCuisinesLoaded] = useState(false);
   const [results, setResults]             = useState([]);
   const [loading, setLoading]             = useState(false);
   const [initialLoad, setInitialLoad]     = useState(true);
@@ -314,6 +318,8 @@ const Discover = () => {
   const [maxDistance, setMaxDistance]           = useState(10);
   const [aiExplanation, setAiExplanation]       = useState(null);
   const [trendingOnly, setTrendingOnly]         = useState(false);
+  const [showOnboarding, setShowOnboarding]     = useState(false);
+  const [prefsVersion, setPrefsVersion]         = useState(0);
 
   const debounceRef = useRef(null);
   const sortRef = useRef(null);
@@ -321,7 +327,19 @@ const Discover = () => {
   useEffect(() => {
     api.get('/metadata/cuisines').then(res => {
       setCuisines(res.data.cuisines || []);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCuisinesLoaded(true));
+
+    // Cold-start onboarding: logged-in user, hasn't been asked before, and has
+    // no stored preferences yet — capture cuisines/price/mood in three taps so
+    // their first feed is personalized instead of a generic popularity list.
+    const token = localStorage.getItem('token');
+    if (token && !hasCompletedOnboarding()) {
+      api.get('/auth/profile').then(res => {
+        const prefs = res.data.user?.preferences;
+        const hasPrefs = prefs && (prefs.cuisines?.length > 0 || prefs.priceRange);
+        if (!hasPrefs) setShowOnboarding(true);
+      }).catch(() => {});
+    }
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -384,7 +402,15 @@ const Discover = () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance, sortBy, trendingOnly]);
+  }, [selectedCuisines, selectedPrices, selectedMood, userCoords, maxDistance, sortBy, trendingOnly, prefsVersion]);
+
+  /* Onboarding handlers: saved preferences change what the backend returns,
+     so bump prefsVersion to refetch; a chosen mood becomes the first filter. */
+  const handleOnboardingComplete = ({ mood } = {}) => {
+    setShowOnboarding(false);
+    if (mood) setSelectedMood(mood);
+    setPrefsVersion(v => v + 1);
+  };
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -448,7 +474,7 @@ const Discover = () => {
   const activeSortLabel = SORT_OPTIONS.find(s => s.value === sortBy)?.label || 'Recommended';
 
   const sidebarProps = {
-    cuisines,
+    cuisines, cuisinesLoaded,
     selectedCuisines, toggleCuisine,
     selectedPrices, togglePrice,
     selectedMood, toggleMood,
@@ -461,6 +487,15 @@ const Discover = () => {
 
   return (
     <div className="min-h-screen flex" style={{ background: 'hsl(var(--background))' }}>
+
+      {/* ─── COLD-START ONBOARDING ─── */}
+      {showOnboarding && cuisines.length > 0 && (
+        <PreferenceOnboarding
+          cuisines={cuisines}
+          onComplete={handleOnboardingComplete}
+          onSkip={() => setShowOnboarding(false)}
+        />
+      )}
 
       {/* ─── LEFT SIDEBAR (desktop) ─── */}
       <aside

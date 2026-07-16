@@ -557,6 +557,13 @@ const Home = () => {
 
         {loading ? (
           <SectionLoader />
+        ) : trending.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
+            <UtensilsCrossed size={28} className="text-warm-300 dark:text-white/20" strokeWidth={1.5} />
+            <p className="text-muted-foreground text-sm">
+              Nothing trending right now — check back soon.
+            </p>
+          </div>
         ) : (
           <motion.div
             variants={container}
