@@ -66,6 +66,13 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
     }
   };
 
+  // Fire-and-forget behavioral signal: card click feeds the recommendation
+  // engine's implicit profile. Never blocks navigation, failures are silent.
+  const logClick = () => {
+    if (!user) return;
+    api.post('/interactions', { venueId: venue._id, type: 'click' }).catch(() => {});
+  };
+
   const imageUrl =
     venue.gallery?.length > 0
       ? getImageUrl(venue.gallery[0])
@@ -88,7 +95,7 @@ const RestaurantCard = ({ venue, showScoreBreakdown = false }) => {
       className="relative group h-[480px] w-full rounded-3xl overflow-hidden cursor-pointer"
       style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)' }}
     >
-      <Link to={`/restaurant/${venue.slug}`} className="block h-full w-full">
+      <Link to={`/restaurant/${venue.slug}`} className="block h-full w-full" onClick={logClick}>
 
         {/* ── Full-bleed background photo ── */}
         <div className="absolute inset-0 overflow-hidden rounded-3xl">

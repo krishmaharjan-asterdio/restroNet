@@ -151,6 +151,12 @@ const RestaurantDetail = () => {
       const venueRes = await api.get(`/venues/${slug}${latLng}`);
       const venueData = venueRes.data.venue;
       setVenue(venueData);
+
+      // Behavioral signal for the recommendation engine — fire-and-forget,
+      // backend debounces repeats within 5 minutes.
+      if (user) {
+        api.post('/interactions', { venueId: venueData._id, type: 'view' }).catch(() => {});
+      }
       const [menuRes, reviewRes] = await Promise.all([
         api.get(`/menu/venue/${venueData._id}`),
         api.get(`/reviews/venue/${venueData._id}`)
