@@ -73,6 +73,86 @@ describe('Recommendations', () => {
     expect(res.body.success).toBe(true);
   });
 
+  test('price filter excludes non-matching tiers', async () => {
+    const { category } = await createMetadata();
+    const budgetVenue = await createVenue({ category, overrides: { priceRange: 1 } });
+    const luxuryVenue = await createVenue({ category, overrides: { priceRange: 4 } });
+
+    const res = await request(app).get('/api/recommendations/smart?priceRange=1&limit=10');
+
+    const names = res.body.recommendations.map(r => r.name);
+    expect(names).toContain(budgetVenue.name);
+    expect(names).not.toContain(luxuryVenue.name);
+  });
+
+  test('mood filter excludes venues without the matching mood', async () => {
+    const { category } = await createMetadata();
+    const nightlifeVenue = await createVenue({ category, overrides: { mood: ['nightlife'] } });
+    const cafeVenue = await createVenue({ category, overrides: { mood: ['cafe'] } });
+
+    const res = await request(app).get('/api/recommendations/smart?mood=nightlife&limit=10');
+
+    const names = res.body.recommendations.map(r => r.name);
+    expect(names).toContain(nightlifeVenue.name);
+    expect(names).not.toContain(cafeVenue.name);
+  });
+
+  test('stacked price + mood + cuisine filters narrow to only venues matching all three', async () => {
+    const nepali = await Cuisine.create({ name: `Nepali-${Date.now()}` });
+    const { category } = await createMetadata();
+
+    const match = await createVenue({
+      cuisine: nepali,
+      category,
+      overrides: { priceRange: 1, mood: ['casual'] },
+    });
+    const wrongPrice = await createVenue({
+      cuisine: nepali,
+      category,
+      overrides: { priceRange: 4, mood: ['casual'] },
+    });
+    const wrongMood = await createVenue({
+      cuisine: nepali,
+      category,
+      overrides: { priceRange: 1, mood: ['luxury'] },
+    });
+
+    const res = await request(app).get(
+      `/api/recommendations/smart?cuisines=${nepali._id}&priceRange=1&mood=casual&limit=10`
+    );
+
+    const names = res.body.recommendations.map(r => r.name);
+    expect(names).toContain(match.name);
+    expect(names).not.toContain(wrongPrice.name);
+    expect(names).not.toContain(wrongMood.name);
+  });
+
+  test('zero-result stacked filters relax mood first and report it in searchMeta', async () => {
+    // Scope with a unique cuisine so this test's result set can't pick up
+    // budget/casual venues left over from other tests in this file (the
+    // suite shares one DB across tests, only dropped in afterAll).
+    const scopeCuisine = await Cuisine.create({ name: `RelaxScope-${Date.now()}` });
+    const { category } = await createMetadata();
+    // Only a budget/casual venue exists for this cuisine — asking for budget
+    // + nightlife has no exact match, so the mood filter should be relaxed
+    // to surface it instead of returning an empty list.
+    const onlyVenue = await createVenue({
+      cuisine: scopeCuisine,
+      category,
+      overrides: { priceRange: 1, mood: ['casual'] },
+    });
+
+    const res = await request(app).get(
+      `/api/recommendations/smart?cuisines=${scopeCuisine._id}&priceRange=1&mood=nightlife&limit=10`
+    );
+
+    expect(res.status).toBe(200);
+    const names = res.body.recommendations.map(r => r.name);
+    expect(names).toEqual([onlyVenue.name]);
+    expect(res.body.searchMeta.relaxedFilters).toContain('mood');
+    expect(res.body.aiExplanation).toMatch(/no exact match/i);
+  });
+
   test('city filter matches neighbourhoods stored in address.street', async () => {
     const { getSmartRecommendations } = require('../../services/recommendationService');
     const { category } = await createMetadata();
