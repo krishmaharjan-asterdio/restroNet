@@ -57,6 +57,48 @@ const AMENITY_CATEGORY_MAP = {
   pub: 'Pub',
 };
 
+// OSM `amenity` → mood id(s). A venue can carry more than one mood.
+const AMENITY_MOOD_MAP = {
+  cafe: ['cafe', 'work-friendly'],
+  fast_food: ['casual'],
+  bar: ['nightlife'],
+  pub: ['nightlife', 'casual'],
+};
+
+// Name/description keyword → extra mood id, layered on top of the amenity mood.
+const MOOD_NAME_KEYWORD_MAP = [
+  [/rooftop|terrace|view/i, 'aesthetic'],
+  [/fine dining|gourmet|premium|luxury/i, 'luxury'],
+  [/family/i, 'family-friendly'],
+  [/romantic|candlelight/i, 'romantic'],
+  [/lounge|club|night/i, 'nightlife'],
+];
+
+function inferMood(tags, amenity, name) {
+  const moods = new Set(AMENITY_MOOD_MAP[amenity] || []);
+  for (const [pattern, moodId] of MOOD_NAME_KEYWORD_MAP) {
+    if (pattern.test(name)) moods.add(moodId);
+  }
+  if (tags.internet_access || tags.wifi === 'yes') moods.add('work-friendly');
+  if (tags.outdoor_seating === 'yes') moods.add('aesthetic');
+  if (moods.size === 0) moods.add('casual');
+  return [...moods];
+}
+
+// OSM doesn't reliably tag price tiers, so approximate from amenity type —
+// still a real signal (fast food/cafe skew cheap, restaurants/bars skew
+// mid-to-premium) rather than one constant tier for every imported venue.
+function inferPriceRange(tags, amenity) {
+  if (tags.price_range) {
+    const n = parseInt(tags.price_range, 10);
+    if (n >= 1 && n <= 4) return n;
+  }
+  if (amenity === 'fast_food') return 1;
+  if (amenity === 'cafe') return 2;
+  if (amenity === 'bar' || amenity === 'pub') return 3;
+  return 2;
+}
+
 function inferCuisineName(tags) {
   const osmCuisine = (tags.cuisine || '').toLowerCase();
   for (const part of osmCuisine.split(';')) {
@@ -192,6 +234,8 @@ const run = async () => {
       const amenity = (tags.amenity || 'restaurant').split(';')[0];
       const categoryName = AMENITY_CATEGORY_MAP[amenity] || 'Casual Dining';
       const city = inferCity(lat, lng, tags);
+      const mood = inferMood(tags, amenity, name);
+      const priceRange = inferPriceRange(tags, amenity);
 
       candidates.push({
         osmId,
@@ -201,6 +245,8 @@ const run = async () => {
         cuisineName,
         categoryName,
         city,
+        mood,
+        priceRange,
         street: tags['addr:street'] || tags['addr:full'] || '',
         phone: tags.phone || tags['contact:phone'] || '',
         website: tags.website || tags['contact:website'] || '',
@@ -229,9 +275,10 @@ const run = async () => {
           location: { type: 'Point', coordinates: [c.lng, c.lat] },
           category: categoryId,
           cuisines: cuisineId ? [cuisineId] : [],
+          mood: c.mood,
           phone: c.phone,
           website: c.website,
-          priceRange: 2,
+          priceRange: c.priceRange,
           osmId: c.osmId,
           source: 'osm',
           isActive: true,

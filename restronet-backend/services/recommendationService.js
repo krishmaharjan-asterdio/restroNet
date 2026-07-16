@@ -203,7 +203,9 @@ const getSmartRecommendations = async ({
     hasCbfVector:  !!userPreferenceVector,
   });
 
-  // Resolve mood tag IDs via keyword match
+  // Resolve mood tag IDs via keyword match — used only as a fallback signal
+  // for venues that predate the direct Venue.mood field (e.g. legacy/manual
+  // entries without mood inferred at import time).
   let moodTagIds = [];
   if (mood && MOOD_KEYWORDS[mood]) {
     const regex = new RegExp(MOOD_KEYWORDS[mood].join('|'), 'i');
@@ -254,7 +256,7 @@ const getSmartRecommendations = async ({
     const priceScore     = computePriceScore(venue, priceRanges);
     const ratingScore    = (venue.averageRating || 0) / 5.0;
     const { distanceKm, distanceScore } = computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation);
-    const moodScore      = computeMoodScore(venue, moodTagIds);
+    const moodScore      = computeMoodScore(venue, mood, moodTagIds);
     const popularityScore = computePopularityScore(venue, maxReviews);
     const featuredBoost  = venue.isFeatured ? 0.08 : 0;
     const timeBoost      = computeTimeBoost(venue);
@@ -416,11 +418,58 @@ const getSmartRecommendations = async ({
     filtered = filtered.filter(s => (s.venue.averageRating || 0) >= minRating);
   }
 
-  if (explicitCuisineIds.length > 0) {
-    filtered = filtered.filter(s => {
-      const venueIds = s.venue.cuisines.map(c => c._id.toString());
-      return explicitCuisineIds.some(id => venueIds.includes(id));
-    });
+  // Hard filters, applied as named, independently-relaxable steps. When
+  // stacking several (price + mood + cuisine + a tight distance) leaves zero
+  // results, we drop them one at a time — softest/most negotiable first —
+  // instead of showing a dead end, and report what got relaxed so the UI can
+  // tell the user ("no exact match for Nightlife — showing nearby options").
+  const cuisineFilter = list => explicitCuisineIds.length
+    ? list.filter(s => {
+        const venueIds = s.venue.cuisines.map(c => c._id.toString());
+        return explicitCuisineIds.some(id => venueIds.includes(id));
+      })
+    : list;
+
+  const priceFilter = list => priceRanges.length
+    ? list.filter(s => priceRanges.map(Number).includes(s.venue.priceRange))
+    : list;
+
+  const moodFilter = list => mood
+    ? list.filter(s => {
+        const venue = s.venue;
+        if (venue.mood && venue.mood.length > 0) return venue.mood.includes(mood);
+        if (!moodTagIds.length) return true; // unknown mood id — don't exclude everything
+        const venueTagIds = venue.tags.map(t => t._id.toString());
+        return moodTagIds.some(id => venueTagIds.includes(id));
+      })
+    : list;
+
+  const preHardFilter = filtered;
+  filtered = moodFilter(priceFilter(cuisineFilter(preHardFilter)));
+
+  // Relaxation order: mood (softest — a vibe preference), then price, then
+  // cuisine (kept last — the most deliberate, specific ask). Distance and
+  // minRating are never relaxed here: distance already means "too far to be
+  // useful," and rating is a quality floor, not a preference.
+  const relaxedFilters = [];
+  if (filtered.length === 0 && (mood || priceRanges.length || explicitCuisineIds.length)) {
+    const dropOrder = ['mood', 'price', 'cuisine'].filter(name => (
+      (name === 'mood' && mood) ||
+      (name === 'price' && priceRanges.length > 0) ||
+      (name === 'cuisine' && explicitCuisineIds.length > 0)
+    ));
+
+    for (const dropped of dropOrder) {
+      if (filtered.length > 0) break;
+      relaxedFilters.push(dropped);
+      let candidates = preHardFilter;
+      if (!relaxedFilters.includes('mood'))    candidates = moodFilter(candidates);
+      if (!relaxedFilters.includes('price'))   candidates = priceFilter(candidates);
+      if (!relaxedFilters.includes('cuisine')) candidates = cuisineFilter(candidates);
+      filtered = candidates;
+    }
+
+    if (filtered.length === 0) relaxedFilters.length = 0; // relaxing everything still found nothing — not worth reporting
   }
 
   // Sort
@@ -472,10 +521,11 @@ const getSmartRecommendations = async ({
     results,
     suggestions,
     searchMeta: {
-      query:        searchTerm,
-      totalScanned: venues.length,
-      matched:      filtered.length,
-      filteredOut:  venues.length - filtered.length,
+      query:          searchTerm,
+      totalScanned:   venues.length,
+      matched:        filtered.length,
+      filteredOut:    venues.length - filtered.length,
+      relaxedFilters, // filters dropped to avoid a dead-end zero-result response
     },
   };
 };
@@ -569,7 +619,14 @@ function computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation) {
   };
 }
 
-function computeMoodScore(venue, moodTagIds) {
+function computeMoodScore(venue, mood, moodTagIds) {
+  if (!mood) return 0.5;
+  // Prefer the direct Venue.mood field — populated at import/seed time —
+  // over the fuzzy Tag-keyword fallback, which only exists for venues
+  // that predate that field.
+  if (venue.mood && venue.mood.length > 0) {
+    return venue.mood.includes(mood) ? 1.0 : 0;
+  }
   if (!moodTagIds.length) return 0.5;
   const venueTagIds = venue.tags.map(t => t._id.toString());
   const matches = moodTagIds.filter(id => venueTagIds.includes(id)).length;

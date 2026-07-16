@@ -170,6 +170,15 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       });
     }
 
+    // Tell the user when a filter was dropped to avoid a dead-end zero-result
+    // response (e.g. no exact Nightlife + $ match within range).
+    if (searchMeta.relaxedFilters?.length) {
+      const labels = { mood: 'mood/vibe', price: 'price range', cuisine: 'cuisine' };
+      const dropped = searchMeta.relaxedFilters.map(f => labels[f] || f).join(' and ');
+      const note = `No exact match for your ${dropped} filter — showing the closest results instead.`;
+      aiExplanation = aiExplanation ? `${aiExplanation} ${note}` : note;
+    }
+
     res.json({
       success:         true,
       count:           results.length,

@@ -186,7 +186,7 @@ const updateVenue = async (req, res, next) => {
     await venue.save();
 
     // Rebuild CBF feature vector only when CBF-relevant fields were changed
-    const CBF_FIELDS = ['cuisines', 'tags', 'description', 'priceRange', 'name'];
+    const CBF_FIELDS = ['cuisines', 'tags', 'description', 'priceRange', 'name', 'mood'];
     const hasCbfChange = CBF_FIELDS.some(field => field in req.body);
     if (hasCbfChange) {
       buildRestaurantFeatureVector(venue._id).catch(console.error);
