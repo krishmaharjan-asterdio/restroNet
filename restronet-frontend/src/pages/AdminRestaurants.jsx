@@ -13,6 +13,19 @@ import { getImageUrl } from '../utils/imageUrl';
 const { Option } = Select;
 const { TextArea } = Input;
 
+// Mirrors Venue.mood enum (models/Venue.js) and the MOODS array in Discover.jsx —
+// keep the id/label/emoji set in sync with both if the mood taxonomy changes.
+const MOOD_OPTIONS = [
+  { id: 'romantic',        label: 'Romantic',       emoji: '💑' },
+  { id: 'family-friendly', label: 'Family',         emoji: '👨‍👩‍👧' },
+  { id: 'cafe',            label: 'Cafe & Coffee',  emoji: '☕' },
+  { id: 'luxury',          label: 'Luxury Dining',  emoji: '✨' },
+  { id: 'nightlife',       label: 'Nightlife',      emoji: '🍺' },
+  { id: 'casual',          label: 'Casual Hangout', emoji: '😎' },
+  { id: 'work-friendly',   label: 'Work Friendly',  emoji: '💻' },
+  { id: 'aesthetic',       label: 'Aesthetic',      emoji: '📸' },
+];
+
 // Custom Marker Icon for Leaflet
 const customIcon = L.divIcon({
   className: 'custom-icon',
@@ -271,6 +284,7 @@ const AdminRestaurants = () => {
         category: record.category?._id || record.category,
         cuisines: record.cuisines?.map(c => c._id || c),
         tags: record.tags?.map(t => t._id || t),
+        mood: record.mood || [],
         priceRange: record.priceRange,
         owner: record.owner?._id || record.owner,
         openingHours: hoursData
@@ -324,6 +338,7 @@ const AdminRestaurants = () => {
         category: values.category,
         cuisines: values.cuisines,
         tags: values.tags,
+        mood: values.mood,
         priceRange: values.priceRange,
         owner: values.owner,
         gallery: existingGallery,
@@ -821,6 +836,19 @@ const AdminRestaurants = () => {
                   >
                     <Select mode="multiple" placeholder="Search features..." size="large" className="rounded-xl">
                       {tags?.map(t => <Option key={t._id} value={t._id}>{t.name}</Option>)}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    name="mood"
+                    label={<span className="text-[#8b98b0] font-semibold text-xs uppercase tracking-wider">Mood &amp; Vibe</span>}
+                    tooltip="Used by the Mood &amp; Vibe filter on Discover — pick what actually describes this venue"
+                    className="md:col-span-2"
+                  >
+                    <Select mode="multiple" placeholder="Select mood/vibe tags" size="large" className="rounded-xl">
+                      {MOOD_OPTIONS.map(m => (
+                        <Option key={m.id} value={m.id}>{m.emoji} {m.label}</Option>
+                      ))}
                     </Select>
                   </Form.Item>
 
