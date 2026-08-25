@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
+import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ConciergeChat from './components/ConciergeChat';
@@ -79,46 +80,52 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<ErrorBoundary><AdminLogin /></ErrorBoundary>} />
             <Route path="/admin/*" element={
               <AdminWrapper>
-                <Routes>
-                  <Route path="dashboard"    element={<AdminDashboard />} />
-                  <Route path="restaurants"  element={<AdminRestaurants />} />
-                  <Route path="users"        element={<AdminUsers />} />
-                  <Route path="owners"       element={<AdminOwners />} />
-                  <Route path="reservations" element={<AdminReservations />} />
-                  <Route path="reviews"      element={<AdminReviews />} />
-                  <Route path="*"            element={<NotFound />} />
-                </Routes>
+                <ErrorBoundary>
+                  <Routes>
+                    <Route path="dashboard"    element={<AdminDashboard />} />
+                    <Route path="restaurants"  element={<AdminRestaurants />} />
+                    <Route path="users"        element={<AdminUsers />} />
+                    <Route path="owners"       element={<AdminOwners />} />
+                    <Route path="reservations" element={<AdminReservations />} />
+                    <Route path="reviews"      element={<AdminReviews />} />
+                    <Route path="*"            element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </AdminWrapper>
             } />
             <Route path="/owner/*" element={
               <OwnerLayout>
-                <Routes>
-                  <Route path="dashboard"    element={<OwnerDashboard />} />
-                  <Route path="restaurant"   element={<AdminRestaurants />} />
-                  <Route path="reservations" element={<AdminReservations />} />
-                  <Route path="reviews"      element={<AdminReviews />} />
-                  <Route path="*"            element={<NotFound />} />
-                </Routes>
+                <ErrorBoundary>
+                  <Routes>
+                    <Route path="dashboard"    element={<OwnerDashboard />} />
+                    <Route path="restaurant"   element={<AdminRestaurants />} />
+                    <Route path="reservations" element={<AdminReservations />} />
+                    <Route path="reviews"      element={<AdminReviews />} />
+                    <Route path="*"            element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </OwnerLayout>
             } />
             <Route path="/*" element={
               <PublicLayout>
-                <Routes>
-                  <Route path="/"                   element={<Home />} />
-                  <Route path="/search"             element={<Search />} />
-                  <Route path="/discover"           element={<Discover />} />
-                  <Route path="/restaurant/:slug"   element={<RestaurantDetail />} />
-                  <Route path="/login"              element={<Login />} />
-                  <Route path="/register"           element={<Register />} />
-                  <Route path="/forgot-password"    element={<ForgotPassword />} />
-                  <Route path="/reset-password"     element={<ResetPassword />} />
-                  <Route path="/profile"            element={<Profile />} />
-                  <Route path="/reservations"       element={<MyReservations />} />
-                  <Route path="*"                   element={<NotFound />} />
-                </Routes>
+                <ErrorBoundary>
+                  <Routes>
+                    <Route path="/"                   element={<Home />} />
+                    <Route path="/search"             element={<Search />} />
+                    <Route path="/discover"           element={<Discover />} />
+                    <Route path="/restaurant/:slug"   element={<RestaurantDetail />} />
+                    <Route path="/login"              element={<Login />} />
+                    <Route path="/register"           element={<Register />} />
+                    <Route path="/forgot-password"    element={<ForgotPassword />} />
+                    <Route path="/reset-password"     element={<ResetPassword />} />
+                    <Route path="/profile"            element={<Profile />} />
+                    <Route path="/reservations"       element={<MyReservations />} />
+                    <Route path="*"                   element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </PublicLayout>
             } />
           </Routes>
