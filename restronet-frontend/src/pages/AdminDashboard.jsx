@@ -105,17 +105,21 @@ const AdminDashboard = () => {
   const { admin } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
   }, []);
 
   const fetchDashboardStats = async () => {
+    setLoading(true);
+    setError(false);
     try {
       const res = await api.get('/admin/dashboard/stats');
       setStats(res.data);
     } catch (err) {
       toast.error('Failed to fetch dashboard stats');
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -133,7 +137,23 @@ const AdminDashboard = () => {
     );
   }
 
-  if (!stats) return null;
+  if (error || !stats) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px] bg-slate-50 dark:bg-[#0f1629]">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-slate-500 dark:text-[#8b98b0] text-sm">
+            Couldn't load the overview.
+          </p>
+          <button
+            onClick={fetchDashboardStats}
+            className="px-4 py-2 rounded-lg bg-[#fa6500] text-white text-sm font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const { stats: mainStats, recentVenues, recentReviews, trendingVenues } = stats;
 
