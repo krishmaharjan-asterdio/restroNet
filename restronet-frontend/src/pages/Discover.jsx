@@ -117,7 +117,7 @@ const EmptyState = ({ hasFilters, onClear }) => (
 );
 
 const FilterSidebarContent = ({
-  cuisines,
+  cuisines, cuisinesLoaded,
   selectedCuisines, toggleCuisine,
   selectedPrices, togglePrice,
   selectedMood, toggleMood,
@@ -174,7 +174,9 @@ const FilterSidebarContent = ({
             );
           })}
           {cuisines.length === 0 && (
-            <p className="text-sm italic" style={{ color: 'hsl(var(--muted-foreground))' }}>Loading cuisines…</p>
+            <p className="text-sm italic" style={{ color: 'hsl(var(--muted-foreground))' }}>
+              {cuisinesLoaded ? 'Cuisines unavailable right now.' : 'Loading cuisines…'}
+            </p>
           )}
         </div>
       </div>
@@ -299,6 +301,7 @@ const FilterSidebarContent = ({
 
 const Discover = () => {
   const [cuisines, setCuisines]           = useState([]);
+  const [cuisinesLoaded, setCuisinesLoaded] = useState(false);
   const [results, setResults]             = useState([]);
   const [loading, setLoading]             = useState(false);
   const [initialLoad, setInitialLoad]     = useState(true);
@@ -324,7 +327,7 @@ const Discover = () => {
   useEffect(() => {
     api.get('/metadata/cuisines').then(res => {
       setCuisines(res.data.cuisines || []);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCuisinesLoaded(true));
 
     // Cold-start onboarding: logged-in user, hasn't been asked before, and has
     // no stored preferences yet — capture cuisines/price/mood in three taps so
@@ -471,7 +474,7 @@ const Discover = () => {
   const activeSortLabel = SORT_OPTIONS.find(s => s.value === sortBy)?.label || 'Recommended';
 
   const sidebarProps = {
-    cuisines,
+    cuisines, cuisinesLoaded,
     selectedCuisines, toggleCuisine,
     selectedPrices, togglePrice,
     selectedMood, toggleMood,
