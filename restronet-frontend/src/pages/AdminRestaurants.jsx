@@ -212,7 +212,7 @@ const AdminRestaurants = () => {
     setLoading(true);
     try {
       const res = await api.get('/venues?limit=100');
-      setRestaurants(res.data.docs);
+      setRestaurants(res.data.docs || []);
     } catch (err) {
       toast.error('Failed to load restaurants');
     } finally {

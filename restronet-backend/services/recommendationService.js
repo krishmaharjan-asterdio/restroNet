@@ -188,14 +188,18 @@ const getSmartRecommendations = async ({
   city = null,
   sortBy = null,
   minRating = 0,
+  personalize = true,
 }) => {
   let explicitCuisineIds = [...userCuisineIds];
 
   // Build implicit profile from reviews + reservations (async, non-blocking if error)
   let implicitProfile = null;
 
-  // Merge stored user preferences when authenticated
-  if (userId) {
+  // Merge stored user preferences when authenticated. personalize=false lets
+  // a logged-in user see the full unfiltered catalog (e.g. a "Show all"
+  // toggle) instead of being silently narrowed by their saved price/location
+  // preferences, which are hard exclusion filters below, not soft ranking.
+  if (userId && personalize) {
     const [user, profile] = await Promise.all([
       User.findById(userId),
       buildImplicitProfile(userId).catch(() => null),

@@ -145,14 +145,14 @@ const Navbar = () => {
                                group-hover:scale-105 group-active:scale-95
                                shadow-[0_2px_8px_rgba(250,101,0,0.3)]"
                   >
-                    {user.name.charAt(0).toUpperCase()}
+                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
                   </div>
                   <div className="hidden lg:block text-left">
                     <p className={`text-label transition-colors duration-300 ${welcomeColor}`}>
                       Welcome back
                     </p>
                     <p className={`text-[13px] font-semibold leading-none mt-0.5 transition-colors duration-300 ${nameColor}`}>
-                      {user.name.split(' ')[0]}
+                      {user.name?.split(' ')[0] || 'there'}
                     </p>
                   </div>
                   <ChevronDown
@@ -294,10 +294,10 @@ const Navbar = () => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-surface">
                       <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm shrink-0 shadow-[0_1px_6px_rgba(250,101,0,0.3)]">
-                        {user.name.charAt(0).toUpperCase()}
+                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate leading-tight">{user.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate leading-tight">{user.name || 'Guest'}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
                     </div>

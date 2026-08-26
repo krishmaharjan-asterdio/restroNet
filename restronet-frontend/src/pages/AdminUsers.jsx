@@ -19,7 +19,7 @@ const AdminUsers = () => {
     setLoading(true);
     try {
       const res = await api.get('/users');
-      setUsers(res.data.users);
+      setUsers(res.data.users || []);
     } catch (err) {
       toast.error('Failed to load users');
     } finally {

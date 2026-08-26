@@ -127,6 +127,50 @@ const getOwners = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update a Restaurant Owner (Super Admin only)
+ * @route   PUT /api/admin/auth/owners/:id
+ * @access  Private (Superadmin)
+ */
+const updateOwner = async (req, res, next) => {
+  try {
+    const { name, email, password, isActive } = req.body;
+
+    const owner = await Admin.findById(req.params.id);
+    if (!owner) {
+      return res.status(404).json({ success: false, message: 'Owner not found' });
+    }
+
+    if (email && email !== owner.email) {
+      const emailTaken = await Admin.findOne({ email, _id: { $ne: owner._id } });
+      if (emailTaken) {
+        return res.status(400).json({ success: false, message: 'User already exists with this email' });
+      }
+      owner.email = email;
+    }
+
+    if (name) owner.name = name;
+    if (typeof isActive === 'boolean') owner.isActive = isActive;
+    if (password) owner.password = password;
+
+    await owner.save();
+
+    res.json({
+      success: true,
+      message: 'Owner account updated successfully',
+      owner: {
+        _id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        role: owner.role,
+        isActive: owner.isActive,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Delete a Restaurant Owner (Super Admin only)
  * @route   DELETE /api/admin/auth/owners/:id
  * @access  Private (Superadmin)
@@ -153,4 +197,4 @@ const deleteOwner = async (req, res, next) => {
   }
 };
 
-module.exports = { adminLogin, getAdminProfile, registerOwner, getOwners, deleteOwner };
+module.exports = { adminLogin, getAdminProfile, registerOwner, getOwners, updateOwner, deleteOwner };

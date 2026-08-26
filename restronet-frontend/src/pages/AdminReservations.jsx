@@ -27,7 +27,7 @@ const AdminReservations = () => {
     setLoading(true);
     try {
       const res = await api.get('/reservations/admin');
-      setReservations(res.data.reservations);
+      setReservations(res.data.reservations || []);
     } catch (err) {
       toast.error('Failed to load reservations');
     } finally {

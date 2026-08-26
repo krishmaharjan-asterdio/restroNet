@@ -25,7 +25,7 @@ const MyReservations = () => {
   const fetchMyReservations = async () => {
     try {
       const res = await api.get('/reservations/my');
-      setReservations(res.data.reservations);
+      setReservations(res.data.reservations || []);
     } catch (err) {
       toast.error('Failed to load reservations');
     } finally {
