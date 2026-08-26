@@ -1,5 +1,5 @@
 const express = require('express');
-const { adminLogin, getAdminProfile, registerOwner, getOwners, deleteOwner } = require('../controllers/adminAuthController');
+const { adminLogin, getAdminProfile, registerOwner, getOwners, updateOwner, deleteOwner } = require('../controllers/adminAuthController');
 const { protectAdmin, restrictTo } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -12,6 +12,8 @@ router.route('/owners')
   .post(protectAdmin, restrictTo('superadmin'), registerOwner)
   .get(protectAdmin, restrictTo('superadmin'), getOwners);
 
-router.delete('/owners/:id', protectAdmin, restrictTo('superadmin'), deleteOwner);
+router.route('/owners/:id')
+  .put(protectAdmin, restrictTo('superadmin'), updateOwner)
+  .delete(protectAdmin, restrictTo('superadmin'), deleteOwner);
 
 module.exports = router;

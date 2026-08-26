@@ -94,6 +94,7 @@ const Search = () => {
   const [selectedRating,  setSelectedRating]  = useState('');
   const [cuisinesList, setCuisinesList]        = useState([]);
   const [coords, setCoords]                    = useState(null);
+  const [personalize, setPersonalize]          = useState(true);
 
   /* Keep localQuery in sync when URL changes externally (back/forward) */
   useEffect(() => { setLocalQuery(query); }, [query]);
@@ -144,6 +145,7 @@ const Search = () => {
         if (selectedCuisine) endpoint += `&cuisines=${selectedCuisine}`;
         if (selectedRating)  endpoint += `&minRating=${selectedRating}`;
         if (coords)          endpoint += `&lat=${coords.lat}&lng=${coords.lng}`;
+        if (!personalize)    endpoint += `&personalize=false`;
 
         const res = await api.get(endpoint);
         if (!active) return;
@@ -157,7 +159,7 @@ const Search = () => {
     };
     fetchVenues();
     return () => { active = false; };
-  }, [query, selectedCuisine, selectedRating, coords]);
+  }, [query, selectedCuisine, selectedRating, coords, personalize]);
 
   /* Clicking a suggestion triggers an immediate search */
   const handleSuggestionClick = (suggestion) => {
@@ -253,6 +255,16 @@ const Search = () => {
 
         {/* Row 2: filter chips (horizontally scrollable) */}
         <div className="flex items-center gap-2 px-4 md:px-6 pb-3 overflow-x-auto scrollbar-hide">
+
+          {/* Personalize / Show all toggle */}
+          <button
+            onClick={() => setPersonalize(p => !p)}
+            className={chipCls(personalize)}
+            title={personalize ? 'Showing results tailored to your saved preferences' : 'Showing every active restaurant'}
+          >
+            {personalize ? 'For you' : 'Show all'}
+          </button>
+          <span className="w-1 h-1 rounded-full bg-border shrink-0 mx-1" />
 
           {/* Rating chips */}
           {RATING_OPTIONS.map(opt => (

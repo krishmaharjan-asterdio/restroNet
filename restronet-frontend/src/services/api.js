@@ -16,7 +16,9 @@ api.interceptors.request.use(
     const adminToken = localStorage.getItem('adminToken');
     
     // Determine context based on the current browser URL
-    const isAdminContext = window.location.pathname.startsWith('/admin');
+    const isAdminContext =
+      window.location.pathname.startsWith('/admin') ||
+      window.location.pathname.startsWith('/owner');
     
     if (isAdminContext && adminToken) {
       config.headers.Authorization = `Bearer ${adminToken}`;

@@ -78,10 +78,12 @@ function mapSortValue(frontendSort) {
  *   lng          — float longitude
  *   maxDistance  — km (default 20)
  *   limit        — integer (default 12)
+ *   personalize  — 'false' to bypass a logged-in user's saved price/location
+ *                  preferences (default true / personalized)
  */
 const getSmartRecommendationsHandler = async (req, res, next) => {
   try {
-    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit, minRating, sortBy } = req.query;
+    let { prompt, cuisines, priceRange, mood, lat, lng, maxDistance, limit, minRating, sortBy, personalize } = req.query;
 
     let userCuisineIds = cuisines ? cuisines.split(',').filter(Boolean) : [];
     let aiCuisineIds   = [];
@@ -156,6 +158,7 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
       limit:          limit ? parseInt(limit, 10) : 12,
       isTopRated,
       minRating:      minRating ? parseFloat(minRating) : 0,
+      personalize:    personalize !== 'false',
     });
 
     // Generate a filter-based explanation if no AI explanation exists but filters are active
