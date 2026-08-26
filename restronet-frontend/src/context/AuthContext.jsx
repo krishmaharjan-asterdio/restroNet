@@ -12,10 +12,18 @@ export const AuthProvider = ({ children }) => {
     // Rehydrate state on reload
     const storedUser = localStorage.getItem('user');
     const storedAdmin = localStorage.getItem('admin');
-    
-    if (storedUser) setUser(JSON.parse(storedUser));
-    if (storedAdmin) setAdmin(JSON.parse(storedAdmin));
-    
+
+    try {
+      if (storedUser) setUser(JSON.parse(storedUser));
+    } catch {
+      localStorage.removeItem('user');
+    }
+    try {
+      if (storedAdmin) setAdmin(JSON.parse(storedAdmin));
+    } catch {
+      localStorage.removeItem('admin');
+    }
+
     setLoading(false);
   }, []);
 

@@ -44,7 +44,7 @@ const AdminReviews = () => {
     setLoading(true);
     try {
       const res = await api.get(`/reviews/admin?page=${page}&limit=${pagination.pageSize}`);
-      setReviews(res.data.docs);
+      setReviews(res.data.docs || []);
       setPagination((prev) => ({
         ...prev,
         current: res.data.page,

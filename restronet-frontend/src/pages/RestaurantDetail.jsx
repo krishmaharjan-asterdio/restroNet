@@ -161,8 +161,8 @@ const RestaurantDetail = () => {
         api.get(`/menu/venue/${venueData._id}`),
         api.get(`/reviews/venue/${venueData._id}`)
       ]);
-      setMenus(menuRes.data.menus);
-      setReviews(reviewRes.data.docs);
+      setMenus(menuRes.data.menus || []);
+      setReviews(reviewRes.data.docs || []);
 
       if (user) {
         try {

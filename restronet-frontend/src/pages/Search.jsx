@@ -113,7 +113,7 @@ const Search = () => {
     const fetchMeta = async () => {
       try {
         const res = await api.get('/metadata/cuisines');
-        setCuisinesList(res.data.cuisines);
+        setCuisinesList(res.data.cuisines || []);
       } catch (err) { console.error(err); }
     };
     fetchMeta();

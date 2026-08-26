@@ -71,7 +71,7 @@ const ConciergeChat = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
@@ -80,7 +80,7 @@ const ConciergeChat = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="w-[380px] h-[550px] bg-card border border-border shadow-xl rounded-2xl flex flex-col overflow-hidden mb-4"
+            className="w-[calc(100vw-2rem)] sm:w-[380px] h-[70vh] max-h-[550px] bg-card border border-border shadow-xl rounded-2xl flex flex-col overflow-hidden mb-4"
           >
             {/* Header */}
             <div className="bg-surface border-b border-border p-4 flex justify-between items-center">

@@ -39,7 +39,7 @@ const Profile = () => {
     setFavoritesLoading(true);
     try {
       const res = await api.get('/favorites');
-      setFavorites(res.data.favorites.map(v => ({ ...v, isFavorited: true })));
+      setFavorites((res.data.favorites || []).map(v => ({ ...v, isFavorited: true })));
     } catch (err) {
       // Non-critical
     } finally {
@@ -292,7 +292,7 @@ const Profile = () => {
           {/* Avatar circle overlapping banner */}
           <div className="relative group shrink-0">
             <div className="w-24 h-24 text-white rounded-2xl flex items-center justify-center text-3xl font-bold select-none bg-primary shadow-primary">
-              {user.name.charAt(0).toUpperCase()}
+              {user.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             {/* Upload photo overlay on hover */}
             <button

@@ -19,7 +19,7 @@ const AdminOwners = () => {
     setLoading(true);
     try {
       const res = await api.get('/admin/auth/owners');
-      setOwners(res.data.owners);
+      setOwners(res.data.owners || []);
     } catch (err) {
       toast.error('Failed to fetch owners');
     } finally {
