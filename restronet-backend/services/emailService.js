@@ -1,11 +1,24 @@
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 const logger = require('../config/logger');
 
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Gmail SMTP transport. Requires GMAIL_USER + GMAIL_APP_PASSWORD (a Google
+// App Password, not the account password — needs 2FA enabled). Gmail forces
+// the From address to the authenticated user, so EMAIL_FROM must use GMAIL_USER.
+let transporter = null;
+if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+  transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
 }
 
-const FROM = process.env.EMAIL_FROM || 'RestroNet <noreply@restronet.com>';
+const FROM = process.env.EMAIL_FROM
+  || (process.env.GMAIL_USER ? `RestroNet <${process.env.GMAIL_USER}>` : 'RestroNet <noreply@restronet.com>');
 const BASE_URL = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
 const esc = (s) =>
@@ -16,15 +29,14 @@ const esc = (s) =>
     .replace(/"/g, '&quot;');
 
 const send = async (mailOptions) => {
-  if (!process.env.SENDGRID_API_KEY) {
-    logger.warn(`SENDGRID_API_KEY not set — skipping email to ${mailOptions.to}`);
+  if (!transporter) {
+    logger.warn(`Gmail SMTP not configured (GMAIL_USER / GMAIL_APP_PASSWORD) — skipping email to ${mailOptions.to}`);
     return;
   }
   try {
-    await sgMail.send(mailOptions);
+    await transporter.sendMail(mailOptions);
   } catch (err) {
-    const detail = err.response?.body?.errors?.map(e => e.message).join('; ') || err.message;
-    logger.error(`Email send failed to ${mailOptions.to}: ${detail}`);
+    logger.error(`Email send failed to ${mailOptions.to}: ${err.message}`);
   }
 };
 
