@@ -20,6 +20,7 @@ import {
   Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+// Sidebar/shell colors use design tokens (index.css) so admin matches the app theme in both modes.
 
 const AdminLayout = ({ children }) => {
   const { admin, loading, logoutAdmin } = useContext(AuthContext);
@@ -29,10 +30,10 @@ const AdminLayout = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-[#080d1a]">
+      <div className="h-screen w-full flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 dark:border-[#1e2d47] border-t-[#fa6500]" />
-          <span className="text-slate-500 dark:text-[#8b98b0] text-sm font-medium tracking-wide">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-border border-t-primary" />
+          <span className="text-muted-foreground text-sm font-medium tracking-wide">
             Loading admin panel…
           </span>
         </div>
@@ -71,25 +72,25 @@ const AdminLayout = ({ children }) => {
   const SidebarContent = ({ onNavClick }) => (
     <div className="flex flex-col h-full">
       {/* Logo area */}
-      <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-[#1e2d47] shrink-0">
+      <div className="h-16 flex items-center px-5 border-b border-border shrink-0">
         <Link
           to="/admin/dashboard"
           className="flex items-center gap-3 group"
           onClick={onNavClick}
         >
-          <div className="w-9 h-9 rounded-xl bg-[#fa6500] flex items-center justify-center shadow-primary shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-primary shrink-0">
             <Utensils size={17} className="text-white" />
           </div>
           <div className="leading-none select-none">
-            <span className="text-slate-800 dark:text-white font-extrabold tracking-wider text-[15px]">RESTRO</span>
-            <span className="text-[#fa6500] font-extrabold tracking-wider text-[15px]">ADMIN</span>
+            <span className="text-foreground font-extrabold tracking-wider text-[15px]">RESTRO</span>
+            <span className="text-primary font-extrabold tracking-wider text-[15px]">ADMIN</span>
           </div>
         </Link>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-5 px-3 space-y-0.5 overflow-y-auto scrollbar-hide">
-        <p className="text-slate-400 dark:text-[#4a5a78] text-[10px] font-bold uppercase tracking-[0.18em] px-3 mb-3">
+        <p className="text-muted-foreground/60 text-[10px] font-bold uppercase tracking-[0.18em] px-3 mb-3">
           Navigation
         </p>
 
@@ -107,16 +108,16 @@ const AdminLayout = ({ children }) => {
                 onClick={onNavClick}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 relative group ${
                   isActive
-                    ? 'bg-[#fa6500]/10 text-[#fa6500] border-l-2 border-[#fa6500] pl-[10px]'
-                    : 'text-slate-500 dark:text-[#8b98b0] hover:bg-slate-100 dark:hover:bg-[#131e35] hover:text-slate-900 dark:hover:text-slate-100 pl-3'
+                    ? 'bg-primary/10 text-primary border-l-2 border-primary pl-[10px]'
+                    : 'text-muted-foreground hover:bg-surface hover:text-foreground pl-3'
                 }`}
               >
-                <span className={`shrink-0 transition-colors ${isActive ? 'text-[#fa6500]' : 'text-slate-400 dark:text-[#4a5a78] group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}>
+                <span className={`shrink-0 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground/60 group-hover:text-foreground'}`}>
                   {item.icon}
                 </span>
                 <span className="flex-1 truncate">{item.name}</span>
                 {isActive && (
-                  <ChevronRight size={13} className="text-[#fa6500]/60 shrink-0" />
+                  <ChevronRight size={13} className="text-primary/60 shrink-0" />
                 )}
               </Link>
             </motion.div>
@@ -125,17 +126,17 @@ const AdminLayout = ({ children }) => {
       </nav>
 
       {/* Bottom admin info + logout */}
-      <div className="p-3 border-t border-slate-200 dark:border-[#1e2d47] shrink-0">
+      <div className="p-3 border-t border-border shrink-0">
         {/* Admin info card */}
-        <div className="flex items-center gap-3 bg-slate-100 dark:bg-[#131e35] rounded-xl px-3 py-2.5 mb-1 border border-slate-200/50 dark:border-transparent">
-          <div className="w-8 h-8 rounded-lg bg-[#fa6500] text-white flex items-center justify-center font-bold text-sm shrink-0 select-none">
+        <div className="flex items-center gap-3 bg-surface rounded-xl px-3 py-2.5 mb-1 border border-border">
+          <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0 select-none">
             {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm truncate leading-tight">
+            <p className="text-foreground font-semibold text-sm truncate leading-tight">
               {admin?.name || 'Admin'}
             </p>
-            <p className="text-slate-400 dark:text-[#4a5a78] text-xs capitalize truncate leading-tight mt-0.5">
+            <p className="text-muted-foreground/60 text-xs capitalize truncate leading-tight mt-0.5">
               {admin?.role || 'administrator'}
             </p>
           </div>
@@ -147,9 +148,9 @@ const AdminLayout = ({ children }) => {
             logoutAdmin();
             onNavClick?.();
           }}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl font-medium text-sm text-slate-500 dark:text-[#8b98b0] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 group"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl font-medium text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200 group"
         >
-          <LogOut size={15} className="transition-colors group-hover:text-red-400" />
+          <LogOut size={15} className="transition-colors group-hover:text-destructive" />
           Sign out
         </button>
       </div>
@@ -157,29 +158,29 @@ const AdminLayout = ({ children }) => {
   );
 
   return (
-    <div className="flex h-screen bg-slate-100 dark:bg-[#0f1629] overflow-hidden font-sans transition-colors duration-300">
+    <div className="flex h-screen bg-background overflow-hidden font-sans transition-colors duration-300">
       {/* Desktop sidebar */}
-      <aside className="w-64 bg-white dark:bg-[#080d1a] hidden md:flex flex-col z-20 shrink-0 shadow-admin border-r border-slate-200 dark:border-[#1e2d47]">
+      <aside className="w-64 bg-card hidden md:flex flex-col z-20 shrink-0 shadow-admin border-r border-border">
         <SidebarContent onNavClick={undefined} />
       </aside>
 
       {/* Main area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Topbar */}
-        <header className="h-16 bg-white dark:bg-[#0f1629] border-b border-slate-200 dark:border-[#1e2d47] flex items-center justify-between px-5 z-10 shrink-0 transition-colors duration-300">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-5 z-10 shrink-0 transition-colors duration-300">
 
           {/* Mobile: logo + hamburger */}
           <div className="md:hidden flex items-center gap-2 flex-1">
             <Link to="/admin/dashboard" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#fa6500] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <Utensils size={15} className="text-white" />
               </div>
-              <span className="text-slate-800 dark:text-white font-extrabold tracking-wider text-sm">
-                RESTRO<span className="text-[#fa6500]">ADMIN</span>
+              <span className="text-foreground font-extrabold tracking-wider text-sm">
+                RESTRO<span className="text-primary">ADMIN</span>
               </span>
             </Link>
             <button
-              className="ml-auto w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              className="ml-auto w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open navigation"
             >
@@ -189,16 +190,16 @@ const AdminLayout = ({ children }) => {
 
           {/* Desktop: breadcrumb */}
           <div className="hidden md:flex items-center gap-2 text-sm">
-            <span className="text-slate-400 dark:text-[#4a5a78] font-medium">Admin</span>
-            <ChevronRight size={13} className="text-slate-300 dark:text-[#2d3d57]" />
-            <span className="text-slate-800 dark:text-slate-100 font-semibold">{currentPage}</span>
+            <span className="text-muted-foreground/60 font-medium">Admin</span>
+            <ChevronRight size={13} className="text-muted-foreground/40" />
+            <span className="text-foreground font-semibold">{currentPage}</span>
           </div>
 
           {/* Right: icons + admin info */}
           <div className="hidden md:flex items-center gap-2">
             {/* Search icon */}
             <button
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Search"
             >
               <Search size={15} />
@@ -206,7 +207,7 @@ const AdminLayout = ({ children }) => {
 
             {/* Bell icon */}
             <button
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Notifications"
             >
               <Bell size={15} />
@@ -215,30 +216,30 @@ const AdminLayout = ({ children }) => {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Toggle Theme"
             >
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-slate-200 dark:bg-[#1e2d47] mx-1" />
+            <div className="w-px h-5 bg-border mx-1" />
 
             {/* Admin name + role */}
             <div className="text-right leading-none mr-1">
-              <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm">{admin?.name || 'Admin'}</p>
-              <p className="text-slate-500 dark:text-[#8b98b0] text-xs capitalize mt-0.5">{admin?.role || 'administrator'}</p>
+              <p className="text-foreground font-semibold text-sm">{admin?.name || 'Admin'}</p>
+              <p className="text-muted-foreground text-xs capitalize mt-0.5">{admin?.role || 'administrator'}</p>
             </div>
 
             {/* Avatar */}
-            <div className="w-9 h-9 rounded-xl bg-[#fa6500] text-white flex items-center justify-center font-bold text-sm shadow-primary select-none">
+            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-primary select-none">
               {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-[#0f1629] transition-colors duration-300">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-background transition-colors duration-300">
           {children}
         </main>
       </div>
@@ -265,12 +266,12 @@ const AdminLayout = ({ children }) => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '-100%', opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-              className="fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#080d1a] z-50 flex flex-col shadow-2xl md:hidden border-r border-slate-200 dark:border-[#1e2d47]"
+              className="fixed top-0 left-0 h-full w-64 bg-card z-50 flex flex-col shadow-2xl md:hidden border-r border-border"
             >
               {/* Close button */}
               <button
                 onClick={() => setMobileNavOpen(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#131e35] border border-slate-200 dark:border-[#1e2d47] flex items-center justify-center text-slate-500 dark:text-[#8b98b0] hover:text-slate-800 dark:hover:text-slate-100 transition-colors z-10"
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-10"
                 aria-label="Close navigation"
               >
                 <X size={16} />

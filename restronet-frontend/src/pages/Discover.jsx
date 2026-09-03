@@ -500,7 +500,7 @@ const Discover = () => {
       {/* ─── LEFT SIDEBAR (desktop) ─── */}
       <aside
         className="hidden lg:flex flex-col w-72 shrink-0 h-screen sticky top-0 overflow-y-auto"
-        style={{ background: 'hsl(var(--card))', borderRight: '1px solid hsl(var(--border))' }}
+        style={{ background: 'hsl(var(--surface))', borderRight: '1px solid hsl(var(--border))' }}
       >
         <FilterSidebarContent {...sidebarProps} />
       </aside>
