@@ -31,9 +31,9 @@ const MOOD_KEYWORDS = {
  * Reservations signal intent (venue visited at least once).
  * Favorites signal deliberate interest without requiring a visit or review.
  */
-// Half-life-style recency decay: a signal from today keeps full weight,
-// one from ~6 months ago keeps ~37%. Prevents a year-old food phase from
-// weighing the same as last week's choices.
+// Exponential recency decay (e-folding time ~6 months): a signal from today
+// keeps full weight, one from ~180 days ago keeps ~37% (e^-1). Prevents a
+// year-old food phase from weighing the same as last week's choices.
 const RECENCY_DECAY_DAYS = 180;
 const recencyFactor = (date) => {
   if (!date) return 1;
@@ -744,7 +744,7 @@ function computeDistanceScore(venue, lat, lng, maxDistanceKm, hasLocation) {
     [lng, lat],
     venue.location.coordinates
   );
-  // Exponential decay: score = 1 at 0 km, ~0.37 at maxDistance/2
+  // Exponential decay: score = 1 at 0 km, ~0.37 (e^-1) at 40% of maxDistance
   const distanceScore = Math.exp(-distanceKm / (maxDistanceKm * 0.4));
   return {
     distanceKm: Math.round(distanceKm * 10) / 10,

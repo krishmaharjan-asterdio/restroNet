@@ -1,0 +1,31 @@
+{
+  "featureOrder": [
+    "cuisineOverlap",
+    "tagOverlap",
+    "priceFit",
+    "ratingNorm"
+  ],
+  "weights": [
+    3.502870623092686,
+    3.8262720810904374,
+    3.4713840735231143,
+    0.14221306691835897
+  ],
+  "bias": -4.733075679759859,
+  "trainedAt": "2026-09-01T15:54:03.300Z",
+  "trainedOn": "simulated personas (see ml/ranker-report.md)",
+  "metrics": {
+    "classification": {
+      "accuracy": 0.8366666666666667,
+      "precision": 0.8210526315789474,
+      "recall": 0.7090909090909091,
+      "f1": 0.7609756097560976,
+      "n": 1200
+    },
+    "precisionAt5": {
+      "learned": 0.9650000000000001,
+      "ratingOnly": 0.4400000000000001,
+      "random": 0.39
+    }
+  }
+}

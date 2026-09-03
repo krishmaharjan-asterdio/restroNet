@@ -26,7 +26,7 @@ const parsePrompt = async (prompt) => {
   const allCuisines = await Cuisine.find().lean();
   allCuisines.forEach(c => {
     const name = c.name.toLowerCase();
-    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.9)) {
+    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.93)) {
       parsed.cuisineIds.push(c._id.toString());
     }
   });
@@ -35,7 +35,7 @@ const parsePrompt = async (prompt) => {
   const allCategories = await Category.find().lean();
   allCategories.forEach(c => {
     const name = c.name.toLowerCase();
-    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.9)) {
+    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.93)) {
       parsed.categoryIds.push(c._id.toString());
     }
   });
@@ -44,7 +44,7 @@ const parsePrompt = async (prompt) => {
   const allTags = await Tag.find().lean();
   allTags.forEach(t => {
     const name = t.name.toLowerCase();
-    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.9)) {
+    if (pLower.includes(name) || tokens.some(t => natural.JaroWinklerDistance(t, name) > 0.93)) {
       parsed.tagIds.push(t._id.toString());
     }
   });
@@ -59,7 +59,7 @@ const parsePrompt = async (prompt) => {
     
     let matched = false;
     for (const kw of keywords) {
-      if (pLower.includes(kw) || tokens.some(t => natural.JaroWinklerDistance(t, kw) > 0.90)) {
+      if (pLower.includes(kw) || tokens.some(t => natural.JaroWinklerDistance(t, kw) > 0.93)) {
         matched = true;
         break;
       }

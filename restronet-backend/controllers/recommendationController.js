@@ -26,7 +26,7 @@ const getUserRecommendations = async (req, res, next) => {
   }
 };
 
-const { parsePrompt } = require('../services/nlpParser');
+const localIntentParser = require('../services/localIntentParser');
 const aiService = require('../services/aiService');
 const Venue = require('../models/Venue');
 const Review = require('../models/Review');
@@ -99,13 +99,8 @@ const getSmartRecommendationsHandler = async (req, res, next) => {
     let aiExplanation = null;
 
     if (prompt && isIntentQuery(prompt)) {
-      parsedFilters = await aiService.parseIntent(prompt);
-
-      if (!parsedFilters) {
-        parsedFilters = await parsePrompt(prompt);
-      } else {
-        aiExplanation = parsedFilters.explanation;
-      }
+      parsedFilters = await localIntentParser.parseIntent(prompt);
+      aiExplanation = parsedFilters.explanation;
 
       if (parsedFilters.cuisineIds?.length) aiCuisineIds = [...parsedFilters.cuisineIds];
       if (parsedFilters.categoryIds?.length) categoryIds  = [...new Set([...categoryIds,  ...parsedFilters.categoryIds])];
