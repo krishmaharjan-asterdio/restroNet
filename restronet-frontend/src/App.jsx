@@ -7,7 +7,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-// import ConciergeChat from './components/ConciergeChat'; // disabled — Gemini-backed concierge chat hidden pending local replacement
+import ConciergeChat from './components/ConciergeChat';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import RestaurantDetail from './pages/RestaurantDetail';
@@ -40,7 +40,7 @@ const PublicLayout = ({ children }) => {
       <main className={`flex-grow flex flex-col ${isHome ? '' : 'pt-20'}`}>
         {children}
       </main>
-      {/* <ConciergeChat /> disabled — Gemini-backed concierge chat hidden pending local replacement */}
+      <ConciergeChat />
       <Footer />
     </div>
   );

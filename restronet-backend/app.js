@@ -34,7 +34,7 @@ app.use(helmet({
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: 200,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later.' },
@@ -43,7 +43,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: 20,
+  max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many authentication attempts, please try again later.' },
