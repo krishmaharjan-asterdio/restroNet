@@ -96,6 +96,12 @@ const venueSchema = new mongoose.Schema(
     gallery: [{ type: String }], // Array of image URLs/paths
     menu: [{ type: String }],    // Array of menu image URLs/paths
 
+    // How the current logo/gallery was sourced. Set by scripts/setVenuePhotos.js:
+    // 'curated' | 'osm:wikimedia_commons' | 'osm:image' = a verified real photo
+    // of this venue; 'fallback' = generic cuisine stock photo. Absent = never
+    // processed.
+    photoSource: { type: String, default: null },
+
     // ─── Rating (Denormalized for performance) ───────────────────────────────
     averageRating: {
       type: Number,
