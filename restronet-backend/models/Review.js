@@ -105,7 +105,7 @@ reviewSchema.pre('save', async function (next) {
   try {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-3.6-flash" });
 
     const prompt = `
 You are an automated content moderation agent for RestroNet, a luxury restaurant recommendation portal in Kathmandu.

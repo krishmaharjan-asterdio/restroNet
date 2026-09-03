@@ -23,7 +23,7 @@ class AIService {
     this.apiKey = process.env.GEMINI_API_KEY;
     if (this.apiKey) {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      this.model = this.genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-3.6-flash" });
     }
     // LRU cache for embeddings (Map preserves insertion order).
     this._embeddingCache = new Map();

@@ -64,7 +64,7 @@ Ensure responses are concise (under 3 paragraphs) and directly answer the diner'
     // 2. Initialize Gemini Chat Session with History
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       systemInstruction
     });
 
