@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import {
   Search as SearchIcon,
@@ -36,6 +37,23 @@ const orangeMarkerIcon = L.divIcon({
   iconAnchor: [16, 32],
   popupAnchor: [0, -36],
 });
+
+/* ─── Orange cluster bubble (matches venue marker colour) ──────────────────── */
+const createClusterIcon = (cluster) => {
+  const count = cluster.getChildCount();
+  const size = count < 10 ? 36 : count < 25 ? 44 : 52;
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      display:flex;align-items:center;justify-content:center;
+      background:#fa6500;color:#fff;font-weight:700;font-size:13px;
+      border:3px solid #fff;border-radius:50%;
+      box-shadow:0 3px 14px rgba(250,101,0,0.45);
+    ">${count}</div>`,
+    className: '',
+    iconSize: L.point(size, size, true),
+  });
+};
 
 /* ─── MapUpdater: keeps map bounds & size in sync ───────────────────────────── */
 const MapUpdater = ({ venues, userCoords }) => {
@@ -456,7 +474,13 @@ const Search = () => {
                 </Marker>
               )}
 
-              {/* Venue markers */}
+              {/* Venue markers — clustered so dense areas collapse to a count */}
+              <MarkerClusterGroup
+                iconCreateFunction={createClusterIcon}
+                maxClusterRadius={44}
+                showCoverageOnHover={false}
+                spiderfyOnMaxZoom
+              >
               {venues.map(venue => (
                 <Marker
                   key={venue._id}
@@ -491,6 +515,7 @@ const Search = () => {
                   </Popup>
                 </Marker>
               ))}
+              </MarkerClusterGroup>
             </MapContainer>
           </div>
         </div>
